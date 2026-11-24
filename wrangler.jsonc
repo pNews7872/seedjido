@@ -1,0 +1,8 @@
+{
+  // 시드 지도 (seedjido.com) — 정적 파일만 올리는 Worker
+  "name": "seedjido",
+  "compatibility_date": "2026-11-24",
+  "assets": {
+    "directory": "./public"
+  }
+}

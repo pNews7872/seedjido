@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>시드 지도 — 마인크래프트 자바 시드 지도·시드 찾기</title>
+<meta name="description" content="마인크래프트 자바 에디션 시드 지도와 시드 찾기. 바이옴, 구조물, 상자 내용물, 엔드 도시와 배, 네더 화석까지 한국어로 보여줘요.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;700&family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>바이옴 시드 찾기</h1>
+      <p>자바 에디션 26.3 지형 공식으로 시드를 찾고, 시드 지도를 브라우저에서 직접 계산해 보여줘요.</p>
+    </div>
+    <div class="tabs" role="tablist">
+      <button role="tab" id="tabMap" aria-selected="true" aria-controls="viewMap" type="button">지도 보기</button>
+      <button role="tab" id="tabSearch" aria-selected="false" aria-controls="viewSearch" type="button">시드 찾기</button>
+    </div>
+  </header>
+
+  <!-- ================= SEARCH ================= -->
+  <div class="view" id="viewSearch" role="tabpanel" hidden>
+    <div class="grid">
+      <section class="panel" aria-label="검색 조건">
+        <h2>꼭 있어야 할 바이옴 <span class="count" id="bCount"></span></h2>
+        <div class="selbar"><button type="button" class="mini" id="bNone">모두 해제</button></div>
+        <div class="chips" id="chips"></div>
+        <p class="hint">땅속 바이옴은 땅속 높이(무성한·점적석·유황 동굴 y=0, 깊은 어둠 y=-40)에서, 나머지는 지표면 기준으로 확인해요. 마우스를 올리면 영어 이름이 보여요.</p>
+
+        <h2>꼭 있어야 할 구조물 <span class="count" id="sCount"></span></h2>
+        <div class="selbar"><button type="button" class="mini" id="sNone">모두 해제</button></div>
+        <div class="chips short" id="schips"></div>
+        <p class="hint">구조물은 생성 위치와 바이옴 조건까지 확인해요. 지형 높이 때문에 실제로는 안 생기는 경우가 드물게 있어요. 네더는 기준점 좌표를 8로 나눈 곳, 엔드는 드래곤을 처음 잡았을 때 생기는 관문의 출구를 기준으로 같은 반경 안을 찾아요. 엔드 유적과 좀벌레 스포너는 스폰에서 1280칸 이상 떨어져서만 생겨서 1500칸까지 찾아요. 슬라임 청크 2×2는 슬라임 청크 4개가 네모로 붙어 있는 곳이에요(슬라임 농장용). <b>느림</b> 표시는 계산이 무거워서 혼자 고르면 오래 걸려요. 상자 아이템은 반경 안 오버월드 구조물(폐광 제외)의 상자 내용물을 실제로 계산해서, 그 아이템이 든 가장 가까운 구조물을 찾아요.</p>
+
+        <h2>범위와 방식</h2>
+        <p class="hint">기준점에서 반경 500블록 안을 32칸 간격으로 확인해서, 조건에 맞는 시드를 10개 찾을 때까지 컴퓨터 코어를 최대한 써서 계산해요.</p>
+        <div class="fields">
+          <input type="hidden" id="radius" value="500"><input type="hidden" id="step" value="32">
+          <div class="field full"><label for="center">거리 기준</label>
+            <select id="center"><option value="spawn" selected>실제 스폰 지점 (계산)</option><option value="coord">직접 입력한 좌표</option></select></div>
+          <div class="field"><label for="cx">중심 X</label><input id="cx" type="number" value="0" disabled></div>
+          <div class="field"><label for="cz">중심 Z</label><input id="cz" type="number" value="0" disabled></div>
+          <div class="field"><label for="mode">시드 고르는 방식</label>
+            <select id="mode"><option value="small">작은 숫자부터</option><option value="random">무작위</option></select></div>
+          <div class="field"><label for="start">시작 숫자</label><input id="start" type="number" min="0" value="0"></div>
+          <input type="hidden" id="target" value="10"><input type="hidden" id="threads" value="4">
+        </div>
+        <label class="check" for="fast"><input id="fast" type="checkbox"> <span><b>빠른 검색</b> <span class="tag">베타</span><br><span class="hint">기후 값으로 바이옴이 절대 안 생기는 시드를 먼저 걸러내요. 조건에 따라 1.2~4배 빨라져요. 시험에서는 놓친 시드가 없었지만, 아주 드물게 놓칠 수 있어요.</span></span></label>
+        <div class="actions">
+          <button class="primary" id="go" type="button">검색 시작</button>
+          <button class="ghost" id="stop" type="button" disabled>멈추기</button>
+        </div>
+        <div class="state" id="state"><span class="dot"></span><span id="stateText">준비됨</span></div>
+        <div class="status">
+          <div class="stat"><b id="checked">0</b><span>검사한 시드</span></div>
+          <div class="stat"><b id="rate">0</b><span>초당 검사</span></div>
+          <div class="stat"><b id="found">0</b><span>찾은 시드</span></div>
+        </div>
+      </section>
+
+      <div class="right">
+        <section class="panel" aria-label="결과">
+          <h2>결과 · 행을 누르면 미리보기가 바뀌어요</h2>
+          <div class="tablewrap"><table id="results"></table></div>
+        </section>
+        <section class="panel" aria-label="미리보기">
+          <div class="maphead"><h2 id="pvTitle">미리보기</h2><span><button class="mini" type="button" id="pvOpen">큰 지도로 보기</button> <a id="cbLink" href="https://www.chunkbase.com/apps/seed-map" target="_blank" rel="noopener">Chunkbase에서 열기</a></span></div>
+          <div class="mapbox">
+            <canvas id="preview" width="240" height="240" aria-label="선택한 시드의 바이옴 미리보기"></canvas>
+            <div class="legend" id="legend"></div>
+          </div>
+          <ul class="notes">
+            <li>가운데 십자가 기준점, 점선 원이 검색 반경, 색 점이 각 조건까지 가장 가까운 지점이에요.</li>
+            <li>스폰 지점은 게임과 같은 방식으로 계산한 월드 스폰이에요. 처음 나타나는 위치는 그 주변 약 10칸 안에서 무작위로 정해져요.</li>
+            <li>26.3까지 반영된 Cubiomes 포크(xpple/cubiomes, MIT 라이선스)로 계산해요. 게임과 완전히 같다는 보장은 없으니 중요한 시드는 게임 안에서 확인하세요.</li>
+          </ul>
+        </section>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= MAP ================= -->
+  <div class="view" id="viewMap" role="tabpanel">
+    <div class="mapgrid">
+      <div class="mapcol">
+      <div class="mapstage" id="stage">
+        <canvas id="bigmap" tabindex="0" aria-label="시드 지도. 끌어서 이동, 휠로 확대 축소"></canvas>
+        <canvas id="gl3d" hidden aria-label="3D 지형. 끌어서 돌리기, 휠로 가까이·멀리"></canvas>
+        <canvas id="ov3d" hidden></canvas>
+        <div class="v3dnote" id="v3dNote" hidden></div>
+        <div class="zoom"><button type="button" id="zin" aria-label="확대">+</button><button type="button" id="zout" aria-label="축소">−</button><button type="button" id="zhome" aria-label="기준점으로 이동" title="스폰(엔드는 중앙 섬)으로 이동" style="font-size:16px">★</button><button type="button" id="zcave" aria-label="땅속 동굴 보기" title="땅속 동굴 보기" aria-pressed="false" hidden style="font-size:14px">⛏</button><button type="button" id="zfull" aria-label="지도 전체 화면" title="지도 전체 화면 (Esc로 나가기)" style="font-size:15px">⛶</button></div>
+        <div class="overlay" id="cursorInfo">X 0, Z 0</div>
+        <div class="tip" id="tip"></div>
+        <div class="pop" id="pop" role="dialog" aria-label="구조물 정보"></div>
+      </div>
+      <section class="panel bmpanel" aria-label="즐겨찾기와 이동">
+        <h2 class="hq" style="margin-top:0">즐겨찾기·이동<span class="qm" tabindex="0" aria-label="도움말">?<span class="tipbox">좌표를 넣고 이동을 누르면 지도가 그곳으로 가요. 지도의 빈 곳이나 구조물을 누르면 나오는 창에서 ★로 저장할 수 있어요. 저장한 곳은 시드마다 따로 기억하고, 오버월드에 저장한 곳은 네더 지도에도 ÷8 위치에 흐리게 보여요(반대도 마찬가지). 네더 차원문을 어디에 지으면 되는지 볼 때 쓰세요.</span></span></h2>
+        <div class="gorow"><input id="goX" type="number" placeholder="X" aria-label="X 좌표"><input id="goZ" type="number" placeholder="Z" aria-label="Z 좌표"><button type="button" class="mini" id="goBtn">이동</button></div>
+        <div class="list" id="bmList"></div>
+        <div class="gorow" style="margin-top:10px"><button type="button" class="mini" id="shareBtn">지금 화면 링크 복사</button><span class="hint" id="shareMsg"></span></div>
+      </section>
+      </div>
+      <aside class="panel" aria-label="지도 설정">
+        <h2 class="hq">시드<span class="qm" tabindex="0" aria-label="도움말">?<span class="tipbox">숫자나 글자 시드를 넣으면 잠깐 뒤 자동으로 계산해요(엔터는 바로). 글자 시드는 게임과 같은 방식으로 숫자로 바꿔요.<br><br>지도는 끌어서 이동하고, 휠·두 손가락·+/− 버튼으로 확대·축소해요. 아이콘을 누르면 좌표와 정보가 나와요. ⛶는 전체 화면이에요.</span></span></h2>
+        <div class="seedbar"><input id="mapSeed" type="text" inputmode="numeric" value="7387" aria-label="시드"><button id="mapRand" type="button" style="flex:none" title="무작위 시드로 열기">무작위</button></div>
+        <p class="hint" id="mapMsg"></p>
+        <dl class="kv" id="mapInfo"></dl>
+        <h2>차원</h2>
+        <div class="seg" id="dimSeg" role="group" aria-label="차원"><button type="button" data-dim="0" aria-pressed="true">오버월드</button><button type="button" data-dim="-1" aria-pressed="false">네더</button><button type="button" data-dim="1" aria-pressed="false">엔드</button></div>
+        <div class="optrow"><span class="hint">바이옴 색</span><div class="seg small" id="palSeg" role="group" aria-label="바이옴 색"><button type="button" data-pal="chunk" aria-pressed="true">기본</button><button type="button" data-pal="game" aria-pressed="false">게임 색</button></div></div>
+        <div class="optrow" id="viewRow"><span class="hint">보기</span><div class="seg small" id="viewSeg" role="group" aria-label="보기 방식"><button type="button" data-v="flat" aria-pressed="false" title="바이옴 색만">지도</button><button type="button" data-v="shade" aria-pressed="true" title="산·골짜기에 그림자">지형</button><button type="button" data-v="3d" aria-pressed="false" title="입체로 돌려 보기">3D</button></div></div>
+        <div id="caveBox">
+          <h2 class="hq">동굴 단면<span class="qm" tabindex="0" aria-label="도움말">?<span class="tipbox">선택한 높이(Y)에서 땅을 가로로 자른 모습이에요. 협곡·옛날식 동굴과 대수층(물·용암 채우기)까지 계산해요. 1:16 축척까지 확대해야 보여요.<span class="legend"><span><i style="background:#ece6d6"></i>동굴</span><span><i style="background:#7fd451"></i>무성한 동굴</span><span><i style="background:#c4884e"></i>점적석 동굴</span><span><i style="background:#1f8f9e"></i>깊은 어둠</span><span><i style="background:#e0cf45"></i>유황 동굴</span><span><i style="background:#e8641e"></i>용암</span><span><i style="background:#3d7fd6"></i>물</span><span><i style="background:#4a4950"></i>돌</span></span></span></span></h2>
+          <label class="check" for="caveOn"><input id="caveOn" type="checkbox"> <span>지도를 동굴 단면으로 보기 <span class="tag">베타</span></span></label>
+          <div class="caverow"><input id="caveY" type="range" min="-64" max="200" step="1" value="0" aria-label="단면 높이"><input id="caveYn" type="number" min="-64" max="319" value="0" aria-label="단면 높이 숫자"></div>
+          <p class="hint" id="caveHint"></p>
+        </div>
+        <h2 class="hq">표시할 구조물<span class="qm" tabindex="0" aria-label="도움말">?<span class="tipbox">누르면 켜지고 다시 누르면 꺼져요. 비슷한 것은 하나로 묶었어요(예: 던전·스포너, 용암 호수). 아주 많은 것(던전, 동굴 입구, 협곡, 슬라임 청크 등)은 충분히 확대해야 보여요.</span></span></h2>
+        <div class="selbar"><button type="button" class="mini" id="mAll">모두 선택</button><button type="button" class="mini" id="mNone">모두 해제</button></div>
+        <div class="chips short" id="mchips"></div>
+        <p class="hint" id="hiddenNote"></p>
+        <div id="dragonBox" hidden>
+          <label class="hint" for="dragonN" style="display:block;margin-top:10px">드래곤 처치 횟수 <b id="dragonNN">1</b>번 — 관문 1~<span id="dragonNN2">1</span>번 표시</label>
+          <div class="caverow"><input id="dragonN" type="range" min="1" max="20" step="1" value="1" aria-label="드래곤 처치 횟수"></div>
+        </div>
+        <label class="hint" for="iconPx" style="display:block;margin-top:10px">아이콘 크기 <b id="iconPxN">24</b>픽셀</label>
+        <div class="caverow"><input id="iconPx" type="range" min="12" max="48" step="2" value="24" aria-label="아이콘 크기"></div>
+        <div id="scanBox">
+        <h2 class="hq">월드 파일로 확인<span class="qm" tabindex="0" aria-label="도움말">?<span class="tipbox">같은 시드로 미리 만든 월드의 <b>region</b> 폴더(.mca 파일)를 고르면, 실제로 생긴 스포너(몹 종류까지)와 용암을 읽어서 지도에 표시해요. 계산(예측)이 아니라 실제 월드에 있는 것이라 정확해요. 파일은 이 브라우저 안에서만 읽고 어디에도 보내지 않아요.<br><br>지금 보고 있는 차원(<span id="scanDimName">오버월드</span>) 폴더를 고르세요. 26.1부터 위치가 바뀌어서 오버월드는 <code>월드/dimensions/minecraft/overworld/region</code>, 네더는 <code>…/the_nether/region</code>, 엔드는 <code>…/the_end/region</code>이에요.</span></span></h2>
+        <div class="selbar"><label class="mini" for="scanFiles">.mca 파일 고르기</label><label class="mini" for="scanDir">region 폴더 고르기</label><button type="button" class="mini" id="scanCmp">계산과 비교</button><button type="button" class="mini" id="scanClear">지우기</button></div>
+        <input id="scanFiles" type="file" accept=".mca" multiple hidden>
+        <input id="scanDir" type="file" webkitdirectory multiple hidden>
+        <p class="hint" id="scanMsg"></p>
+        </div>
+        <h2 id="nearTitle">스폰에서 가까운 구조물</h2>
+        <div class="list" id="nearList"><span class="hint">불러오는 중…</span></div>
+      </aside>
+    </div>
+  </div>
+</div>
+
+<footer class="sitefoot">
+  시드 지도는 Mojang Studios·Microsoft와 관계없는 비공식 팬 도구예요. Minecraft는 Mojang Synergies AB의 상표예요.<br>
+  지형·구조물 계산: <a href="https://github.com/Cubitect/cubiomes">Cubiomes</a> (MIT 라이선스, © Cubitect) · <a href="https://github.com/xpple/cubiomes">xpple/cubiomes</a> (MIT 라이선스)
+</footer>
+<script src="app.js"></script>
+</body>
+</html>
