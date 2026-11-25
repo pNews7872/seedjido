@@ -1871,7 +1871,7 @@ function planSetup() {
   } else PLAN.groupTxt = "";
   const yr = box.querySelector(".py"); yr.min = y0; yr.max = y1; yr.value = st === 13 ? PLAN.repY : Math.round((y0 + y1) / 2); box.querySelector(".pall").checked = true;
   const main = PLAN.chests.filter(c => !/^(pots|dispensers)\//.test(c.t)).length;
-  box.querySelector(".pc").textContent = (PLAN.groupTxt ? `이어진 구조물: ${PLAN.groupTxt} · ` : "") + `조각 ${pcs.length}개 · 상자 ${main}개${PLAN.chests.length > main ? ` (+ 항아리·발사기 ${PLAN.chests.length - main}개)` : ""}`;
+  box.querySelector(".pc").textContent = `상자 ${main}개${PLAN.chests.length > main ? ` (+ 항아리·발사기 ${PLAN.chests.length - main}개)` : ""}` + (PLAN.groupTxt ? ` · 이어진 구조물 있음 (${PLAN.groupTxt})` : "");
   const LG = { 13: [["#7b5cc4", "도시 중심"], ["#2f8f8a", "건물"], ["#4a5560", "벽"], ["#9a7b4f", "입구"]], 25: [["#c97b3a", "방"], ["#5a6f8a", "복도"], ["#4f9a5b", "교차로"], ["#d4b13a", "보상"], ["#d04a4a", "생성기"]], 5: [["#d4a13a", "마을 중심"], ["#a0613a", "건물"], ["#8a7a5a", "길"]] };
   const types = [...new Set(members.map(m => m.st))], lg = types.flatMap(t => (LG[t] || []).map(([c, n]) => [c, types.length > 1 ? `${PLAN_NAME[t]} ${n}` : n]));
   box.querySelector(".lg").innerHTML = lg.map(([c, n]) => `<span><i style="background:${c}"></i>${n}</span>`).join("") + `<span><i style="background:#ffd54a;border-radius:50%"></i>상자</span><span><i style="background:#b07a3a;border-radius:50%"></i>통</span>` + (types.includes(25) ? `<span><i style="background:#e58fb0;border-radius:50%"></i>항아리</span><span><i style="background:#9aa3ab;border-radius:50%"></i>발사기</span>` : "");
