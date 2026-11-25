@@ -777,7 +777,16 @@ function drawMap() {
   }
   if (want.length) { want.sort((a, c) => a.d - c.d); const keys = new Set(want.map(w => w.key)); mapState.queue = want.concat(mapState.queue.filter(j => !keys.has(j.key))); }
   wantStructs(v); pump();
-  if (mapState.tiles.size > 3000) { for (const [k, t] of mapState.tiles) { if (t.state === 2 && mapState.tiles.size > 2000) mapState.tiles.delete(k); } }
+  // 타일 저장 한도: 화면에 보이는 타일은 절대 지우지 않고, 화면에서 먼 것부터 지움 (넓은 화면에서 움직일 때마다 다시 불러오던 문제)
+  { const vis = (tx1 - tx0 + 1) * (tz1 - tz0 + 1), cap = Math.max(3000, vis * 3);
+    if (mapState.tiles.size > cap) {
+      const cur = `:${s}:`, cand = [];
+      for (const [k, t] of mapState.tiles) { if (t.state !== 2) continue; const f = k.split(":"), ts = +f[3], tx = +f[4], tz = +f[5];
+        if (ts === s && tx >= tx0 && tx <= tx1 && tz >= tz0 && tz <= tz1) continue;   // 지금 보이는 것
+        const d = ts !== s ? 1e12 : Math.hypot((tx + .5) * tb - mapState.cx, (tz + .5) * tb - mapState.cz); cand.push([d, k]); }
+      cand.sort((a, c) => c[0] - a[0]);
+      for (const [, k] of cand) { if (mapState.tiles.size <= cap * 2 / 3) break; mapState.tiles.delete(k); }
+    } }
   bctx.strokeStyle = "rgba(255,255,255,.18)"; bctx.lineWidth = 1;
   const ox = (0 - v.x0) / b, oz = (0 - v.z0) / b;
   bctx.beginPath(); bctx.moveTo(ox, 0); bctx.lineTo(ox, v.H); bctx.moveTo(0, oz); bctx.lineTo(v.W, oz); bctx.stroke();
@@ -802,20 +811,6 @@ function drawMap() {
   // 0, 0 축은 조금 더 진하게
   bctx.beginPath(); bctx.moveTo(Math.round(ox) + 0.5, 0); bctx.lineTo(Math.round(ox) + 0.5, v.H); bctx.moveTo(0, Math.round(oz) + 0.5); bctx.lineTo(v.W, Math.round(oz) + 0.5);
   bctx.strokeStyle = "rgba(255,255,255,0.5)"; bctx.lineWidth = 1; bctx.stroke();
-  { // 좌표 눈금: 512의 배수 (멀리서는 1024, 2048 … 로 성기게). 위쪽에 X, 왼쪽에 Z
-    let st = 512; while (st / b < 70) st *= 2;
-    bctx.save(); bctx.font = "11px ui-monospace, Menlo, monospace"; bctx.textBaseline = "middle";
-    const lab = (t, x, y, al) => { bctx.textAlign = al; const w = bctx.measureText(t).width; const lx = al === "center" ? x - w / 2 : x;
-      bctx.fillStyle = "rgba(12,16,14,.72)"; bctx.fillRect(lx - 3, y - 8, w + 6, 16); bctx.fillStyle = "#e8eee9"; bctx.fillText(t, x, y); };
-    for (let x = Math.ceil(v.x0 / st) * st; x <= v.x1; x += st) { const p = (x - v.x0) / b; if (p < 30 || p > v.W - 60) continue; lab(String(x), p, 12, "center"); }
-    for (let z = Math.ceil(v.z0 / st) * st; z <= v.z1; z += st) { const p = (z - v.z0) / b; if (p < 30 || p > v.H - 46) continue; lab(String(z), 4, p, "left"); }
-    // 원점 표시
-    if (ox > -20 && oz > -20 && ox < v.W + 20 && oz < v.H + 20) {
-      bctx.beginPath(); bctx.arc(ox, oz, 3, 0, Math.PI * 2); bctx.fillStyle = "#fff"; bctx.fill(); bctx.lineWidth = 1.5; bctx.strokeStyle = "#111"; bctx.stroke();
-      lab("0, 0", ox + 7, oz + 11, "left");
-    }
-    bctx.restore();
-  }
   // structures (cached per 2048-block tile, so panning never makes them blink)
   mapState.hits = [];
   const iconPx = mapState.iconPx;
@@ -829,7 +824,10 @@ function drawMap() {
         if (isSlime(cx, cz)) bctx.fillRect((cx * 16 - v.x0) / b, (cz * 16 - v.z0) / b, 16 / b, 16 / b);
     }
   }
-  for (const st of mapState.show) {
+  // 아이콘 겹침 순서: 흔한 구조물을 먼저(뒤에) 그리고 드문 구조물을 나중(앞)에 그림. 생성 간격·빈도·바이옴 제한으로 매긴 대략적 순위
+  const RARE = [204, 202, 203, 210, 211, 212, 15, 17, 200, 201, 100, 101, 102, 14, 7, 6, 20, 25, 5, 11, 12, 26, 1, 3, 4, 2, 24, 8, 10, 22, 19, 18, 13, 21, 121, 9, 27, 207, 208];
+  const rank = st => { const i = RARE.indexOf(st); return i < 0 ? RARE.length / 2 : i; };
+  for (const st of [...mapState.show].sort((a, c) => rank(a) - rank(c))) {
     const img = ICONS[st]; const name = SNAME[st];
     if (!SBY[st] || (SBY[st].dim !== mapState.dim && !SBY[st].anyDim)) continue;
     const size = iconPx;
@@ -901,6 +899,28 @@ function drawMap() {
   }
   if (mapState.dim === 1 && mapState.endc) drawEndCenter(v, b, iconPx);
   drawBm(v, b);
+  { // 좌표 눈금 (구조물 아이콘보다 위에 그려서 가려지지 않게): 512의 배수 (멀리서는 1024, 2048 … 로 성기게). 위쪽에 X, 왼쪽에 Z
+    let st = 512; while (st / b < 70) st *= 2;
+    bctx.save(); bctx.font = "11px ui-monospace, Menlo, monospace"; bctx.textBaseline = "middle";
+    const lab = (t, x, y, al) => { bctx.textAlign = al; const w = bctx.measureText(t).width; const lx = al === "center" ? x - w / 2 : x;
+      bctx.fillStyle = "rgba(12,16,14,.72)"; bctx.fillRect(lx - 3, y - 8, w + 6, 16); bctx.fillStyle = "#e8eee9"; bctx.fillText(t, x, y); };
+    for (let x = Math.ceil(v.x0 / st) * st; x <= v.x1; x += st) { const p = (x - v.x0) / b; if (p < 30 || p > v.W - 60) continue; lab(String(x), p, 12, "center"); }
+    for (let z = Math.ceil(v.z0 / st) * st; z <= v.z1; z += st) { const p = (z - v.z0) / b; if (p < 30 || p > v.H - 46) continue; lab(String(z), 4, p, "left"); }
+    // 원점 표시
+    if (ox > -20 && oz > -20 && ox < v.W + 20 && oz < v.H + 20) {
+      bctx.beginPath(); bctx.arc(ox, oz, 3, 0, Math.PI * 2); bctx.fillStyle = "#fff"; bctx.fill(); bctx.lineWidth = 1.5; bctx.strokeStyle = "#111"; bctx.stroke();
+      lab("0, 0", ox + 7, oz + 11, "left");
+    }
+    bctx.restore();
+  }
+  if (mapState.hovKey) {   // 마우스가 가까이 간 아이콘: 조금 키우고 흰 테두리
+    const h = (mapState.hits || []).find(h => h.st + ":" + h.x + ":" + h.z === mapState.hovKey);
+    if (h && h.img) { const S = Math.max(h.r * 2, 14) * 1.35; bctx.save();
+      bctx.shadowColor = "rgba(0,0,0,.55)"; bctx.shadowBlur = 8; bctx.fillStyle = "rgba(255,255,255,.95)";
+      bctx.beginPath(); bctx.roundRect(Math.round(h.px - S / 2) - 3, Math.round(h.py - S / 2) - 3, S + 6, S + 6, 6); bctx.fill(); bctx.shadowBlur = 0;
+      bctx.imageSmoothingEnabled = false; bctx.drawImage(h.img, Math.round(h.px - S / 2), Math.round(h.py - S / 2), S, S);
+      bctx.lineWidth = 2; bctx.strokeStyle = "#2f6f4f"; bctx.beginPath(); bctx.roundRect(Math.round(h.px - S / 2) - 3, Math.round(h.py - S / 2) - 3, S + 6, S + 6, 6); bctx.stroke(); bctx.restore(); }
+  }
   if (mapState.pin && mapState.pin.d === mapState.dim) {   // 누른 지점 / 이동한 지점 표시
     const px = (mapState.pin.x + 0.5 - v.x0) / b, py = (mapState.pin.z + 0.5 - v.z0) / b;
     bctx.save();   // 작은 점 하나 (검은 테두리 + 빨간 속)
@@ -1376,7 +1396,8 @@ function reanchor() {
     gesture = { type: "pinch", d0: Math.max(1, Math.hypot(a.x - c.x, a.y - c.y)), bpp: mapState.bpp, wx: v.x0 + mx * mapState.bpp, wz: v.z0 + my * mapState.bpp };
   } else gesture = null;
 }
-big.addEventListener("pointerdown", (e) => { closePop(); big.setPointerCapture(e.pointerId); pointers.set(e.pointerId, { x: e.clientX, y: e.clientY }); reanchor(); big.classList.add("drag"); });
+let popWasOpen = false;
+big.addEventListener("pointerdown", (e) => { popWasOpen = $("pop").style.display === "block"; closePop(); big.setPointerCapture(e.pointerId); pointers.set(e.pointerId, { x: e.clientX, y: e.clientY }); reanchor(); big.classList.add("drag"); });
 big.addEventListener("pointermove", (e) => {
   const r = big.getBoundingClientRect(); const px = e.clientX - r.left, py = e.clientY - r.top;
   if (pointers.has(e.pointerId)) {
@@ -1612,7 +1633,7 @@ function placePop(pop, px, py) {
   pop.style.left = lx + "px"; pop.style.top = ly + "px";
 }
 const LOOT_KO = {
-abandoned_camp_map:"버려진 캠프 지도",activator_rail:"활성화 레일",ancient_debris:"고대 잔해",apple:"사과",arrow:"화살",bamboo:"대나무",beetroot_seeds:"비트 씨앗",bell:"종",bone:"뼈",bone_block:"뼈 블록",book:"책",bow:"활",bowl:"그릇",bread:"빵",bucket:"양동이",bundle:"꾸러미",buried_ancient_city_map:"고대 도시 지도",buried_mineshaft_map:"폐광 지도",buried_trial_chambers_map:"시련의 방 지도",carrot:"당근",chain:"사슬",chest:"상자",clock:"시계",coal:"석탄",coast_armor_trim_smithing_template:"해안 갑옷 장식 형판",cobweb:"거미줄",compass:"나침반",cooked_cod:"익힌 대구",cooked_porkchop:"익힌 돼지고기",cooked_salmon:"익힌 연어",copper_axe:"구리 도끼",copper_boots:"구리 부츠",copper_chestplate:"구리 흉갑",copper_horse_armor:"구리 말 갑옷",copper_ingot:"구리 주괴",copper_leggings:"구리 레깅스",copper_nautilus_armor:"구리 앵무조개 갑옷",copper_spear:"구리 창",copper_sword:"구리 검",crossbow:"쇠뇌",crying_obsidian:"우는 흑요석",dark_oak_log:"짙은 참나무 원목",desert_pyramid_map:"사막 피라미드 지도",detector_rail:"감지 레일",diamond:"다이아몬드",diamond_boots:"다이아몬드 부츠",diamond_chestplate:"다이아몬드 흉갑",diamond_helmet:"다이아몬드 투구",diamond_horse_armor:"다이아몬드 말 갑옷",diamond_leggings:"다이아몬드 레깅스",diamond_nautilus_armor:"다이아몬드 앵무조개 갑옷",diamond_pickaxe:"다이아몬드 곡괭이",diamond_shovel:"다이아몬드 삽",diamond_spear:"다이아몬드 창",diamond_sword:"다이아몬드 검",dune_armor_trim_smithing_template:"모래 언덕 갑옷 장식 형판",emerald:"에메랄드",enchanted_golden_apple:"마법이 부여된 황금 사과",ender_pearl:"엔더 진주",experience_bottle:"경험치 병",eye_armor_trim_smithing_template:"눈 갑옷 장식 형판",feather:"깃털",fire_charge:"화염구",fishing_rod:"낚싯대",flint:"부싯돌",flint_and_steel:"부싯돌과 부시",gilded_blackstone:"금 박힌 흑암",glass_bottle:"유리병",glistering_melon_slice:"반짝이는 수박 조각",glow_berries:"발광 열매",goat_horn:"염소 뿔",gold_block:"금 블록",gold_ingot:"금 주괴",gold_nugget:"금 조각",golden_apple:"황금 사과",golden_axe:"황금 도끼",golden_boots:"황금 부츠",golden_carrot:"황금 당근",golden_chestplate:"황금 흉갑",golden_helmet:"황금 투구",golden_hoe:"황금 괭이",golden_horse_armor:"황금 말 갑옷",golden_leggings:"황금 레깅스",golden_nautilus_armor:"황금 앵무조개 갑옷",golden_pickaxe:"황금 곡괭이",golden_shovel:"황금 삽",golden_sword:"황금 검",gunpowder:"화약",heart_of_the_sea:"바다의 심장",iron_axe:"철 도끼",iron_block:"철 블록",iron_boots:"철 부츠",iron_chain:"철 사슬",iron_chestplate:"철 흉갑",iron_helmet:"철 투구",iron_horse_armor:"철 말 갑옷",iron_ingot:"철 주괴",iron_leggings:"철 레깅스",iron_nautilus_armor:"철 앵무조개 갑옷",iron_nugget:"철 조각",iron_pickaxe:"철 곡괭이",iron_shovel:"철 삽",iron_spear:"철 창",iron_sword:"철 검",jungle_pyramid_map:"정글 사원 지도",lapis_lazuli:"청금석",lead:"끈",leather:"가죽",leather_boots:"가죽 부츠",leather_chestplate:"가죽 튜닉",leather_helmet:"가죽 모자",leather_leggings:"가죽 바지",light_weighted_pressure_plate:"가벼운 압력판",lodestone:"자석석",magma_cream:"마그마 크림",map:"지도",melon_seeds:"수박 씨앗",moss_block:"이끼 블록",music_disc_bounce:"음반 (Bounce)",music_disc_otherside:"음반 (otherside)",music_disc_pigstep:"음반 (Pigstep)",name_tag:"이름표",nether_wart:"네더 사마귀",netherite_scrap:"네더라이트 파편",netherite_upgrade_smithing_template:"네더라이트 강화 형판",obsidian:"흑요석",paper:"종이",piglin_banner_pattern:"현수막 무늬 (주둥이)",poisonous_potato:"독이 있는 감자",potato:"감자",potion:"물약",powered_rail:"전동 레일",prismarine_crystals:"프리즈머린 수정",pumpkin:"호박",pumpkin_seeds:"호박 씨앗",rabbit_hide:"토끼 가죽",rail:"레일",redstone:"레드스톤 가루",rib_armor_trim_smithing_template:"갈비뼈 갑옷 장식 형판",rotten_flesh:"썩은 살점",saddle:"안장",sand:"모래",sentry_armor_trim_smithing_template:"파수꾼 갑옷 장식 형판",shears:"가위",snout_armor_trim_smithing_template:"주둥이 갑옷 장식 형판",spectral_arrow:"분광 화살",spider_eye:"거미 눈",spire_armor_trim_smithing_template:"첨탑 갑옷 장식 형판",spyglass:"망원경",stone_axe:"돌 도끼",straw_bed:"짚 침대",string:"실",suspicious_stew:"수상한 스튜",tnt:"TNT",torch:"횃불",tripwire_hook:"철사 덫 갈고리",warm_ocean_ruins_map:"바다 유적 지도",wheat:"밀",white_candle:"흰색 양초",white_cushion:"흰색 방석",wild_armor_trim_smithing_template:"야생 갑옷 장식 형판",wooden_axe:"나무 도끼",woodland_mansion_map:"삼림 대저택 지도",enchanted_book:"마법이 부여된 책",acacia_planks:"아카시아나무 판자",acacia_sapling:"아카시아나무 묘목",bamboo_hanging_sign:"대나무 매다는 표지판",bamboo_planks:"대나무 판자",barrel:"통",beef:"익히지 않은 소고기",beetroot_soup:"비트 수프",black_wool:"검은색 양털",blue_ice:"푸른 얼음",bolt_armor_trim_smithing_template:"나사 갑옷 장식 형판",bone_meal:"뼛가루",brown_wool:"갈색 양털",cactus:"선인장",cake:"케이크",clay_ball:"점토 덩이",cod:"익히지 않은 대구",dandelion:"민들레",dead_bush:"죽은 덤불",diamond_axe:"다이아몬드 도끼",diamond_block:"다이아몬드 블록",egg:"달걀",emerald_block:"에메랄드 블록",fern:"고사리",flow_armor_trim_smithing_template:"흐름 갑옷 장식 형판",flow_banner_pattern:"현수막 무늬 (흐름)",flower_pot:"화분",furnace:"화로",gray_wool:"회색 양털",green_dye:"초록색 염료",guster_banner_pattern:"현수막 무늬 (돌풍)",heavy_core:"무거운 코어",honey_bottle:"꿀이 든 병",honeycomb:"벌집 조각",large_fern:"큰 고사리",light_gray_wool:"회백색 양털",lingering_potion:"잔류형 물약",milk_bucket:"우유 양동이",music_disc_creator:"음반 (Creator)",music_disc_creator_music_box:"음반 (Creator 오르골)",music_disc_precipice:"음반 (Precipice)",mutton:"익히지 않은 양고기",oak_sapling:"참나무 묘목",ominous_bottle:"불길한 병",poppy:"양귀비",porkchop:"익히지 않은 돼지고기",pumpkin_pie:"호박 파이",salmon:"익히지 않은 연어",scaffolding:"비계",shield:"방패",short_grass:"잔디",smooth_stone:"매끄러운 돌",snow_block:"눈 블록",splash_potion:"투척용 물약",spruce_log:"가문비나무 원목",spruce_sapling:"가문비나무 묘목",spruce_sign:"가문비나무 표지판",stick:"막대기",stone:"돌",stone_bricks:"석재 벽돌",stone_pickaxe:"돌 곡괭이",sweet_berries:"달콤한 열매",tall_grass:"큰 잔디",tipped_arrow:"효과 화살",trial_key:"시련의 열쇠",trident:"삼지창",tuff:"응회암",water_bucket:"물 양동이",wheat_seeds:"밀 씨앗",white_wool:"흰색 양털",wind_charge:"돌풍구",yellow_dye:"노란색 염료",amethyst_shard:"자수정 조각",baked_potato:"구운 감자",candle:"양초",diamond_hoe:"다이아몬드 괭이",disc_fragment_5:"음반 조각 (5)",echo_shard:"메아리 조각",music_disc_13:"음반 (13)",music_disc_cat:"음반 (cat)",packed_ice:"꽁꽁 언 얼음",sculk:"스컬크",sculk_catalyst:"스컬크 촉매",sculk_sensor:"스컬크 감지체",silence_armor_trim_smithing_template:"고요 갑옷 장식 형판",snowball:"눈덩이",soul_torch:"영혼 횃불",ward_armor_trim_smithing_template:"수호 갑옷 장식 형판",golden_spear:"황금 창",netherite_spear:"네더라이트 창"};
+abandoned_camp_map:"버려진 캠프 지도",activator_rail:"활성화 레일",ancient_debris:"고대 잔해",apple:"사과",arrow:"화살",bamboo:"대나무",beetroot_seeds:"비트 씨앗",bell:"종",bone:"뼈",bone_block:"뼈 블록",book:"책",bow:"활",bowl:"그릇",bread:"빵",bucket:"양동이",bundle:"꾸러미",buried_ancient_city_map:"고대 도시 지도",buried_mineshaft_map:"폐광 지도",buried_trial_chambers_map:"시련의 방 지도",carrot:"당근",chain:"사슬",chest:"상자",clock:"시계",coal:"석탄",coast_armor_trim_smithing_template:"해안 갑옷 장식 형판",cobweb:"거미줄",compass:"나침반",cooked_cod:"익힌 대구",cooked_porkchop:"익힌 돼지고기",cooked_salmon:"익힌 연어",copper_axe:"구리 도끼",copper_boots:"구리 부츠",copper_chestplate:"구리 흉갑",copper_horse_armor:"구리 말 갑옷",copper_ingot:"구리 주괴",copper_leggings:"구리 레깅스",copper_nautilus_armor:"구리 앵무조개 갑옷",copper_spear:"구리 창",copper_sword:"구리 검",crossbow:"쇠뇌",crying_obsidian:"우는 흑요석",dark_oak_log:"짙은 참나무 원목",desert_pyramid_map:"사막 피라미드 지도",detector_rail:"감지 레일",diamond:"다이아몬드",diamond_boots:"다이아몬드 부츠",diamond_chestplate:"다이아몬드 흉갑",diamond_helmet:"다이아몬드 투구",diamond_horse_armor:"다이아몬드 말 갑옷",diamond_leggings:"다이아몬드 레깅스",diamond_nautilus_armor:"다이아몬드 앵무조개 갑옷",diamond_pickaxe:"다이아몬드 곡괭이",diamond_shovel:"다이아몬드 삽",diamond_spear:"다이아몬드 창",diamond_sword:"다이아몬드 검",dune_armor_trim_smithing_template:"모래 언덕 갑옷 장식 형판",emerald:"에메랄드",enchanted_golden_apple:"마법이 부여된 황금 사과",ender_pearl:"엔더 진주",experience_bottle:"경험치 병",eye_armor_trim_smithing_template:"눈 갑옷 장식 형판",feather:"깃털",fire_charge:"화염구",fishing_rod:"낚싯대",flint:"부싯돌",flint_and_steel:"부싯돌과 부시",gilded_blackstone:"금 박힌 흑암",glass_bottle:"유리병",glistering_melon_slice:"반짝이는 수박 조각",glow_berries:"발광 열매",goat_horn:"염소 뿔",gold_block:"금 블록",gold_ingot:"금 주괴",gold_nugget:"금 조각",golden_apple:"황금 사과",golden_axe:"황금 도끼",golden_boots:"황금 부츠",golden_carrot:"황금 당근",golden_chestplate:"황금 흉갑",golden_helmet:"황금 투구",golden_hoe:"황금 괭이",golden_horse_armor:"황금 말 갑옷",golden_leggings:"황금 레깅스",golden_nautilus_armor:"황금 앵무조개 갑옷",golden_pickaxe:"황금 곡괭이",golden_shovel:"황금 삽",golden_sword:"황금 검",gunpowder:"화약",heart_of_the_sea:"바다의 심장",iron_axe:"철 도끼",iron_block:"철 블록",iron_boots:"철 부츠",iron_chain:"철 사슬",iron_chestplate:"철 흉갑",iron_helmet:"철 투구",iron_horse_armor:"철 말 갑옷",iron_ingot:"철 주괴",iron_leggings:"철 레깅스",iron_nautilus_armor:"철 앵무조개 갑옷",iron_nugget:"철 조각",iron_pickaxe:"철 곡괭이",iron_shovel:"철 삽",iron_spear:"철 창",iron_sword:"철 검",jungle_pyramid_map:"정글 사원 지도",lapis_lazuli:"청금석",lead:"끈",leather:"가죽",leather_boots:"가죽 부츠",leather_chestplate:"가죽 튜닉",leather_helmet:"가죽 모자",leather_leggings:"가죽 바지",light_weighted_pressure_plate:"가벼운 압력판",lodestone:"자석석",magma_cream:"마그마 크림",map:"지도",melon_seeds:"수박 씨앗",moss_block:"이끼 블록",music_disc_bounce:"음반 (Bounce)",music_disc_otherside:"음반 (otherside)",music_disc_pigstep:"음반 (Pigstep)",name_tag:"이름표",nether_wart:"네더 사마귀",netherite_scrap:"네더라이트 파편",netherite_upgrade_smithing_template:"네더라이트 강화 형판",obsidian:"흑요석",paper:"종이",piglin_banner_pattern:"현수막 무늬 (주둥이)",poisonous_potato:"독이 있는 감자",potato:"감자",potion:"물약",powered_rail:"전동 레일",prismarine_crystals:"프리즈머린 수정",pumpkin:"호박",pumpkin_seeds:"호박 씨앗",rabbit_hide:"토끼 가죽",rail:"레일",redstone:"레드스톤 가루",rib_armor_trim_smithing_template:"갈비뼈 갑옷 장식 형판",rotten_flesh:"썩은 살점",saddle:"안장",sand:"모래",sentry_armor_trim_smithing_template:"파수꾼 갑옷 장식 형판",shears:"가위",snout_armor_trim_smithing_template:"주둥이 갑옷 장식 형판",spectral_arrow:"분광 화살",spider_eye:"거미 눈",spire_armor_trim_smithing_template:"첨탑 갑옷 장식 형판",spyglass:"망원경",stone_axe:"돌 도끼",straw_bed:"짚 침대",string:"실",suspicious_stew:"수상한 스튜",tnt:"TNT",torch:"횃불",tripwire_hook:"철사 덫 갈고리",warm_ocean_ruins_map:"바다 유적 지도",wheat:"밀",white_candle:"흰색 양초",white_cushion:"흰색 방석",wild_armor_trim_smithing_template:"야생 갑옷 장식 형판",wooden_axe:"나무 도끼",woodland_mansion_map:"삼림 대저택 지도",enchanted_book:"마법이 부여된 책",crimson_fungus:"진홍빛 균",crimson_nylium:"진홍빛 나일리움",crimson_roots:"진홍빛 뿌리",glowstone:"발광석",netherite_ingot:"네더라이트 주괴",quartz:"네더 석영",soul_sand:"영혼 모래",acacia_planks:"아카시아나무 판자",acacia_sapling:"아카시아나무 묘목",bamboo_hanging_sign:"대나무 매다는 표지판",bamboo_planks:"대나무 판자",barrel:"통",beef:"익히지 않은 소고기",beetroot_soup:"비트 수프",black_wool:"검은색 양털",blue_ice:"푸른 얼음",bolt_armor_trim_smithing_template:"나사 갑옷 장식 형판",bone_meal:"뼛가루",brown_wool:"갈색 양털",cactus:"선인장",cake:"케이크",clay_ball:"점토 덩이",cod:"익히지 않은 대구",dandelion:"민들레",dead_bush:"죽은 덤불",diamond_axe:"다이아몬드 도끼",diamond_block:"다이아몬드 블록",egg:"달걀",emerald_block:"에메랄드 블록",fern:"고사리",flow_armor_trim_smithing_template:"흐름 갑옷 장식 형판",flow_banner_pattern:"현수막 무늬 (흐름)",flower_pot:"화분",furnace:"화로",gray_wool:"회색 양털",green_dye:"초록색 염료",guster_banner_pattern:"현수막 무늬 (돌풍)",heavy_core:"무거운 코어",honey_bottle:"꿀이 든 병",honeycomb:"벌집 조각",large_fern:"큰 고사리",light_gray_wool:"회백색 양털",lingering_potion:"잔류형 물약",milk_bucket:"우유 양동이",music_disc_creator:"음반 (Creator)",music_disc_creator_music_box:"음반 (Creator 오르골)",music_disc_precipice:"음반 (Precipice)",mutton:"익히지 않은 양고기",oak_sapling:"참나무 묘목",ominous_bottle:"불길한 병",poppy:"양귀비",porkchop:"익히지 않은 돼지고기",pumpkin_pie:"호박 파이",salmon:"익히지 않은 연어",scaffolding:"비계",shield:"방패",short_grass:"잔디",smooth_stone:"매끄러운 돌",snow_block:"눈 블록",splash_potion:"투척용 물약",spruce_log:"가문비나무 원목",spruce_sapling:"가문비나무 묘목",spruce_sign:"가문비나무 표지판",stick:"막대기",stone:"돌",stone_bricks:"석재 벽돌",stone_pickaxe:"돌 곡괭이",sweet_berries:"달콤한 열매",tall_grass:"큰 잔디",tipped_arrow:"효과 화살",trial_key:"시련의 열쇠",trident:"삼지창",tuff:"응회암",water_bucket:"물 양동이",wheat_seeds:"밀 씨앗",white_wool:"흰색 양털",wind_charge:"돌풍구",yellow_dye:"노란색 염료",amethyst_shard:"자수정 조각",baked_potato:"구운 감자",candle:"양초",diamond_hoe:"다이아몬드 괭이",disc_fragment_5:"음반 조각 (5)",echo_shard:"메아리 조각",music_disc_13:"음반 (13)",music_disc_cat:"음반 (cat)",packed_ice:"꽁꽁 언 얼음",sculk:"스컬크",sculk_catalyst:"스컬크 촉매",sculk_sensor:"스컬크 감지체",silence_armor_trim_smithing_template:"고요 갑옷 장식 형판",snowball:"눈덩이",soul_torch:"영혼 횃불",ward_armor_trim_smithing_template:"수호 갑옷 장식 형판",golden_spear:"황금 창",netherite_spear:"네더라이트 창"};
 const ENCH_KO = {protection:"보호",fire_protection:"화염으로부터 보호",blast_protection:"폭발로부터 보호",projectile_protection:"발사체로부터 보호",respiration:"호흡",aqua_affinity:"친수성",thorns:"가시",swift_sneak:"신속한 잠행",feather_falling:"가벼운 착지",depth_strider:"물갈퀴",frost_walker:"차가운 걸음",soul_speed:"영혼 가속",sharpness:"날카로움",smite:"강타",bane_of_arthropods:"살충",knockback:"밀치기",fire_aspect:"발화",looting:"약탈",sweeping_edge:"휩쓸기",efficiency:"효율",silk_touch:"섬세한 손길",fortune:"행운",luck_of_the_sea:"바다의 행운",lure:"미끼",power:"힘",punch:"밀어내기",flame:"화염",infinity:"무한",quick_charge:"빠른 장전",multishot:"다중 발사",piercing:"관통",impaling:"찌르기",riptide:"급류",loyalty:"충성",channeling:"집전",density:"밀도",breach:"돌파",wind_burst:"돌풍",mending:"수선",unbreaking:"내구성",curse_of_vanishing:"소실 저주",curse_of_binding:"귀속 저주",lunge:"돌진"};
 const TABLE_KO = {"chests/desert_pyramid":"보물 상자","chests/jungle_temple":"보물 상자","chests/jungle_temple_dispenser":"화살 발사기","chests/igloo_chest":"지하실 상자","chests/shipwreck_treasure":"보물 상자","chests/shipwreck_supply":"보급 상자","chests/shipwreck_map":"지도 상자","chests/pillager_outpost":"상자","chests/ruined_portal":"상자","chests/buried_treasure":"보물 상자","chests/abandoned_mineshaft":"광산 수레 상자","chests/nether_bridge":"상자","chests/bastion_bridge":"다리 상자","chests/bastion_other":"상자","chests/bastion_treasure":"보물 상자","chests/bastion_hoglin_stable":"마구간 상자","chests/end_city_treasure":"보물 상자","chests/stronghold_corridor":"복도 상자","chests/stronghold_crossing":"교차로 상자","chests/stronghold_library":"서재 상자","chests/abandoned_camp_common_chest":"상자","chests/ancient_city":"상자","chests/ancient_city_ice_box":"얼음 상자","chests/trial_chambers/supply":"보급 상자","chests/trial_chambers/corridor":"복도 통","chests/trial_chambers/entrance":"입구 상자","chests/trial_chambers/intersection":"교차로 상자","chests/trial_chambers/intersection_barrel":"교차로 통","chests/trial_chambers/reward":"보상 상자","pots/trial_chambers/corridor":"장식 항아리","dispensers/trial_chambers/chamber":"발사기","dispensers/trial_chambers/corridor":"복도 발사기","chests/village/village_armorer":"갑옷 제조인 상자","chests/village/village_butcher":"도살업자 상자","chests/village/village_cartographer":"지도 제작자 상자","chests/village/village_desert_house":"집 상자","chests/village/village_fisher":"어부 상자","chests/village/village_fletcher":"화살 제조인 상자","chests/village/village_mason":"석공 상자","chests/village/village_plains_house":"집 상자","chests/village/village_savanna_house":"집 상자","chests/village/village_shepherd":"양치기 상자","chests/village/village_snowy_house":"집 상자","chests/village/village_taiga_house":"집 상자","chests/village/village_tannery":"가죽 세공인 상자","chests/village/village_temple":"신전 상자","chests/village/village_toolsmith":"도구 대장장이 상자","chests/village/village_weaponsmith":"무기 대장장이 상자","chests/abandoned_camp_secret_chest":"숨겨진 상자","barrels/abandoned_camp_barrel":"통"};
 const EFFECT_KO = { speed: "신속", slowness: "구속", haste: "성급함", strength: "힘", instant_health: "즉시 회복", instant_damage: "즉시 피해", jump_boost: "점프 강화", nausea: "멀미", regeneration: "재생", resistance: "저항", fire_resistance: "화염 저항", water_breathing: "수중 호흡", invisibility: "투명화", blindness: "실명", night_vision: "야간 투시", hunger: "허기", weakness: "나약함", poison: "독", wither: "시듦", saturation: "포화", slow_falling: "느린 낙하", luck: "행운", darkness: "어둠" };
@@ -1657,7 +1678,8 @@ function jigsawLoot(st, D, x, z, rdq) {
   const seed = BigInt.asIntN(64, (BigInt(mapState.hi >>> 0) << 32n) | BigInt(mapState.lo >>> 0));
   const VT = ["plains", "desert", "savanna", "taiga", "snowy"], VSALT = { desert: 40039, plains: 40040, savanna: 40041, snowy: 40042, taiga: 40043 };
   let pcs, salt;
-  if (st === 25) { pcs = D.asm(seed, x >> 4, z >> 4, { startPool: "trial_chambers/chamber/end", yMin: -40, yMax: -20, maxDepth: 20, maxDist: 116, pad: [10, 10], aliases: D.d.A }); salt = 30004; }
+  if (st === 19) { pcs = D.asm(seed, x >> 4, z >> 4, { startPool: "bastion/starts", y: 33, maxDepth: 6, maxDist: 80, minY: 0, maxY: 255 }); salt = 40018; }
+  else if (st === 25) { pcs = D.asm(seed, x >> 4, z >> 4, { startPool: "trial_chambers/chamber/end", yMin: -40, yMax: -20, maxDepth: 20, maxDist: 116, pad: [10, 10], aliases: D.d.A }); salt = 30004; }
   else {
     const ty = VT[hoverEx.subtype_flag(5, x, z) & 7] || "plains";
     pcs = D.asm(seed, x >> 4, z >> 4, { startPool: `village/${ty}/town_centers`, y: 0, heightFn: (a, b) => hoverEx.wg_height(a, b), projectStart: true, maxDepth: 6, maxDist: 80, hack: true });
@@ -1683,13 +1705,13 @@ function jigsawLoot(st, D, x, z, rdq) {
 }
 const LOOT_ST = new Set([5, 25, 13, 1, 2, 4, 7, 10, 11, 12, 14, 15, 18, 19, 21, 121, 26, 27]);
 let lastPieces = null;
-const PLAN_ST = new Set([5, 13, 25]);
+const PLAN_ST = new Set([5, 13, 25, 27, 19, 21, 121, 18]);
 async function lootChests(st, x, z) {
   hoverEx.set_seed_dim(mapState.lo, mapState.hi, hoverEx.mc_wd(), mapState.dim);
   const rdq = q => { const u = new Uint8Array(hoverEx.memory.buffer, q); let n = 0; while (u[n]) n++; return new TextDecoder().decode(u.slice(0, n)); };
   let txt;
   if (st === 13) txt = ancientCityLoot(x, z, rdq);
-  else if (st === 5 || st === 25) { const d = await jigsawData(st === 5 ? "village" : "trial_chambers"); hoverEx.set_seed_dim(mapState.lo, mapState.hi, hoverEx.mc_wd(), mapState.dim); txt = jigsawLoot(st, d, x, z, rdq); }
+  else if (st === 5 || st === 25 || st === 19) { const d = await jigsawData(st === 5 ? "village" : st === 19 ? "bastion" : "trial_chambers"); hoverEx.set_seed_dim(mapState.lo, mapState.hi, hoverEx.mc_wd(), mapState.dim); txt = jigsawLoot(st, d, x, z, rdq); }
   else txt = rdq(hoverEx.loot_struct(st === 121 ? 21 : st, x, z, 60));
   const chests = [];
   for (const l of txt.split("\n")) {
@@ -1711,11 +1733,19 @@ async function lootChests(st, x, z) {
       const m = chests[chests.length - 1].items; m.set(key, (m.get(key) || 0) + cnt);
     }
   }
+  // 나란히 붙은 상자 두 칸은 게임에서 큰 상자 하나로 열려서 하나로 합침 (내용물도 합침)
+  const isCh = c => /^chests\//.test(c.t) && !/barrel/.test(c.t) && c.y !== undefined;
+  for (let i = 0; i < chests.length; i++) { const a = chests[i]; if (!isCh(a) || a.big) continue;
+    for (let j = i + 1; j < chests.length; j++) { const b = chests[j];
+      if (!isCh(b) || b.big || +b.y !== +a.y || Math.abs(b.x - a.x) + Math.abs(b.z - a.z) !== 1) continue;
+      a.big = true; a.x2 = b.x; a.z2 = b.z; if (b.u) a.u = true; if (b.t !== a.t) a.t2 = b.t;
+      for (const [k, v] of b.items) a.items.set(k, (a.items.get(k) || 0) + v);
+      chests.splice(j, 1); break; } }
   return chests;
 }
 const escH = t => t.replace(/[<&]/g, c => c === "<" ? "&lt;" : "&amp;");
 function chestHtml(c) {
-  let r = `<div class="lc"><b>${escH(TABLE_KO[c.t] || c.t)}</b> <span class="d">${c.y !== undefined ? `${c.x}, ${c.y}, ${c.z}` : `${c.x}, ${c.z}`}${c.u ? " · 틀릴 수 있음" : ""}</span><ul>`;
+  let r = `<div class="lc"><b>${c.big ? "큰 " : ""}${escH(TABLE_KO[c.t] || c.t)}${c.t2 ? " + " + escH(TABLE_KO[c.t2] || c.t2) : ""}</b> <span class="d">${c.y !== undefined ? `${c.x}, ${c.y}, ${c.z}` : `${c.x}, ${c.z}`}${c.big ? ` · ${c.x2}, ${c.z2}와 붙은 두 칸` : ""}${c.u ? " · 틀릴 수 있음" : ""}</span><ul>`;
   for (const [k, v] of c.items) r += `<li>${k.includes('<span class="d">→') ? k : escH(k)}${v > 1 ? ` <span class="d">×${v}</span>` : ""}</li>`;
   return r + (c.items.size ? "" : `<li class="d">비어 있음</li>`) + `</ul></div>`;
 }
@@ -1729,6 +1759,7 @@ async function lootHtml(st, x, z) {
   const mn = chests.filter(minor);
   if (mn.length) h += `<details><summary class="d">장식 항아리·발사기 ${mn.length}개</summary>${mn.map(one).join("")}</details>`;
   if (st === 27) h += `<p class="d">엔드 유적은 일부 상자가 틀릴 수 있어요.</p>`;
+  if (st === 15) h += `<p class="d">폐광 수레 상자는 주변 동굴·물 같은 지형에 따라 바뀌어서, 실제 월드 대조에서 4개 중 3개 정도만 맞았어요.</p>`;
   if (st === 13 || st === 25) h += `<p class="d">${st === 13 ? "고대 도시" : "시련의 방"} 상자 ${chests.length}개 (좌표는 x, y, z). 이미 열었거나 부서진 상자는 다를 수 있어요.</p>`;
   if (st === 5) h += `<p class="d">마을 상자 ${chests.length}개 (좌표는 x, y, z). 마을은 땅 높이를 따라 지어져서, 언덕이 심한 곳은 위치나 내용물이 틀릴 수 있어요. 나무·꽃 같은 장식이 먼저 놓인 청크의 상자도 틀릴 수 있어요.</p>`;
   return h + `</div>`;
@@ -1736,14 +1767,19 @@ async function lootHtml(st, x, z) {
 // 평면도: 조립한 조각을 위에서 내려다본 배치도로 그리고, 상자를 누르면 내용물
 const PLAN = { on: false };
 function planColor(st, p) {
+  if (st === 18) { const n = p.el.l; return n === "NeCSR" ? "#3f7a4a" : n === "NeMT" ? "#d0772c" : /NeSC[LR]T/.test(n) ? "#c9a227" : /^NeSC|NeCCS|NeCTB|NeCE/.test(n) ? "#5a4646" : "#7a2e2e"; }
+  if (st === 19) { const n = p.el.l || ""; return /treasure/.test(n) ? "#d4a13a" : /hoglin_stable/.test(n) ? "#9a5a3a" : /bridge/.test(n) ? "#6b6f78" : /units/.test(n) ? "#7a4a8a" : "#5d636b"; }
+  if (st === 21) { const n = p.el.l || ""; return /ship/.test(n) ? "#c9a227" : /bridge/.test(n) ? "#6b6f78" : /tower|fat_tower/.test(n) ? "#9b6bb0" : "#7a4a8a"; }
+  if (st === 27) { const n = p.el.l; return n === "SHPR" ? "#2fa37a" : n === "SHLi" ? "#8a5a2b" : n === "SHCC" ? "#c9a227" : n === "SHPH" ? "#b0563f" : n === "SHRC" ? "#4a6fa5" : /SHSD|SHSSD/.test(n) ? "#7a7f86" : "#5d636b"; }
+  if (st === 15) return "#c08a4a";
   const n = p.el.t === "s" ? p.el.l : p.el.t === "l" ? (p.el.e[0].l || "") : "";
   if (st === 13) return /city_center\/walls|\/walls\//.test(n) ? "#4a5560" : /city_center/.test(n) ? "#7b5cc4" : /entrance/.test(n) ? "#9a7b4f" : "#2f8f8a";
   if (st === 25) return /spawner/.test(n) ? "#d04a4a" : /chamber|chambers\/chamber/.test(n) ? "#c97b3a" : /intersection/.test(n) ? "#4f9a5b" : /hallway|corridor/.test(n) ? "#5a6f8a" : /reward|vault/.test(n) ? "#d4b13a" : "#6b7680";
   return /streets|terminators/.test(n) ? "#8a7a5a" : /town_centers/.test(n) ? "#d4a13a" : /houses/.test(n) ? "#a0613a" : "#6b7680";
 }
-const PLAN_NAME = { 13: "고대 도시", 25: "시련의 방", 5: "마을" };
+const PLAN_NAME = { 18: "네더 요새", 13: "고대 도시", 25: "시련의 방", 5: "마을", 15: "폐광", 27: "엔드 유적", 19: "보루 잔해", 21: "엔드 도시" };
 function chestColor(t) { return /pots\//.test(t) ? "#e58fb0" : /dispensers\//.test(t) ? "#9aa3ab" : /barrel/.test(t) ? "#b07a3a" : "#ffd54a"; }
-const PLAN_TN = { 13: "ancient_city", 25: "trial_chambers", 5: "village" };
+const PLAN_TN = { 13: "ancient_city", 25: "trial_chambers", 5: "village", 19: "bastion", 21: "end_city" };
 // 조각만 조립 (상자 계산 없이) — 겹침 판단용
 async function planPieces(st, x, z) {
   const seed = BigInt.asIntN(64, (BigInt(mapState.hi >>> 0) << 32n) | BigInt(mapState.lo >>> 0));
@@ -1767,51 +1803,109 @@ function zonesMeet(A, B) {
   for (const a of A) for (const b of B) if (a[0] <= b[3] && b[0] <= a[3] && a[1] <= b[4] && b[1] <= a[4] && a[2] <= b[5] && b[2] <= a[5]) return true;
   return false;
 }
+// 폐광: 땅을 다듬지 않아서, 통로·방 상자가 다른 구조물 공간에 닿으면(파낸 범위 포함) 이어진 것으로 봄
+const MS_KO = ["통로", "교차로", "방", "계단"];
+function mineMembers(x0, z0, x1, z1) {
+  hoverEx.set_seed_dim(mapState.lo, mapState.hi, hoverEx.mc_wd(), 0);
+  const q = hoverEx.mine_boxes(x0, z0, x1, z1) >> 2, I = new Int32Array(hoverEx.memory.buffer);
+  const out = []; let o = q + 1;
+  for (let k = 0; k < I[q]; k++) {
+    const mx = I[o], mz = I[o + 1], n = I[o + 2]; o += 3; const pcs = [];
+    for (let i = 0; i < n; i++, o += 7) pcs.push({ el: { t: "m", l: "mineshaft/" + ["corridor", "crossing", "room", "stairs"][I[o]] , ms: I[o] }, bb: [I[o + 1], I[o + 2], I[o + 3], I[o + 4], I[o + 5], I[o + 6]], pos: [I[o + 1], I[o + 2], I[o + 3]], rot: 0, depth: i, pr: "r" });
+    out.push({ x: mx, z: mz, pcs });
+  }
+  return out;
+}
+const SPACE_M = { 13: 4, 25: 1, 5: 1, 15: 1 };   // 공간이 이어졌다고 볼 거리: 고대 도시는 둘레를 파내서 4칸
+function spaceMeet(a, b) {
+  const m = (SPACE_M[a.st] || 1) + (SPACE_M[b.st] || 1);
+  for (const p of a.pcs) { if (p.el.t === "f") continue; const A = p.bb;
+    for (const q of b.pcs) { if (q.el.t === "f") continue; const B = q.bb;
+      if (A[0] - m <= B[3] && B[0] <= A[3] + m && A[1] - m <= B[4] && B[1] <= A[4] + m && A[2] - m <= B[5] && B[2] <= A[5] + m) return true; } }
+  return false;
+}
+// 조각 조립식이 아닌 구조물(엔드 유적 등): 게임 코드가 쌓는 조각 상자 목록을 wasm에서 받음
+const SH_KO = { SHSD: "내려가는 계단", SH5C: "다섯 갈래 교차로", SHS: "곧은 복도", SHRT: "오른쪽 꺾인 복도", SHLT: "왼쪽 꺾인 복도", SHCC: "상자 복도", SHLi: "도서관", SHPR: "엔드 포탈 방", SHSSD: "곧은 계단", SHFC: "막힌 통로", SHPH: "감옥", SHRC: "큰 방" };
+function structPieces(st, x, z) {
+  hoverEx.set_seed_dim(mapState.lo, mapState.hi, hoverEx.mc_wd(), mapState.dim);
+  if (st === 21) {   // 엔드 도시: 조각 높이는 0부터라 도시 높이를 더하고, 가로는 한 칸씩 당김 (월드 대조로 맞춤)
+    let y0 = 60; const n = hoverEx.structs_rect(21, x - 8, z - 8, x + 8, z + 8, 4); if (n > 0) y0 = new Int32Array(hoverEx.memory.buffer, hoverEx.rect_ptr(), 4)[1];
+    const q = hoverEx.pieces_struct(21, x, z), u = new Uint8Array(hoverEx.memory.buffer, q); let k = 0; while (u[k]) k++;
+    return new TextDecoder().decode(u.slice(0, k)).split("\n").filter(l => l.startsWith("P|")).map((l, i) => { const f = l.split("|").map((v, j) => j > 1 ? +v : v);
+      return { el: { t: "s", l: "end_city/" + f[1] }, bb: [f[2] - 1, f[3] + y0, f[4] - 1, f[5] - 1, f[6] + y0, f[7] - 1], rot: f[8], kind: f[9], pos: [f[10] - 1, f[11] + y0, f[12] - 1], depth: i, pr: "r" }; });
+  }
+  const q = hoverEx.pieces_struct(st, x, z), u = new Uint8Array(hoverEx.memory.buffer, q); let n = 0; while (u[n]) n++;
+  return new TextDecoder().decode(u.slice(0, n)).split("\n").filter(l => l.startsWith("P|")).map((l, i) => { const f = l.split("|");
+    return { el: { t: "b", l: f[1] }, bb: f.slice(2, 8).map(Number), rot: +f[8], kind: +f[9], pos: f.slice(10, 13).map(Number), depth: i, pr: "r" }; });
+}
+const NONJIG = new Set([27, 21, 18]);
+const NE_KO = { NeStart: "시작 다리 교차로", NeBS: "다리", NeBCr: "다리 교차로", NeRC: "다리 위 방", NeSR: "다리 계단 방", NeCE: "성 입구", NeSC: "성 복도", NeSCSC: "성 복도 교차로", NeCSR: "네더 사마귀 방", NeCCS: "성 복도 계단", NeCTB: "발코니 복도", NeSCLT: "왼쪽 꺾인 성 복도", NeSCRT: "오른쪽 꺾인 성 복도", NeMT: "블레이즈 생성기 방", NeBEF: "다리 끝" };
 async function planGroup(st, x, z) {
-  const ch0 = await lootChests(st, x, z), p0 = lastPieces || [];
+  const ch0 = await lootChests(st, x, z), p0 = NONJIG.has(st) ? structPieces(st, x, z) : (lastPieces || []);
   const ctr = pcs => { let a = 1e9, b = -1e9, c = 1e9, d = -1e9; for (const p of pcs) { a = Math.min(a, p.bb[0]); b = Math.max(b, p.bb[3]); c = Math.min(c, p.bb[2]); d = Math.max(d, p.bb[5]); } return [a, b, c, d]; };
   const mk = (t, x, z, pcs, ch) => { const e = ctr(pcs); return { st: t, x, z, pcs, ch, zones: beardZones(pcs), env: e, cx: (e[0] + e[1]) / 2, cz: (e[2] + e[3]) / 2 }; };
   const members = [mk(st, x, z, p0, ch0)], seen = new Set([st + ":" + x + ":" + z]);
-  for (let qi = 0; qi < members.length && members.length < 6; qi++) {
+  for (let qi = 0; qi < members.length && members.length < 8 && mapState.dim === 0; qi++) {   // 겹침 찾기는 오버월드만
     const m = members[qi];
     for (const t of [13, 25, 5]) {
       const R = t === 5 ? 110 : 150, e = m.env;
       hoverEx.set_seed_dim(mapState.lo, mapState.hi, hoverEx.mc_wd(), 0);
       const n = hoverEx.structs_rect(t, e[0] - R, e[2] - R, e[1] + R, e[3] + R, 64); if (n <= 0) continue;
       const a = new Int32Array(hoverEx.memory.buffer, hoverEx.rect_ptr(), n * 4).slice();
-      for (let i = 0; i < n && members.length < 6; i++) {
+      for (let i = 0; i < n && members.length < 8; i++) {
         const cx = a[i * 4], cz = a[i * 4 + 2], key = t + ":" + cx + ":" + cz;
         if (seen.has(key)) continue; seen.add(key);
         const pcs = await planPieces(t, cx, cz); if (!pcs.length) continue;
-        if (!zonesMeet(m.zones, beardZones(pcs))) continue;
+        if (m.st === 15 ? !spaceMeet({ st: t, pcs }, m) : !zonesMeet(m.zones, beardZones(pcs))) continue;
         const ch = await lootChests(t, cx, cz);
         members.push(mk(t, cx, cz, lastPieces || pcs, ch));
       }
+    }
+    // 폐광: 공간이 닿으면
+    const e = m.env;
+    for (const ms of mineMembers(e[0] - 160, e[2] - 160, e[1] + 160, e[3] + 160)) {
+      if (members.length >= 8) break;
+      const key = "15:" + ms.x + ":" + ms.z; if (seen.has(key)) continue;
+      if (!spaceMeet({ st: m.st, pcs: m.pcs }, { st: 15, pcs: ms.pcs })) continue;
+      seen.add(key);
+      let ch = []; try { ch = await lootChests(15, ms.x, ms.z); } catch (er) {}
+      members.push(mk(15, ms.x, ms.z, ms.pcs, ch));
     }
   }
   return members;
 }
 async function openPlan(st, x, z) {
+  if (st === 121) st = 21;   // 배가 있는 엔드 도시
   let box = $("planBox");
   if (!box) {
     box = document.createElement("div"); box.id = "planBox";
-    box.innerHTML = `<div class="ph"><b class="pt"></b><span class="d pc"></span><span class="sp"></span>
-      <label>층 <input type="range" class="py" style="width:140px"></label><span class="pyv d"></span><label><input type="checkbox" class="pall" checked> 전체 층</label><label><input type="checkbox" class="pol"> 조각 테두리</label><label><input type="checkbox" class="pic"> 상자 아이콘</label><label><input type="checkbox" class="pter"> 주변 지형</label><label><input type="checkbox" class="pgrp"> 겹친 구조물 같이 보기</label>
-      <button type="button" class="pz" data-z="1.4">＋</button><button type="button" class="pz" data-z="0.7">－</button><button type="button" class="px">닫기</button></div>
-      <div class="ph lg"></div>
-      <div class="pb"><div class="cv"><canvas></canvas><div class="tip"></div></div><div class="pi"></div></div>`;
+    box.innerHTML = `<div class="ph"><b class="pt"></b><span class="d pc"></span><span class="sp"></span><button type="button" class="px" aria-label="닫기">✕</button></div>
+      <div class="ptool">
+        <div class="tg"><span class="tl">층</span><input type="range" class="py"><span class="pyv"></span></div>
+        <div class="tg"><span class="tl">보기</span><label class="pchip" title="위에서 내려다본 항공샷. 보루 잔해는 종류마다 상자·용암이 잘 보이는 높이에서 잘라 보여 줘요"><input type="checkbox" class="pall" checked>전체 보기</label><label class="pchip"><input type="checkbox" class="pter">주변 지형</label><label class="pchip"><input type="checkbox" class="pol">조각 테두리</label><label class="pchip"><input type="checkbox" class="pic">상자 아이콘</label><label class="pchip pgrpc"><input type="checkbox" class="pgrp">주변 구조물</label></div>
+      </div>
+      <div class="pb"><div class="cv"><canvas></canvas><div class="tip"></div><div class="cpop" hidden></div><div class="zbox"><button type="button" class="pz" data-z="1.4" aria-label="확대">＋</button><button type="button" class="pz" data-z="0.7" aria-label="축소">－</button><button type="button" class="pfit" aria-label="전체 보기">⤢</button></div></div>
+        <div class="pi">
+          <section class="psec pdet" hidden><h4><span class="pdt"></span><button type="button" class="pdx" aria-label="닫기">✕</button></h4><div class="pdb"></div></section>
+          <section class="psec"><h4>구조물</h4><div class="pml"></div></section>
+          <section class="psec"><h4>색 안내</h4><div class="lg"></div></section>
+          <details class="psec phelp"><summary>도움말</summary><p>상자 점을 누르면 내용물이 나와요. "조각 테두리"를 켜고 조각을 누르면 그 조각 정보가 나와요. 위쪽이 북쪽(-Z)이에요.</p><p>"전체 보기"는 위에서 내려다본 항공샷이에요. 보루 잔해만 종류마다 상자·용암·금 블록이 잘 보이는 높이에서 따로 잘라서 보여 줘요. 슬라이더로 층을 고르면 "전체 보기"가 꺼지고 모든 조각을 그 높이에서 똑같이 잘라요.</p><p>층을 고르면 그 높이보다 위에 있는 블록을 걷어 내고 보여 줘요. 무작위로 부서지는 블록, 나무 같은 장식은 빠져 있어요.</p><p>주변 지형: 땅속 구조물은 고른 높이에서 자른 단면(돌·동굴·물·용암), 마을은 위에서 본 땅이에요. 구조물이 주변 땅을 파내거나 메우는 것(게임의 땅 다듬기)도 계산에 넣었어요.</p><p>구조물이 겹치면 위에 있는 구조물을 반투명하게 그려서 아래가 비쳐 보여요.</p></details>
+        </div></div>`;
     document.body.appendChild(box);
     box.querySelector(".px").onclick = () => { box.classList.remove("on"); PLAN.on = false; };
     box.querySelectorAll(".pz").forEach(b => b.onclick = () => { PLAN.s *= +b.dataset.z; drawPlan(); });
+    box.querySelector(".pfit").onclick = () => { PLAN.s = 0; PLAN.cx = PLAN.box[0] + PLAN.ext[0] / 2; PLAN.cz = PLAN.box[1] + PLAN.ext[1] / 2; drawPlan(); };
+    box.querySelector(".pdx").onclick = () => planDetail(null);
+    box.querySelector(".pgrp").onchange = e => { const all = PLAN.allMembers || []; PLAN.showSet = new Set(e.target.checked ? all.map((m, i) => i) : [0]); try { localStorage.setItem("planGrp", e.target.checked ? "1" : "0"); } catch (x) {} planDetail(null); planSetup(); };
     box.querySelector(".py").oninput = () => { box.querySelector(".pall").checked = false; drawPlan(); };
-    box.querySelector(".pall").onchange = drawPlan; box.querySelector(".pol").onchange = drawPlan; box.querySelector(".pic").checked = localStorage.getItem("planIcon") === "1"; box.querySelector(".pter").checked = localStorage.getItem("planTerr") === "1"; box.querySelector(".pgrp").checked = localStorage.getItem("planGrp") === "1"; box.querySelector(".pgrp").onchange = e => { try { localStorage.setItem("planGrp", e.target.checked ? "1" : "0"); } catch (x) {} planSetup(); }; box.querySelector(".pter").onchange = e => { try { localStorage.setItem("planTerr", e.target.checked ? "1" : "0"); } catch (x) {} drawPlan(); }; box.querySelector(".pic").onchange = e => { try { localStorage.setItem("planIcon", e.target.checked ? "1" : "0"); } catch (x) {} drawPlan(); };
+    box.querySelector(".pall").onchange = drawPlan; box.querySelector(".pol").onchange = drawPlan; box.querySelector(".pic").checked = localStorage.getItem("planIcon") === "1"; box.querySelector(".pter").checked = localStorage.getItem("planTerr") === "1"; box.querySelector(".pter").onchange = e => { try { localStorage.setItem("planTerr", e.target.checked ? "1" : "0"); } catch (x) {} drawPlan(); }; box.querySelector(".pic").onchange = e => { try { localStorage.setItem("planIcon", e.target.checked ? "1" : "0"); } catch (x) {} drawPlan(); };
     const cv = box.querySelector("canvas"), pts = new Map();
     let drag = null, moved = false, pinch = 0;
     cv.addEventListener("pointerdown", e => { cv.setPointerCapture(e.pointerId); pts.set(e.pointerId, [e.offsetX, e.offsetY]); drag = [e.offsetX, e.offsetY]; moved = false; if (pts.size === 2) { const [a, b] = [...pts.values()]; pinch = Math.hypot(a[0] - b[0], a[1] - b[1]); } });
     cv.addEventListener("pointermove", e => {
       if (pts.has(e.pointerId)) pts.set(e.pointerId, [e.offsetX, e.offsetY]);
       if (pts.size === 2) { const [a, b] = [...pts.values()]; const d = Math.hypot(a[0] - b[0], a[1] - b[1]); if (pinch) { PLAN.s *= d / pinch; drawPlan(); } pinch = d; moved = true; return; }
-      if (drag && pts.size === 1) { const dx = e.offsetX - drag[0], dy = e.offsetY - drag[1]; if (Math.abs(dx) + Math.abs(dy) > 3) moved = true; if (moved) { PLAN.cx -= dx / PLAN.s; PLAN.cz -= dy / PLAN.s; drag = [e.offsetX, e.offsetY]; drawPlan(); } return; }
+      if (drag && pts.size === 1) { const dx = e.offsetX - drag[0], dy = e.offsetY - drag[1]; if (Math.abs(dx) + Math.abs(dy) > 3) moved = true; if (moved) { const cp = box.querySelector(".cpop"); if (!cp.hidden) { cp.hidden = true; PLAN.multi = null; } PLAN.cx -= dx / PLAN.s; PLAN.cz -= dy / PLAN.s; drag = [e.offsetX, e.offsetY]; drawPlan(); } return; }
       planHover(e.offsetX, e.offsetY);
     });
     const up = e => { pts.delete(e.pointerId); if (pts.size < 2) pinch = 0; if (drag && !moved && pts.size === 0) planClick(e.offsetX, e.offsetY); if (!pts.size) drag = null; };
@@ -1822,29 +1916,38 @@ async function openPlan(st, x, z) {
   }
   box.classList.add("on"); PLAN.on = true;
   box.querySelector(".pt").textContent = (PLAN_NAME[st] || "") + " 평면도";
+  PLAN.titleBase = PLAN_NAME[st] || "";
   box.querySelector(".pc").textContent = "계산 중…";
-  box.querySelector(".pi").innerHTML = `<p class="d">상자 점을 누르면 내용물이 여기에 나와요. 위쪽이 북쪽(-Z)이에요.</p><p class="d">층을 고르면 그 높이보다 위에 있는 블록을 걷어 내고 보여 줘요. 무작위로 부서지는 블록, 나무 같은 장식은 빠져 있어요.</p><p class="d">주변 지형: 땅속 구조물은 고른 높이에서 자른 단면(돌·동굴·물·용암), 마을은 위에서 본 땅이에요. 구조물이 주변 땅을 파내거나 메우는 것(게임의 땅 다듬기)도 계산에 넣었어요.</p>`;
+  planDetail(null); box.querySelector(".pml").innerHTML = ""; box.querySelector(".lg").innerHTML = "";
   // 땅 다듬기 범위가 겹치는 구조물을 묶어서 함께 그림 (같은 종류·다른 종류 모두, 최대 6개)
   let members;
   try { members = await planGroup(st, x, z); } catch (e) { box.querySelector(".pc").textContent = "계산하다가 문제가 생겼어요."; return; }
-  PLAN.allMembers = members; PLAN.st0 = st; PLAN.intro = box.querySelector(".pi").innerHTML;
+  PLAN.allMembers = members; PLAN.st0 = st;
+  { let sub = "";   // 구조물 세부 종류를 제목에 (예: 보루 잔해 - 다리)
+    if (st === 19) sub = BASTION_KO[bastionType(members[0].pcs)] || "";
+    else if (st === 5) { const f = hoverEx.subtype_flag(5, x, z); sub = (VILLAGE_KO[f & 7] || "") + " 마을" + (f & 8 ? " (버려진 마을)" : ""); }
+    else if (st === 21) sub = members[0].pcs.some(p => /ship/.test(p.el.l || "")) ? "엔드 배 있음" : "엔드 배 없음";
+    box.querySelector(".pt").textContent = (PLAN_NAME[st] || "") + (sub ? " - " + sub : "") + " 평면도"; }
+  box.querySelector(".pter").parentNode.style.display = st === 27 || mapState.dim !== 0 ? "none" : "";   // 주변 지형은 오버월드만
+  box.querySelector(".pgrpc").style.display = members.length > 1 ? "" : "none";
+  PLAN.showSet = new Set([0]); if (localStorage.getItem("planGrp") === "1") members.forEach((m, i) => PLAN.showSet.add(i));
   PLAN.tsize = {}; PLAN.topsBy = {};
   for (const t of new Set(members.map(m => m.st))) {
-    const tn = PLAN_TN[t];
+    const tn = PLAN_TN[t]; if (!tn) continue;
     Object.assign(PLAN.tsize, Object.fromEntries(Object.entries((t === 13 ? AC_DATA : (await jigsawData(tn)).d).T).map(([k, v]) => [k, v.s])));
     try { PLAN.topsBy[t] = await topsData(tn); } catch (e) {}
   }
-  box.querySelector(".pgrp").parentNode.style.display = members.length > 1 ? "" : "none";
   planSetup();
 }
 // 겹친 구조물을 같이 그릴지(체크 칸)에 따라 그릴 조각·상자를 정함. 땅 다듬기는 항상 겹친 구조물 모두 반영
 function planSetup() {
-  const box = $("planBox"), st = PLAN.st0, all = PLAN.allMembers, show = all.length > 1 && box.querySelector(".pgrp").checked;
-  const members = show ? all : [all[0]];
+  const box = $("planBox"), st = PLAN.st0, all = PLAN.allMembers;
+  const members = all.filter((m, i) => PLAN.showSet.has(i));
+  box.querySelector(".pgrp").checked = all.length > 1 && PLAN.showSet.size === all.length;
   PLAN.rkey = null;
   PLAN.beardFull = all.flatMap((m, i) => m.pcs.map(p => { p._st = m.st; return p; }));
   const full = [], chests = [];
-  members.forEach((m, i) => { for (const p of m.pcs) { p._st = m.st; p._m = i; full.push(p); } for (const c of m.ch) { c._m = i; chests.push(c); } });
+  members.forEach(m => { const i = all.indexOf(m); for (const p of m.pcs) { p._st = m.st; p._m = i; full.push(p); } for (const c of m.ch) { c._m = i; chests.push(c); } });
   // 주민·동물 같은 1칸짜리 조각은 빼고 (생성기는 남김)
   const pcs = full.filter(p => p.el.t !== "f" && ((p.bb[3] - p.bb[0] + 1) * (p.bb[5] - p.bb[2] + 1) > 2 || /spawner/.test(p.el.l || "")));
   let x0 = 1e9, x1 = -1e9, z0 = 1e9, z1 = -1e9, y0 = 1e9, y1 = -1e9;
@@ -1853,27 +1956,31 @@ function planSetup() {
   for (const p of full) if (p.el.t !== "f") { x0 = Math.min(x0, p.bb[0]); x1 = Math.max(x1, p.bb[3]); z0 = Math.min(z0, p.bb[2]); z1 = Math.max(z1, p.bb[5]); }
   const MG = 32; x0 -= MG; z0 -= MG; x1 += MG; z1 += MG;   // 주변 지형용 여유
   PLAN.all = full.filter(p => p.el.t !== "f"); PLAN.full = full; PLAN.members = members; PLAN.box = [x0, z0]; PLAN.terr = {}; PLAN.surf = null;
-  Object.assign(PLAN, { st, pcs, chests: chests.map(c => ({ ...c, y: c.y !== undefined ? +c.y : 0 })), cx: (x0 + x1) / 2, cz: (z0 + z1) / 2, s: 0, sel: -1, hov: -1, ext: [x1 - x0 + 1, z1 - z0 + 1] });
+  Object.assign(PLAN, { st, pcs, chests: chests.map(c => { let y = c.y !== undefined ? +c.y : 0;
+    if (c.y === undefined && members[c._m]) { const q = members[c._m].pcs.filter(q => c.x >= q.bb[0] && c.x <= q.bb[3] && c.z >= q.bb[2] && c.z <= q.bb[5]).sort((a, b) => (a.bb[3] - a.bb[0]) * (a.bb[5] - a.bb[2]) - (b.bb[3] - b.bb[0]) * (b.bb[5] - b.bb[2]))[0]; if (q) y = q.bb[1] + (members[c._m].st === 15 ? 0 : 1); }   // 폐광 수레 상자 높이는 통로 바닥, 엔드 유적은 바닥 위
+    return { ...c, y }; }), cx: (x0 + x1) / 2, cz: (z0 + z1) / 2, s: 0, sel: -1, hov: -1, selPiece: null, ext: [x1 - x0 + 1, z1 - z0 + 1] });
   const mainPcs = pcs.filter(p => p._m === 0);
   { const hst = {}; for (const p of mainPcs) { const a = (p.bb[3] - p.bb[0] + 1) * (p.bb[5] - p.bb[2] + 1); hst[p.bb[1]] = (hst[p.bb[1]] || 0) + a; }
     PLAN.repY = +Object.entries(hst).sort((a, b) => b[1] - a[1])[0][0] + 2; }   // 바닥이 가장 넓은 높이 + 2 (벽을 자르는 높이)
   if (st === 13 && PLAN.tops) {   // 고대 도시: 1층 바닥(위에서 보이는 면이 가장 많은 높이) 위, 발 높이에서 자름
     const hs = {};
-    for (const p of PLAN.all) if (p._m === 0 && p.el.t === "s") { const a = PLAN.tops.get(p.el.l); for (let i = 1; i < a.length; i += 4) { const yy = a[i] + p.pos[1]; hs[yy] = (hs[yy] || 0) + 1; } }
+    for (const p of PLAN.all) if (p._m === 0 && p.el.t === "s") { const a = PLAN.tops.get(p.el.l); for (let i = 1; i < a.length; i += 5) { const yy = a[i] + p.pos[1]; hs[yy] = (hs[yy] || 0) + 1; } }
     const top = Object.entries(hs).sort((a, b) => b[1] - a[1])[0]; if (top) PLAN.repY = +top[0] + 1;
   }
-  box.querySelector(".pi").innerHTML = PLAN.intro;
-  if (all.length > 1) {
-    const cnt = {}; for (const m of all.slice(1)) cnt[m.st] = (cnt[m.st] || 0) + 1;
+  PLAN.members = all;
+  { const cnt = {}; for (const m of all.slice(1)) cnt[m.st] = (cnt[m.st] || 0) + 1;
     PLAN.groupTxt = Object.entries(cnt).map(([t, n]) => `${PLAN_NAME[t]} ${n}개`).join(", ");
-    box.querySelector(".pi").innerHTML = `<div class="grp"><b>다른 구조물과 이어져 있어요</b><br><span class="d">이 ${PLAN_NAME[st]} 주변 땅을 깎는 범위가 아래 구조물과 겹쳐요.${show ? "" : " 위쪽의 \"겹친 구조물 같이 보기\"를 켜면 함께 그려요."}</span><ul>${all.slice(1).map((m, i) => `<li>${show ? `<a href="#" data-m="${i + 1}">${PLAN_NAME[m.st]}</a>` : PLAN_NAME[m.st]} <span class="d">${m.x}, ${m.z}</span></li>`).join("")}</ul></div>` + PLAN.intro;
-    box.querySelectorAll(".grp a").forEach(el => el.onclick = ev => { ev.preventDefault(); const m = all[+el.dataset.m]; PLAN.cx = m.cx; PLAN.cz = m.cz; drawPlan(); });
-  } else PLAN.groupTxt = "";
+    const main = c => c.ch.filter(q => !/^(pots|dispensers)\//.test(q.t)).length;
+    box.querySelector(".pml").innerHTML = (st === 27 ? `<p class="d">엔드 유적은 방 위치(X, Z)는 정확하지만, 높이(Y)는 몇 칸 틀릴 수 있어요. 그래서 주변 지형은 그리지 않아요.</p>` : "") + (all.length > 1 ? `<p class="d">공간이 이어졌거나 땅 깎는 범위가 겹친 구조물이에요. 체크하면 같이 그려요.</p>` : "") +
+      all.map((m, i) => `<label class="mrow"><input type="checkbox" data-m="${i}"${PLAN.showSet.has(i) ? " checked" : ""}${i === 0 ? " disabled" : ""}><span><a href="#" data-g="${i}">${PLAN_NAME[m.st]}</a>${i === 0 ? ' <span class="d">선택한 것</span>' : ""}<br><span class="d">${m.x}, ${m.z} · 상자 ${main(m)}개</span></span></label>`).join("");
+    box.querySelectorAll(".pml input[data-m]").forEach(el => el.onchange = () => { const i = +el.dataset.m; el.checked ? PLAN.showSet.add(i) : PLAN.showSet.delete(i); try { localStorage.setItem("planGrp", PLAN.showSet.size > 1 ? "1" : "0"); } catch (x) {} planDetail(null); planSetup(); });
+    box.querySelectorAll(".pml a[data-g]").forEach(el => el.onclick = ev => { ev.preventDefault(); const m = all[+el.dataset.g]; PLAN.cx = m.cx; PLAN.cz = m.cz; drawPlan(); });
+  }
   const yr = box.querySelector(".py"); yr.min = y0; yr.max = y1; yr.value = st === 13 ? PLAN.repY : Math.round((y0 + y1) / 2); box.querySelector(".pall").checked = true;
   const main = PLAN.chests.filter(c => !/^(pots|dispensers)\//.test(c.t)).length;
-  box.querySelector(".pc").textContent = `상자 ${main}개${PLAN.chests.length > main ? ` (+ 항아리·발사기 ${PLAN.chests.length - main}개)` : ""}` + (PLAN.groupTxt ? ` · 이어진 구조물 있음 (${PLAN.groupTxt})` : "");
-  const LG = { 13: [["#7b5cc4", "도시 중심"], ["#2f8f8a", "건물"], ["#4a5560", "벽"], ["#9a7b4f", "입구"]], 25: [["#c97b3a", "방"], ["#5a6f8a", "복도"], ["#4f9a5b", "교차로"], ["#d4b13a", "보상"], ["#d04a4a", "생성기"]], 5: [["#d4a13a", "마을 중심"], ["#a0613a", "건물"], ["#8a7a5a", "길"]] };
-  const types = [...new Set(members.map(m => m.st))], lg = types.flatMap(t => (LG[t] || []).map(([c, n]) => [c, types.length > 1 ? `${PLAN_NAME[t]} ${n}` : n]));
+  box.querySelector(".pc").textContent = `상자 ${main}개${PLAN.chests.length > main ? ` (+ 항아리·발사기 ${PLAN.chests.length - main}개)` : ""}` + (PLAN.groupTxt ? ` · 이어진 구조물 ${all.length - 1}개` : "");
+  const LG = { 18: [["#7a2e2e", "다리"], ["#5a4646", "성 복도"], ["#c9a227", "꺾인 복도 (상자가 있을 수 있음)"], ["#3f7a4a", "네더 사마귀 방"], ["#c0263a", "네더 사마귀"], ["#d0772c", "블레이즈 생성기 방"]], 19: [["#d4a13a", "보물 방"], ["#9a5a3a", "마구간"], ["#7a4a8a", "주거 구역"], ["#6b6f78", "다리"]], 21: [["#7a4a8a", "층"], ["#9b6bb0", "탑"], ["#6b6f78", "다리"], ["#c9a227", "엔드 배"]], 27: [["#2fa37a", "엔드 포탈 방"], ["#8a5a2b", "도서관"], ["#c9a227", "상자 복도"], ["#4a6fa5", "큰 방"], ["#b0563f", "감옥"], ["#5d636b", "복도"]], 13: [["#7b5cc4", "도시 중심"], ["#2f8f8a", "건물"], ["#4a5560", "벽"], ["#9a7b4f", "입구"]], 25: [["#c97b3a", "방"], ["#5a6f8a", "복도"], ["#4f9a5b", "교차로"], ["#d4b13a", "보상"], ["#d04a4a", "생성기"]], 5: [["#d4a13a", "마을 중심"], ["#a0613a", "건물"], ["#8a7a5a", "길"]] };
+  const types = [...new Set(members.map(m => m.st))], lg = types.flatMap(t => t === 15 ? [["#9a7444", "폐광"]] : (LG[t] || []).map(([c, n]) => [c, types.length > 1 ? `${PLAN_NAME[t]} ${n}` : n]));
   box.querySelector(".lg").innerHTML = lg.map(([c, n]) => `<span><i style="background:${c}"></i>${n}</span>`).join("") + `<span><i style="background:#ffd54a;border-radius:50%"></i>상자</span><span><i style="background:#b07a3a;border-radius:50%"></i>통</span>` + (types.includes(25) ? `<span><i style="background:#e58fb0;border-radius:50%"></i>항아리</span><span><i style="background:#9aa3ab;border-radius:50%"></i>발사기</span>` : "");
   drawPlan();
 }
@@ -1886,7 +1993,8 @@ function blockColor(n) {
   const wd = Object.keys(WOOD).sort((a, b) => b.length - a.length).find(w => n.includes(w + "_"));
   if (/leaves/.test(n)) return "#3f7f2f";
   if (wd) return /log|wood/.test(n) && !/stripped/.test(n) ? shadeHex(WOOD[wd], 0.75) : WOOD[wd];
-  const R = [[/sculk/, "#15606a"], [/soul_(fire|lantern|torch)/, "#5fd3d7"], [/lantern|torch|lamp|campfire|glowstone|shroomlight/, "#f0c060"], [/reinforced_deepslate/, "#5a6160"],
+  const R = [[/gilded_blackstone/, "#5a4526"], [/gold_block/, "#e6c23c"], [/blackstone/, "#35303a"], [/nether_wart_block/, "#7a1a1a"], [/crimson|warped/, "#6b2a3a"], [/soul_sand|soul_soil/, "#4e3b2e"], [/purpur/, "#a77ba7"], [/end_stone/, "#dbde9e"], [/end_rod/, "#f2ece0"], [/obsidian/, "#1b1426"], [/shulker/, "#8e5b8e"], [/dragon_head|banner/, "#6b2a6b"],
+    [/sculk/, "#15606a"], [/soul_(fire|lantern|torch)/, "#5fd3d7"], [/lantern|torch|lamp|campfire|glowstone|shroomlight/, "#f0c060"], [/reinforced_deepslate/, "#5a6160"],
     [/deepslate_tile/, "#55555e"], [/deepslate_brick/, "#64646d"], [/chiseled_deepslate/, "#6e6e77"], [/deepslate/, "#6a6a73"], [/basalt/, "#55565a"],
     [/oxidized/, "#4fa58c"], [/copper/, "#c06a45"], [/vault|trial_spawner/, "#3c4448"], [/tuff/, "#6c6d66"],
     [/mossy|moss/, "#5f7a4a"], [/stone_brick/, "#7a7a7a"], [/smooth_stone/, "#9a9a9a"], [/cobble/, "#6f6f6f"], [/andesite/, "#8a8b8b"], [/diorite/, "#c8c8c4"], [/granite/, "#9a6b55"], [/stone|stonecutter|grindstone/, "#7d7d7d"],
@@ -1902,31 +2010,101 @@ const topsCache = {};
 function topsData(name) {
   if (!topsCache[name]) topsCache[name] = fetch("jigsaw/" + name + "_tops.json").then(r => r.json()).then(d => {
     const col = d.B.map(b => { const v = parseInt(blockColor(b).slice(1), 16); return [(v >> 16) & 255, (v >> 8) & 255, v & 255]; }), T = {};
-    return { col, get(t) {   // 템플릿 → Int16Array [x, y, z, 블록, ...]
+    return { col, names: d.B, get(t) {   // 템플릿 → Int16Array [x, y, z, 블록, ...]
       if (T[t]) return T[t]; const r = d.R[t], sz = (PLAN.tsize[t] || [1, 1, 1])[2], out = [];
-      if (r) for (const c of r.split(";")) { const [k, v] = c.split(":"), xz = +k, a = v.split(","); for (let i = 0; i < a.length; i += 2) out.push(Math.floor(xz / sz), +a[i], xz % sz, +a[i + 1]); }
-      return T[t] = Int16Array.from(out); } };
+      if (r) for (const c of r.split(";")) { const [k, v] = c.split(":"), xz = +k, a = v.split(","); for (let i = 0; i < a.length; i += 3) out.push(Math.floor(xz / sz), +a[i], xz % sz, +a[i + 1], +a[i + 2]); }
+      return T[t] = Int16Array.from(out); } };   // [x, 맨 위 y, z, 블록, 아래로 이어진 칸 수] × n
   });
   return topsCache[name];
+}
+// "자동" 층: 조각마다 상자·용암·금 블록 같은 볼거리가 가장 많이 보이는 높이에서 자름 (같으면 높은 쪽)
+const CUT_W = [[/^(chest|trapped_chest|barrel)$/, 40], [/spawner|vault/, 20], [/^gold_block$/, 5], [/gilded/, 3], [/^lava$/, 2], [/magma/, 1], [/decorated_pot/, 3]];
+function pieceCut(p, tp) {
+  if (p._cut !== undefined) return p._cut;
+  const els = p.el.t === "l" ? p.el.e : [p.el];
+  const cols = new Map(); let lo = 1e9, hi = -1e9;
+  for (const el of els) { if (el.t !== "s") continue; const a = tp.get(el.l);
+    for (let i = 0; i < a.length; i += 5) { const k = a[i] * 4096 + a[i + 2], y = a[i + 1];
+      const n = tp.names[a[i + 3]] || ""; let w = 0; for (const [re, v] of CUT_W) if (re.test(n)) { w = v; break; }
+      if (!cols.has(k)) cols.set(k, []); cols.get(k).push([y, w]); lo = Math.min(lo, y); hi = Math.max(hi, y); } }
+  let best = hi, bs = 0;
+  if (cols.size) { for (const v of cols.values()) v.sort((a, b) => b[0] - a[0]);
+    for (let c = hi; c >= lo; c--) { let sc = 0; for (const v of cols.values()) { const t = v.find(e => e[0] <= c); if (t) sc += t[1]; } if (sc > bs) { bs = sc; best = c; } } }
+  p._score = bs / Math.max(1, (p.bb[3] - p.bb[0] + 1) * (p.bb[5] - p.bb[2] + 1));   // 넓이당 볼거리 (겹친 조각 중 누구를 보여 줄지)
+  return p._cut = (bs > 0 ? best : hi) + p.pos[1];
+}
+// 보루 잔해 "자동" 높이: 종류마다 정한 규칙 (사용자가 정해 준 기준)
+const BASTION_KO = { units: "주거 구역", hoglin_stable: "호글린 마구간", treasure: "보물 방", bridge: "다리" };
+function bastionType(pcs) { const n = (pcs.find(p => p.el.t === "s") || {}).el; const m = n && /bastion\/(units|hoglin_stable|treasure|bridge)/.exec(n.l); return m ? m[1] : ""; }
+function bastionCuts(m, tp) {
+  if (m._bcut) return; m._bcut = true;
+  const ty = bastionType(m.pcs), P = PLAN;
+  const chestsIn = ps => P.chests.filter(c => ps.some(p => c.x >= p.bb[0] && c.x <= p.bb[3] && c.z >= p.bb[2] && c.z <= p.bb[5] && c.y >= p.bb[1] && c.y <= p.bb[4])).map(c => c.y);
+  const mode = (ys, preferHigh) => { const cnt = {}; for (const y of ys) cnt[y] = (cnt[y] || 0) + 1; let best = null, bc = 0;
+    for (const [y, c] of Object.entries(cnt)) if (c > bc || (c === bc && (preferHigh ? +y > best : +y < best))) { bc = c; best = +y; } return best; };
+  const setAll = (ps, y) => { for (const p of ps) { p._cut = y === null ? p.bb[4] : y; p._score = 0; } };
+  const pcs = m.pcs.filter(p => p.el.t === "s" || p.el.t === "l");
+  if (ty === "treasure" || ty === "units") {
+    const isC = p => ty === "treasure" ? /treasure\/(bases|brains|roofs\/center_roof)/.test(p.el.l || "") : /units\/center_pieces/.test(p.el.l || "");
+    const center = pcs.filter(isC), side = pcs.filter(p => !isC(p));
+    const cy = chestsIn(center); setAll(center, ty === "treasure" ? 37 : cy.length ? Math.max(...cy) : null);   // 가운데 건물: 보물 방은 Y 37 고정, 주거 구역은 내려가다 처음 만나는 상자 높이
+    if (ty === "treasure") for (const p of side) { const ys = chestsIn([p]); p._cut = ys.length ? Math.min(...ys) : p.bb[4]; p._score = ys.length ? 1 : 0; }   // 옆 건물: 올라가다 처음 만나는 상자 높이
+    else setAll(side, mode(chestsIn(side), false));   // 주거 구역 옆 건물: 올라가며 상자가 가장 많은 높이
+  } else if (ty === "hoglin_stable") setAll(pcs, mode(chestsIn(pcs), true));   // 마구간: 내려가며 상자가 가장 많은 높이
+  else if (ty === "bridge") {   // 다리: 내려가며 용암이 가장 많이 보이는 높이
+    const cols = new Map(); let lo = 1e9, hi = -1e9;
+    for (const p of pcs) for (const el of (p.el.t === "l" ? p.el.e : [p.el])) { if (el.t !== "s") continue; const a = tp.get(el.l);
+      for (let i = 0; i < a.length; i += 5) { const r = p.rot, q = r === 0 ? [a[i], a[i + 2]] : r === 1 ? [-a[i + 2], a[i]] : r === 2 ? [-a[i], -a[i + 2]] : [a[i + 2], -a[i]];
+        const k = (q[0] + p.pos[0]) * 65536 + (q[1] + p.pos[2]), y = a[i + 1] + p.pos[1], lava = (tp.names[a[i + 3]] || "") === "lava";
+        if (!cols.has(k)) cols.set(k, []); cols.get(k).push([y, lava]); lo = Math.min(lo, y); hi = Math.max(hi, y); } }
+    for (const v of cols.values()) v.sort((x, z) => z[0] - x[0]);
+    let best = hi, bs = -1; for (let c = hi; c >= lo; c--) { let sc = 0; for (const v of cols.values()) { const t = v.find(e => e[0] <= c); if (t && t[1]) sc++; } if (sc > bs) { bs = sc; best = c; } }
+    setAll(pcs, best);
+  }
 }
 function planRaster() {
   const P = PLAN; if (!P.tops && !Object.keys(P.topsBy || {}).length) return null;
   const fy = planFloor(), key = fy === null ? "all" : fy;
   if (P.rkey === key) return P.raster;
   const [x0, z0] = [P.box[0], P.box[1]], W = P.ext[0], H = P.ext[1];
-  const hy = new Int16Array(W * H).fill(-32768), cb = new Int16Array(W * H).fill(-1), cbT = new Array(W * H);
+  const hy = new Int16Array(W * H).fill(-32768), cb = new Int16Array(W * H).fill(-1), cbT = new Array(W * H), cm = new Int8Array(W * H).fill(-1);
+  // 겹친 구조물: 다른 구조물 중 가장 높은 블록도 기억해서, 위에 있는 구조물을 반투명하게 겹쳐 그림
+  const hy2 = new Int16Array(W * H).fill(-32768), cb2 = new Int16Array(W * H).fill(-1), cbT2 = new Array(W * H), cm2 = new Int8Array(W * H).fill(-1);
+  const MSC = { col: [[154, 116, 68], [154, 116, 68], [107, 90, 69], [154, 116, 68]] };   // 폐광: 통로·교차로·방·계단
+  const cpri = new Float32Array(W * H).fill(-1), cutK = new Uint8Array(W * H);
+  // 같은 구조물 안에서 조각이 겹치면: "자동"일 땐 넓이당 볼거리가 많은 조각이 이김 (지붕·윗층이 상자를 가리지 않게), 같으면 높은 블록
+  const setB = (k, Y, b, tp, m) => {
+    const pri = P.curPri || 0;
+    if (cm[k] === m || cm[k] < 0) { if (pri > cpri[k] || (pri === cpri[k] && Y >= hy[k])) { hy[k] = Y; cb[k] = b; cbT[k] = tp; cm[k] = m; cpri[k] = pri; } return; }
+    if (Y >= hy[k]) { if (hy[k] > hy2[k] || cm2[k] === m) { hy2[k] = hy[k]; cb2[k] = cb[k]; cbT2[k] = cbT[k]; cm2[k] = cm[k]; } hy[k] = Y; cb[k] = b; cbT[k] = tp; cm[k] = m; }
+    else if (Y >= hy2[k] || cm2[k] < 0) { hy2[k] = Y; cb2[k] = b; cbT2[k] = tp; cm2[k] = m; }
+  };
   const put = (el, pos, r) => {
     if (el.t === "l") { el.e.forEach(e => put(e, pos, r)); return; }
     if (el.t !== "s") return;
     const tp = P.topsBy[P.curSt] || P.tops; if (!tp) return; const a = tp.get(el.l);
-    for (let i = 0; i < a.length; i += 4) {
+    const cut = fy !== null ? fy : P.curCut;
+    for (let i = 0; i < a.length; i += 5) {
       const q = r === 0 ? [a[i], a[i + 2]] : r === 1 ? [-a[i + 2], a[i]] : r === 2 ? [-a[i], -a[i + 2]] : [a[i + 2], -a[i]];
-      const X = q[0] + pos[0] - x0, Z = q[1] + pos[2] - z0, Y = a[i + 1] + pos[1];
-      if (X < 0 || Z < 0 || X >= W || Z >= H || (fy !== null && Y > fy)) continue;
-      const k = Z * W + X; if (Y >= hy[k]) { hy[k] = Y; cb[k] = a[i + 3]; cbT[k] = tp; }
+      const X = q[0] + pos[0] - x0, Z = q[1] + pos[2] - z0; let Y = a[i + 1] + pos[1];
+      if (X < 0 || Z < 0 || X >= W || Z >= H) continue;
+      if (Y > cut) { if (Y - a[i + 4] + 1 > cut) continue; Y = cut; cutK[Z * W + X] = 1; }   // 자르는 높이를 지나는 기둥·벽은 잘린 단면으로
+      setB(Z * W + X, Y, a[i + 3], tp, P.curM);
     }
   };
-  for (const p of P.all) { P.curSt = p._st; put(p.el, p.pos, p.rot); }
+  for (const p of P.all) {
+    P.curSt = p._st; P.curM = p._m || 0;
+    if (p._st === 15) {   // 폐광 조각은 바닥 높이에 나무색 칸으로
+      const Y = p.bb[1]; if (fy !== null && Y > fy) continue;
+      P.curPri = 0; for (let z = p.bb[2]; z <= p.bb[5]; z++) for (let x = p.bb[0]; x <= p.bb[3]; x++) { const X = x - x0, Z = z - z0; if (X >= 0 && Z >= 0 && X < W && Z < H) setB(Z * W + X, Y, p.el.ms, MSC, P.curM); }
+      continue;
+    }
+    { // "전체 보기": 보루 잔해만 종류별 규칙 높이로 자르고, 나머지 구조물은 그대로 위에서 본 항공샷
+      const tp = P.topsBy[p._st] || P.tops, bas = fy === null && tp && p._st === 19;
+      if (bas) bastionCuts(P.members[p._m], tp);
+      P.curCut = bas ? pieceCut(p, tp) : 1e9; P.curPri = bas ? p._score || 0 : 0; }
+    put(p.el, p.pos, p.rot);
+  }
   const cv = document.createElement("canvas"); cv.width = W; cv.height = H;
   const g = cv.getContext("2d"), im = g.createImageData(W, H), d = im.data;
   let lo = 32767, hi = -32768; for (let k = 0; k < W * H; k++) if (cb[k] >= 0) { lo = Math.min(lo, hy[k]); hi = Math.max(hi, hy[k]); }
@@ -1935,7 +2113,11 @@ function planRaster() {
     const c = cbT[k].col[cb[k]], n = z > 0 && cb[k - W] >= 0 ? hy[k - W] : hy[k];
     let f = hy[k] > n ? 1.08 : hy[k] < n ? 0.72 : 0.9;           // 지도처럼 북쪽 이웃보다 높으면 밝게
     f *= 0.7 + 0.3 * (hi > lo ? (hy[k] - lo) / (hi - lo) : 1);     // 낮은 곳은 어둡게
-    d[k * 4] = Math.min(255, c[0] * f); d[k * 4 + 1] = Math.min(255, c[1] * f); d[k * 4 + 2] = Math.min(255, c[2] * f); d[k * 4 + 3] = 255;
+    if (cutK[k] && hy[k] >= (fy !== null ? fy : -1e9)) f *= 0.82;   // 잘린 단면은 살짝 어둡게
+    let r = c[0] * f, gg = c[1] * f, bl = c[2] * f;
+    if (cb2[k] >= 0) { const c2 = cbT2[k].col[cb2[k]], f2 = 0.7 + 0.3 * (hi > lo ? (hy2[k] - lo) / (hi - lo) : 1), A = 0.3;   // 위 구조물 30%, 아래 구조물 70%
+      r = r * A + c2[0] * f2 * (1 - A); gg = gg * A + c2[1] * f2 * (1 - A); bl = bl * A + c2[2] * f2 * (1 - A); }
+    d[k * 4] = Math.min(255, r); d[k * 4 + 1] = Math.min(255, gg); d[k * 4 + 2] = Math.min(255, bl); d[k * 4 + 3] = 255;
   }
   g.putImageData(im, 0, 0);
   P.rkey = key; P.raster = cv; return cv;
@@ -1955,15 +2137,15 @@ function biomeGround(id) {
 }
 // 게임처럼 구조물이 주변 땅을 다듬은 결과를 반영 (마을 beard_thin, 고대 도시 beard_box, 시련의 방 encapsulate)
 function planBeard(on) {
-  if (!on) { hoverEx.beard_set(0, 0, 0, 0, 0); return; }
+  if (!on || mapState.dim !== 0) { hoverEx.beard_set(0, 0, 0, 0, 0); return; }
   const P = PLAN, TY = { 5: 2, 13: 3, 25: 4 }, rig = [], jn = [];
-  for (const p of P.beardFull || P.full) { if (p.el.pr !== "t") rig.push(p.bb[0], p.bb[1], p.bb[2], p.bb[3], p.bb[4], p.bb[5], p.gld || 1, TY[p._st]); for (const j of p.jn || []) jn.push(...j); }
+  for (const p of P.beardFull || P.full) { if (p._st === 15) continue; if (p.el.pr !== "t") rig.push(p.bb[0], p.bb[1], p.bb[2], p.bb[3], p.bb[4], p.bb[5], p.gld || 1, TY[p._st]); for (const j of p.jn || []) jn.push(...j); }
   const a = hoverEx.malloc(rig.length * 4 + 4), b = hoverEx.malloc(jn.length * 4 + 4);
   new Int32Array(hoverEx.memory.buffer, a, rig.length).set(rig); new Int32Array(hoverEx.memory.buffer, b, jn.length).set(jn);
   hoverEx.beard_set(a, rig.length / 8, b, jn.length / 3, 0); hoverEx.free(a); hoverEx.free(b);
 }
 function planTerrain() {
-  const P = PLAN;
+  const P = PLAN; if (P.st0 === 27 || mapState.dim !== 0) return null;   // 엔드 유적은 높이를 정확히 몰라서 지형 단면을 그리지 않음
   if (P.st === 5 ? P.surf : P.terr[planFloor() === null ? P.repY : planFloor()]) return P.st === 5 ? P.surf : P.terr[planFloor() === null ? P.repY : planFloor()];
   hoverEx.set_seed_dim(mapState.lo, mapState.hi, hoverEx.mc_wd(), 0);
   planBeard(true);
@@ -2016,8 +2198,21 @@ function drawPlan() {
   if ($("planBox").querySelector(".pter").checked) {
     let t = null; try { t = planTerrain(); } catch (e) {}
     if (t) { g.imageSmoothingEnabled = false; g.drawImage(t, sx(PLAN.box[0]), sz(PLAN.box[1]), PLAN.ext[0] * PLAN.s, PLAN.ext[1] * PLAN.s); }
-    if (PLAN.st !== 5) $("planBox").querySelector(".pyv").textContent = "지형 단면 Y " + (fy === null ? PLAN.repY : fy);
+    if (PLAN.st !== 5 && PLAN.st0 !== 27 && mapState.dim === 0) $("planBox").querySelector(".pyv").textContent = "지형 단면 Y " + (fy === null ? PLAN.repY : fy);
   }
+  for (const p of [...PLAN.pcs].filter(p => p._st === 27 || p._st === 18).sort((a, b) => a.bb[1] - b.bb[1])) {   // 엔드 유적·네더 요새: 블록 그림이 없어서 방 종류별 색 칸
+    const a = sx(p.bb[0]), b2 = sz(p.bb[2]), ww = (p.bb[3] - p.bb[0] + 1) * PLAN.s, hh = (p.bb[5] - p.bb[2] + 1) * PLAN.s;
+    g.globalAlpha = on(p) ? 0.85 : 0.15; g.fillStyle = planColor(27, p); g.fillRect(a, b2, ww, hh);
+    g.globalAlpha = on(p) ? 0.9 : 0.15; g.strokeStyle = "#0b0f12"; g.lineWidth = 1; g.strokeRect(a + .5, b2 + .5, ww - 1, hh - 1);
+    if (p.el.l === "NeCSR" && (fy === null || (fy >= p.bb[1] + 4 && fy <= p.bb[4]))) {   // 네더 사마귀 밭: 계단 밑 영혼 모래 위 (월드 대조로 확인한 자리)
+      const odd = p.rot & 1, LX = odd ? [4, 5, 6, 7, 8] : [3, 4, 8, 9], LZ = odd ? [3, 4, 8, 9] : [4, 5, 6, 7, 8];
+      g.globalAlpha = 1; g.fillStyle = "#c0263a";
+      for (const lx of LX) for (const lz of LZ) g.fillRect(sx(p.bb[0] + lx), sz(p.bb[2] + lz), Math.max(2, PLAN.s - 0.5), Math.max(2, PLAN.s - 0.5));
+    }
+    if (p.el.l === "NeMT" && on(p)) { g.globalAlpha = 1; g.fillStyle = "#fff"; g.font = "bold 11px sans-serif"; g.textAlign = "center"; g.fillText("블레이즈", a + ww / 2, b2 + hh / 2 + 4); }
+    if (p.el.l === "SHPR" && on(p)) { g.globalAlpha = 1; g.fillStyle = "#fff"; g.font = "bold 12px sans-serif"; g.textAlign = "center"; g.fillText("엔드 포탈", a + ww / 2, b2 + hh / 2 + 4); }
+  }
+  g.globalAlpha = 1;
   if (ras) { g.imageSmoothingEnabled = false; g.drawImage(ras, sx(PLAN.box[0]), sz(PLAN.box[1]), PLAN.ext[0] * PLAN.s, PLAN.ext[1] * PLAN.s); }
   const order = ras && !outline ? [] : [...PLAN.pcs].sort((a, b) => (on(a) - on(b)) || (a.bb[1] - b.bb[1]));
   for (const p of order) {
@@ -2029,23 +2224,29 @@ function drawPlan() {
     g.globalAlpha = on(p) ? 0.9 : 0.15; g.strokeStyle = "#0b0f12"; g.lineWidth = 1; g.strokeRect(a + .5, b + .5, ww - 1, hh - 1);
   }
   g.globalAlpha = 1;
+  if (PLAN.selPiece && outline) { const p = PLAN.selPiece; g.globalAlpha = 1; g.lineWidth = 3; g.strokeStyle = "#fff"; g.strokeRect(sx(p.bb[0]) + 1, sz(p.bb[2]) + 1, (p.bb[3] - p.bb[0] + 1) * PLAN.s - 2, (p.bb[5] - p.bb[2] + 1) * PLAN.s - 2); }
   const r = Math.max(3, Math.min(7, PLAN.s * 0.6)), icon = $("planBox").querySelector(".pic").checked;
   const draw = (c, i) => {
     const vis = fy === null || Math.abs(c.y - fy) <= 4;
-    const px = sx(c.x + 0.5), pz = sz(c.z + 0.5), hot = i === PLAN.hov, sel = i === PLAN.sel;
+    const px = sx((c.big ? (c.x + c.x2) / 2 : c.x) + 0.5), pz = sz((c.big ? (c.z + c.z2) / 2 : c.z) + 0.5), hot = i === PLAN.hov, sel = i === PLAN.sel;
     g.globalAlpha = vis ? 1 : 0.2;
     if (icon && /^chests\//.test(c.t) && !/barrel/.test(c.t)) {   // 상자 아이콘: 나무 상자 + 금색 걸쇠
-      const k = Math.max(12, Math.min(20, PLAN.s * 1.2)) * (hot ? 1.6 : sel ? 1.3 : 1), a = px - k / 2, b = pz - k / 2;
-      g.fillStyle = "#8b5a2b"; g.fillRect(a, b, k, k);
-      g.fillStyle = "#6b4220"; g.fillRect(a, b + k * 0.42, k, k * 0.08);
+      const k = Math.max(12, Math.min(20, PLAN.s * 1.2)) * (hot ? 1.6 : sel ? 1.3 : 1), kw = c.big ? k * 1.8 : k, a = px - kw / 2, b = pz - k / 2;   // 큰 상자는 가로로 넓게
+      g.fillStyle = "#8b5a2b"; g.fillRect(a, b, kw, k);
+      g.fillStyle = "#6b4220"; g.fillRect(a, b + k * 0.42, kw, k * 0.08);
       g.fillStyle = "#f2c94c"; g.fillRect(px - k * 0.1, b + k * 0.32, k * 0.2, k * 0.26);
-      g.lineWidth = hot || sel ? 2 : 1; g.strokeStyle = hot || sel ? "#fff" : "#2a1a0c"; g.strokeRect(a + .5, b + .5, k - 1, k - 1);
+      g.lineWidth = hot || sel ? 2 : 1; g.strokeStyle = hot || sel ? "#fff" : "#2a1a0c"; g.strokeRect(a + .5, b + .5, kw - 1, k - 1);
     } else {
-      g.beginPath(); g.arc(px, pz, hot ? r * 1.9 + 2 : sel ? r + 3 : r, 0, 7); g.fillStyle = chestColor(c.t); g.fill();
+      const rr = hot ? r * 1.9 + 2 : sel ? r + 3 : r; g.beginPath(); if (c.big) { g.ellipse(px, pz, rr * 1.7, rr, 0, 0, 7); } else g.arc(px, pz, rr, 0, 7); g.fillStyle = chestColor(c.t); g.fill();
       g.lineWidth = hot || sel ? 2.5 : 1.2; g.strokeStyle = hot || sel ? "#fff" : "#000"; g.stroke();
     }
   };
   PLAN.chests.forEach((c, i) => { if (i !== PLAN.hov && i !== PLAN.sel) draw(c, i); });
+  { const st = new Map(); PLAN.chests.forEach(c => { const k = c.x + "," + c.z; st.set(k, (st.get(k) || 0) + 1); });   // 같은 자리에 위아래로 쌓인 상자 수
+    g.font = "bold 10px sans-serif"; g.textAlign = "center";
+    for (const [k, n] of st) if (n > 1) { const [x, z] = k.split(",").map(Number), bx = sx(x + .5) + 8, by = sz(z + .5) - 8;
+      g.globalAlpha = 1; g.beginPath(); g.arc(bx, by, 7, 0, 7); g.fillStyle = "#e5484d"; g.fill(); g.fillStyle = "#fff"; g.fillText(String(n), bx, by + 3.5); } }
+  if (PLAN.multi) for (const k of PLAN.multi) { const c = PLAN.chests[k]; g.globalAlpha = 1; g.lineWidth = 2; g.strokeStyle = "#fff"; g.beginPath(); g.arc(sx((c.big ? (c.x + c.x2) / 2 : c.x) + .5), sz((c.big ? (c.z + c.z2) / 2 : c.z) + .5), r + 4, 0, 7); g.stroke(); }
   if (PLAN.sel >= 0) draw(PLAN.chests[PLAN.sel], PLAN.sel);
   if (PLAN.hov >= 0 && PLAN.hov !== PLAN.sel) draw(PLAN.chests[PLAN.hov], PLAN.hov);
   g.globalAlpha = 1;
@@ -2054,25 +2255,100 @@ function drawPlan() {
   // 축척: 16블록(청크 하나)
   const L = 16 * PLAN.s; g.fillRect(12, 14, L, 2); g.textAlign = "left"; g.font = "11px sans-serif"; g.fillText("16칸", 12 + L + 6, 19);
 }
-function planHit(px, py) {
-  const { sx, sz } = planView(), fy = planFloor(), r = Math.max(14, PLAN.s * 1.2);   // 가까이만 가도 잡히게
-  let best = -1, bd = 1e9;
-  PLAN.chests.forEach((c, i) => { if (fy !== null && Math.abs(c.y - fy) > 4) return; const d = Math.hypot(sx(c.x + .5) - px, sz(c.z + .5) - py); if (d < r && d < bd) { bd = d; best = i; } });
-  return best;
+// 누른 자리 근처의 상자들 (높이와 상관없이 전부, 가까운 순)
+function planHits(px, py) {
+  const { sx, sz } = planView(), r = Math.max(14, PLAN.s * 1.2), out = [];
+  PLAN.chests.forEach((c, i) => { const d = Math.hypot(sx((c.big ? (c.x + c.x2) / 2 : c.x) + .5) - px, sz((c.big ? (c.z + c.z2) / 2 : c.z) + .5) - py); if (d < r) out.push([d, i]); });
+  return out.sort((a, b) => a[0] - b[0]).map(v => v[1]);
 }
+function planHit(px, py) { const h = planHits(px, py); return h.length ? h[0] : -1; }
 function planHover(px, py) {
   const tip = $("planBox").querySelector(".tip"), i = planHit(px, py);
   if (i !== PLAN.hov) { PLAN.hov = i; $("planBox").querySelector("canvas").style.cursor = i >= 0 ? "pointer" : "grab"; drawPlan(); }
-  if (i >= 0) { const c = PLAN.chests[i]; tip.textContent = `${TABLE_KO[c.t] || c.t} · ${c.x}, ${c.y}, ${c.z}`; return; }
+  if (i >= 0) { const c = PLAN.chests[i], n = planHits(px, py).length; tip.textContent = n > 1 ? `상자 ${n}개 겹침 · 누르면 골라요` : `${c.big ? "큰 " : ""}${TABLE_KO[c.t] || c.t} · ${c.x}, ${c.y}, ${c.z}`; return; }
   const X = Math.floor((px - planView().w / 2) / PLAN.s + PLAN.cx), Z = Math.floor((py - planView().h / 2) / PLAN.s + PLAN.cz), fy = planFloor();
   const p = PLAN.pcs.filter(p => X >= p.bb[0] && X <= p.bb[3] && Z >= p.bb[2] && Z <= p.bb[5] && (fy === null || (p.bb[1] <= fy && p.bb[4] >= fy))).pop();
   tip.textContent = `X ${X}, Z ${Z}` + (p ? ` · ${(p.el.l || (p.el.e && p.el.e[0].l) || "").split("/").slice(-2).join("/")} (Y ${p.bb[1]}~${p.bb[4]})` : "");
 }
+// 조각 이름을 대충 한국어로 (원래 이름도 같이 보여 줌)
+const PIECE_KO = [["city_center", "도시 중심"], ["barracks", "막사"], ["sauna", "사우나"], ["ice_box", "얼음 저장고"], ["tall_ruin", "높은 폐허"], ["small_statue", "작은 조각상"], ["large_ruin", "큰 폐허"], ["medium_ruin", "중간 폐허"], ["small_ruin", "작은 폐허"], ["camp", "야영지"], ["entrance", "입구"], ["walls", "벽"], ["wall", "벽"],
+  ["corridor", "복도"], ["chamber", "전투실"], ["intersection", "교차로"], ["reward", "보상실"], ["spawner", "생성기"], ["decor", "장식"], ["atrium", "중앙 홀"], ["hallway", "통로"], ["dispenser", "발사기"], ["chests", "상자"], ["addon", "덧붙임"], ["assembly", "조립실"], ["eruption", "분출실"], ["slanted", "경사로"], ["pedestal", "받침대"], ["ominous", "불길한"],
+  ["meeting_point", "마을 중심"], ["fountain", "분수"], ["animal_pen", "동물 우리"], ["armorer", "갑옷 제조인 집"], ["butcher", "정육점"], ["cartographer", "지도 제작자 집"], ["fisher", "어부 집"], ["fletcher", "화살 제조인 집"], ["library", "도서관"], ["mason", "석공 집"], ["shepherd", "양치기 집"], ["tannery", "가죽 세공인 집"], ["temple", "신전"], ["tool_smith", "도구 대장장이 집"], ["weaponsmith", "무기 대장장이 집"], ["weapon_smith", "무기 대장장이 집"], ["stable", "마구간"], ["farm", "농장"], ["house", "집"], ["hut", "오두막"],
+  ["straight", "곧은 길"], ["crossroad", "교차로"], ["corner", "모퉁이 길"], ["turn", "꺾인 길"], ["terminator", "길 끝"], ["lamp", "가로등"], ["streets", "길"]];
+function pieceName(p) {
+  if (p._st === 18) return { ko: NE_KO[p.el.l] || p.el.l, raw: p.el.l };
+  if (p._st === 27) return { ko: SH_KO[p.el.l] || p.el.l, raw: p.el.l };
+  if (p._st === 15) return { ko: "폐광 " + MS_KO[p.el.ms], raw: p.el.l };
+  const n = p.el.t === "s" ? p.el.l : p.el.t === "l" ? p.el.e.map(e => e.l || "").find(Boolean) || "" : "";
+  const last = n.split("/").pop(), size = /small/.test(last) ? "작은 " : /medium/.test(last) ? "중간 " : /big|large/.test(last) ? "큰 " : "";
+  const hit = PIECE_KO.find(([k]) => last.includes(k)) || PIECE_KO.find(([k]) => n.includes(k));
+  const num = (last.match(/_(\d+)$/) || [])[1];
+  return { ko: hit ? size + hit[1] + (num ? " " + num : "") : last, raw: n };
+}
+function pieceAt(px, py) {
+  const v = planView(), X = Math.floor((px - v.w / 2) / PLAN.s + PLAN.cx), Z = Math.floor((py - v.h / 2) / PLAN.s + PLAN.cz), fy = planFloor();
+  const c = PLAN.pcs.filter(p => X >= p.bb[0] && X <= p.bb[3] && Z >= p.bb[2] && Z <= p.bb[5] && (fy === null || (p.bb[1] <= fy && p.bb[4] >= fy)));
+  c.sort((a, b) => (a.bb[3] - a.bb[0] + 1) * (a.bb[5] - a.bb[2] + 1) - (b.bb[3] - b.bb[0] + 1) * (b.bb[5] - b.bb[2] + 1));   // 겹치면 작은 조각 먼저
+  return c[0] || null;
+}
+function pieceHtml(p) {
+  const nm = pieceName(p), b = p.bb, W = b[3] - b[0] + 1, D = b[5] - b[2] + 1, H = b[4] - b[1] + 1;
+  const inside = PLAN.chests.map((c, i) => [c, i]).filter(([c]) => c.x >= b[0] && c.x <= b[3] && c.z >= b[2] && c.z <= b[5] && c.y >= b[1] && c.y <= b[4]);
+  const cnt = {}; for (const [c] of inside) { const k = /pots\//.test(c.t) ? "장식 항아리" : /dispensers\//.test(c.t) ? "발사기" : /barrel/.test(c.t) ? "통" : "상자"; cnt[k] = (cnt[k] || 0) + 1; }
+  const ROT = ["그대로", "시계 방향 90°", "180°", "반시계 방향 90°"];
+  const grp = PLAN.members && PLAN.members.length > 1;
+  const sub = PLAN.full.filter(q => q !== p && q.el.t !== "f" && q.bb[0] >= b[0] && q.bb[3] <= b[3] && q.bb[2] >= b[2] && q.bb[5] <= b[5] && q.bb[1] >= b[1] && q.bb[4] <= b[4]).length;
+  const row = (k, v) => `<tr><td class="d">${k}</td><td>${v}</td></tr>`;
+  return `<div class="pcinfo"><b>${escH(nm.ko)}</b><br><span class="d">${escH(nm.raw)}</span>
+    <table>${grp ? row("구조물", `${p._m + 1}. ${PLAN_NAME[p._st]}`) : ""}
+    ${row("크기", `가로 ${W} × 세로 ${D} × 높이 ${H}칸`)}
+    ${row("높이", `Y ${b[1]} ~ ${b[4]}`)}
+    ${row("범위", `X ${b[0]} ~ ${b[3]}<br>Z ${b[2]} ~ ${b[5]}`)}
+    ${row("회전", ROT[p.rot] || "-")}
+    ${row("땅 맞춤", p.el.pr === "t" ? "땅 높이를 따라감" : "고정 (모양 그대로)")}
+    ${row("조립 단계", `${p.depth}번째 (0 = 시작 조각)`)}
+    ${sub ? row("안에 든 작은 조각", sub + "개") : ""}
+    ${row("보관함", Object.keys(cnt).length ? Object.entries(cnt).map(([k, v]) => `${k} ${v}개`).join(", ") : "없음")}</table>
+    ${inside.length ? `<ul class="pcl">${inside.map(([c, i]) => `<li><a href="#" data-c="${i}">${escH(TABLE_KO[c.t] || c.t)}</a> <span class="d">${c.x}, ${c.y}, ${c.z}</span></li>`).join("")}</ul>` : ""}</div>`;
+}
+// 오른쪽 칸의 "선택한 것" (상자·조각). null이면 닫기
+function planDetail(title, html) {
+  const b = $("planBox"); if (!b) return; const sec = b.querySelector(".pdet");
+  if (!title) { const cp = b.querySelector(".cpop"); if (cp) cp.hidden = true; }
+  if (!title) { sec.hidden = true; if (PLAN.multi) { PLAN.multi = null; if (PLAN.pcs) drawPlan(); } if (PLAN.sel >= 0 || PLAN.selPiece) { PLAN.sel = -1; PLAN.selPiece = null; if (PLAN.pcs) drawPlan(); } return; }
+  sec.hidden = false; b.querySelector(".pdt").textContent = title; b.querySelector(".pdb").innerHTML = html; b.querySelector(".pi").scrollTop = 0;
+}
+function planOpenChest(i) {
+  PLAN.sel = i; PLAN.selPiece = null; drawPlan();
+  const c = PLAN.chests[i], grp = PLAN.members && PLAN.members.length > 1;
+  planDetail(grp && PLAN.showSet.size > 1 ? `${PLAN_NAME[PLAN.members[c._m].st]}의 상자` : "상자", `<div class="loot">${chestHtml(c)}</div>`);
+}
 function planClick(px, py) {
-  const i = planHit(px, py); if (i < 0) return;
-  PLAN.sel = i; drawPlan();
-  const c = PLAN.chests[i], grp = PLAN.members && PLAN.members.length > 1;   // 같이 볼 때만 어느 구조물 상자인지
-  $("planBox").querySelector(".pi").innerHTML = (grp ? `<p class="d">${c._m + 1}. ${PLAN_NAME[PLAN.members[c._m].st]}의 상자</p>` : "") + `<div class="loot">${chestHtml(c)}</div>`;
+  const hs = planHits(px, py);
+  const pop = $("planBox").querySelector(".cpop");
+  if (!pop.hidden) { pop.hidden = true; PLAN.multi = null; drawPlan(); return; }   // 떠 있던 선택 창은 지도를 누르면 닫기만
+  if (hs.length > 1) {   // 여러 상자가 겹친 자리: 누른 곳 위에 작은 창으로 나란히 보여 주고 고르기
+    const fy = planFloor(); hs.sort((a, b) => PLAN.chests[b].y - PLAN.chests[a].y);
+    PLAN.sel = -1; PLAN.selPiece = null; PLAN.multi = hs; drawPlan();
+    pop.innerHTML = `<div class="cpt">상자 ${hs.length}개가 겹쳐 있어요</div><div class="cpl">${hs.map(k => { const c = PLAN.chests[k], far = fy !== null && Math.abs(c.y - fy) > 4;
+      return `<button type="button" data-c="${k}"${far ? ' class="far"' : ""}><i style="background:${chestColor(c.t)}"></i><b>Y ${c.y}</b><span>${c.big ? "큰 " : ""}${escH(TABLE_KO[c.t] || c.t)}</span></button>`; }).join("")}</div>`;
+    pop.hidden = false;
+    const cw = pop.parentNode.clientWidth, pw = pop.offsetWidth, ph = pop.offsetHeight;
+    pop.style.left = Math.max(6, Math.min(cw - pw - 6, px - pw / 2)) + "px";
+    pop.style.top = (py - ph - 16 >= 6 ? py - ph - 16 : py + 16) + "px";
+    pop.querySelectorAll("button[data-c]").forEach(bt => bt.onclick = ev => { ev.stopPropagation(); pop.hidden = true; PLAN.multi = null; planOpenChest(+bt.dataset.c); });
+    return;
+  }
+  PLAN.multi = null;
+  const i = hs.length ? hs[0] : -1;
+  if (i < 0) {   // 상자가 아니면, 조각 테두리를 켜 둔 경우 그 조각 정보
+    if (!$("planBox").querySelector(".pol").checked) { planDetail(null); return; }
+    const p = pieceAt(px, py); if (!p) { planDetail(null); return; } PLAN.selPiece = p; PLAN.sel = -1; drawPlan();
+    planDetail("조각", pieceHtml(p)); const pi = $("planBox").querySelector(".pdb");
+    pi.querySelectorAll(".pcl a").forEach(a => a.onclick = ev => { ev.preventDefault(); const k = +a.dataset.c; PLAN.sel = k; drawPlan(); pi.insertAdjacentHTML("beforeend", `<div class="loot">${chestHtml(PLAN.chests[k])}</div>`); });
+    return;
+  }
+  planOpenChest(i);
 }
 // 링크 공유: 시드·차원·위치·확대를 주소 # 뒤에 담음
 function shareUrl() {
@@ -2125,6 +2401,11 @@ function showInfoAt(px, py, withTip) {
   let id = hoverEx.biome_at(wx, wz, mapState.dim === -1 ? 64 : 256); if (mapState.dim === 1 && hoverEx.height_at(wx, wz) <= 0) id = -2; const bname = NAME[id] || "";
   $("cursorInfo").textContent = `X ${fmt(wx)}, Z ${fmt(wz)} · 청크 ${Math.floor(wx / 16)}, ${Math.floor(wz / 16)}${bname ? " · " + bname : ""}`;
   const tip = $("tip"); const hit = withTip && findHit(px, py);
+  { // 아이콘 가까이 가면 테두리 강조 (조금 넉넉하게)
+    let nh = null, bd = 1e9; if (withTip) for (const h of mapState.hits || []) { const d = Math.hypot(h.px - px, h.py - py); if (d <= h.r + 6 && d < bd) { bd = d; nh = h; } }
+    const k = nh ? nh.st + ":" + nh.x + ":" + nh.z : null;
+    if (k !== mapState.hovKey) { mapState.hovKey = k; scheduleDraw(); }
+    big.style.cursor = nh ? "pointer" : ""; }
   if (hit) { tip.style.display = "block"; tip.style.left = px + "px"; tip.style.top = py + "px"; tip.textContent = hit.label; } else tip.style.display = "none";
 }
 const endPointer = (e) => {
@@ -2134,6 +2415,7 @@ const endPointer = (e) => {
   if (wasTap) {
     const r = big.getBoundingClientRect(); const px = e.clientX - r.left, py = e.clientY - r.top;
     const hit = findHit(px, py);
+    if (popWasOpen) { popWasOpen = false; if (!(hit && hit.st !== undefined)) return; }   // 설명 창이 떠 있었으면 빈 곳은 닫기만, 다른 구조물은 그 설명으로 바꿈
     if (hit && hit.st !== undefined) { $("tip").style.display = "none"; openPop(hit, px, py); }
     else {
       closePop(); showInfoAt(px, py, e.pointerType !== "mouse");
@@ -2142,6 +2424,7 @@ const endPointer = (e) => {
   }
 };
 $("stage").addEventListener("contextmenu", (e) => e.preventDefault());   // 지도 위 우클릭 메뉴 막기
+big.addEventListener("pointerleave", () => { if (mapState.hovKey) { mapState.hovKey = null; scheduleDraw(); } });
 big.addEventListener("pointerup", endPointer); big.addEventListener("pointercancel", endPointer);
 big.addEventListener("keydown", (e) => {
   const step = 60 * mapState.bpp; let used = true;
@@ -2330,7 +2613,7 @@ function makeAssembler(data) {
     const cy = k + v[1];
     const D = opts.maxDist, pad = opts.pad || [0, 0];
     const pieces = [{ el: el0, pos: bp1, rot, bb, depth: 0, gld: 1, jn: [] }];
-    const outer = { c: [ci - D, Math.max(cy - D, -64 + pad[0]), cj - D, ci + D, Math.min(cy + D, 319 - pad[1]), cj + D], r: [bb] };
+    const outer = { c: [ci - D, Math.max(cy - D, (opts.minY ?? -64) + pad[0]), cj - D, ci + D, Math.min(cy + D, (opts.maxY ?? 319) - pad[1]), cj + D], r: [bb] };
     const queue = [{ pc: pieces[0], free: outer, depth: 0, pri: 0, seq: 0 }];
     let seq = 1;
     while (queue.length) {
