@@ -165,6 +165,7 @@ body.mapfull .mapstage { position: fixed; inset: 0; z-index: 60; height: auto; m
 #planBox .pi .lc ul { margin: 4px 0 8px 18px; padding: 0; }
 #planBox .lg { display: flex; gap: 10px; flex-wrap: wrap; font-size: 12px; color: #aab4ad; }
 #planBox .lg i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 4px; vertical-align: -1px; }
+#planBox .grp ol { margin: 6px 0 10px 18px; padding: 0; } #planBox .grp a { color: #8fc1ff; }
 #planBox .tip { position: absolute; left: 8px; bottom: 8px; background: rgba(0,0,0,.6); padding: 3px 8px; border-radius: 6px; font-size: 12px; pointer-events: none; }
 @media (max-width: 640px) { #planBox { inset: 0; border-radius: 0; } #planBox .pb { flex-direction: column; } #planBox .pi { width: auto; height: 38%; border-left: 0; border-top: 1px solid #263038; } }
 .pop .lootb { margin-top: 6px; width: 100%; background: #2f9e55; color: #fff; border: 0; border-radius: 6px; padding: 4px 8px; font: inherit; font-size: 12px; font-weight: 600; cursor: pointer; }
