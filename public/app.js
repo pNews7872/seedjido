@@ -1612,9 +1612,9 @@ function placePop(pop, px, py) {
   pop.style.left = lx + "px"; pop.style.top = ly + "px";
 }
 const LOOT_KO = {
-abandoned_camp_map:"버려진 캠프 지도",activator_rail:"활성화 레일",ancient_debris:"고대 잔해",apple:"사과",arrow:"화살",bamboo:"대나무",beetroot_seeds:"비트 씨앗",bell:"종",bone:"뼈",bone_block:"뼈 블록",book:"책",bow:"활",bowl:"그릇",bread:"빵",bucket:"양동이",bundle:"꾸러미",buried_ancient_city_map:"고대 도시 지도",buried_mineshaft_map:"폐광 지도",buried_trial_chambers_map:"시련의 방 지도",carrot:"당근",chain:"사슬",chest:"상자",clock:"시계",coal:"석탄",coast_armor_trim_smithing_template:"해안 갑옷 장식 형판",cobweb:"거미줄",compass:"나침반",cooked_cod:"익힌 대구",cooked_porkchop:"익힌 돼지고기",cooked_salmon:"익힌 연어",copper_axe:"구리 도끼",copper_boots:"구리 부츠",copper_chestplate:"구리 흉갑",copper_horse_armor:"구리 말 갑옷",copper_ingot:"구리 주괴",copper_leggings:"구리 레깅스",copper_nautilus_armor:"구리 앵무조개 갑옷",copper_spear:"구리 창",copper_sword:"구리 검",crossbow:"쇠뇌",crying_obsidian:"우는 흑요석",dark_oak_log:"짙은 참나무 원목",desert_pyramid_map:"사막 피라미드 지도",detector_rail:"감지 레일",diamond:"다이아몬드",diamond_boots:"다이아몬드 부츠",diamond_chestplate:"다이아몬드 흉갑",diamond_helmet:"다이아몬드 투구",diamond_horse_armor:"다이아몬드 말 갑옷",diamond_leggings:"다이아몬드 레깅스",diamond_nautilus_armor:"다이아몬드 앵무조개 갑옷",diamond_pickaxe:"다이아몬드 곡괭이",diamond_shovel:"다이아몬드 삽",diamond_spear:"다이아몬드 창",diamond_sword:"다이아몬드 검",dune_armor_trim_smithing_template:"모래 언덕 갑옷 장식 형판",emerald:"에메랄드",enchanted_golden_apple:"마법이 부여된 황금 사과",ender_pearl:"엔더 진주",experience_bottle:"경험치 병",eye_armor_trim_smithing_template:"눈 갑옷 장식 형판",feather:"깃털",fire_charge:"화염구",fishing_rod:"낚싯대",flint:"부싯돌",flint_and_steel:"부싯돌과 부시",gilded_blackstone:"금 박힌 흑암",glass_bottle:"유리병",glistering_melon_slice:"반짝이는 수박 조각",glow_berries:"발광 열매",goat_horn:"염소 뿔",gold_block:"금 블록",gold_ingot:"금 주괴",gold_nugget:"금 조각",golden_apple:"황금 사과",golden_axe:"황금 도끼",golden_boots:"황금 부츠",golden_carrot:"황금 당근",golden_chestplate:"황금 흉갑",golden_helmet:"황금 투구",golden_hoe:"황금 괭이",golden_horse_armor:"황금 말 갑옷",golden_leggings:"황금 레깅스",golden_nautilus_armor:"황금 앵무조개 갑옷",golden_pickaxe:"황금 곡괭이",golden_shovel:"황금 삽",golden_sword:"황금 검",gunpowder:"화약",heart_of_the_sea:"바다의 심장",iron_axe:"철 도끼",iron_block:"철 블록",iron_boots:"철 부츠",iron_chain:"철 사슬",iron_chestplate:"철 흉갑",iron_helmet:"철 투구",iron_horse_armor:"철 말 갑옷",iron_ingot:"철 주괴",iron_leggings:"철 레깅스",iron_nautilus_armor:"철 앵무조개 갑옷",iron_nugget:"철 조각",iron_pickaxe:"철 곡괭이",iron_shovel:"철 삽",iron_spear:"철 창",iron_sword:"철 검",jungle_pyramid_map:"정글 사원 지도",lapis_lazuli:"청금석",lead:"끈",leather:"가죽",leather_boots:"가죽 부츠",leather_chestplate:"가죽 튜닉",leather_helmet:"가죽 모자",leather_leggings:"가죽 바지",light_weighted_pressure_plate:"가벼운 압력판",lodestone:"자석석",magma_cream:"마그마 크림",map:"지도",melon_seeds:"수박 씨앗",moss_block:"이끼 블록",music_disc_bounce:"음반 (Bounce)",music_disc_otherside:"음반 (otherside)",music_disc_pigstep:"음반 (Pigstep)",name_tag:"이름표",nether_wart:"네더 사마귀",netherite_scrap:"네더라이트 파편",netherite_upgrade_smithing_template:"네더라이트 강화 형판",obsidian:"흑요석",paper:"종이",piglin_banner_pattern:"현수막 무늬 (주둥이)",poisonous_potato:"독이 있는 감자",potato:"감자",potion:"물약",powered_rail:"전동 레일",prismarine_crystals:"프리즈머린 수정",pumpkin:"호박",pumpkin_seeds:"호박 씨앗",rabbit_hide:"토끼 가죽",rail:"레일",redstone:"레드스톤 가루",rib_armor_trim_smithing_template:"갈비뼈 갑옷 장식 형판",rotten_flesh:"썩은 살점",saddle:"안장",sand:"모래",sentry_armor_trim_smithing_template:"파수꾼 갑옷 장식 형판",shears:"가위",snout_armor_trim_smithing_template:"주둥이 갑옷 장식 형판",spectral_arrow:"분광 화살",spider_eye:"거미 눈",spire_armor_trim_smithing_template:"첨탑 갑옷 장식 형판",spyglass:"망원경",stone_axe:"돌 도끼",straw_bed:"짚 침대",string:"실",suspicious_stew:"수상한 스튜",tnt:"TNT",torch:"횃불",tripwire_hook:"철사 덫 갈고리",warm_ocean_ruins_map:"바다 유적 지도",wheat:"밀",white_candle:"흰색 양초",white_cushion:"흰색 방석",wild_armor_trim_smithing_template:"야생 갑옷 장식 형판",wooden_axe:"나무 도끼",woodland_mansion_map:"삼림 대저택 지도",enchanted_book:"마법이 부여된 책",amethyst_shard:"자수정 조각",baked_potato:"구운 감자",candle:"양초",diamond_hoe:"다이아몬드 괭이",disc_fragment_5:"음반 조각 (5)",echo_shard:"메아리 조각",music_disc_13:"음반 (13)",music_disc_cat:"음반 (cat)",packed_ice:"꽁꽁 언 얼음",sculk:"스컬크",sculk_catalyst:"스컬크 촉매",sculk_sensor:"스컬크 감지체",silence_armor_trim_smithing_template:"고요 갑옷 장식 형판",snowball:"눈덩이",soul_torch:"영혼 횃불",ward_armor_trim_smithing_template:"수호 갑옷 장식 형판",golden_spear:"황금 창",netherite_spear:"네더라이트 창"};
+abandoned_camp_map:"버려진 캠프 지도",activator_rail:"활성화 레일",ancient_debris:"고대 잔해",apple:"사과",arrow:"화살",bamboo:"대나무",beetroot_seeds:"비트 씨앗",bell:"종",bone:"뼈",bone_block:"뼈 블록",book:"책",bow:"활",bowl:"그릇",bread:"빵",bucket:"양동이",bundle:"꾸러미",buried_ancient_city_map:"고대 도시 지도",buried_mineshaft_map:"폐광 지도",buried_trial_chambers_map:"시련의 방 지도",carrot:"당근",chain:"사슬",chest:"상자",clock:"시계",coal:"석탄",coast_armor_trim_smithing_template:"해안 갑옷 장식 형판",cobweb:"거미줄",compass:"나침반",cooked_cod:"익힌 대구",cooked_porkchop:"익힌 돼지고기",cooked_salmon:"익힌 연어",copper_axe:"구리 도끼",copper_boots:"구리 부츠",copper_chestplate:"구리 흉갑",copper_horse_armor:"구리 말 갑옷",copper_ingot:"구리 주괴",copper_leggings:"구리 레깅스",copper_nautilus_armor:"구리 앵무조개 갑옷",copper_spear:"구리 창",copper_sword:"구리 검",crossbow:"쇠뇌",crying_obsidian:"우는 흑요석",dark_oak_log:"짙은 참나무 원목",desert_pyramid_map:"사막 피라미드 지도",detector_rail:"감지 레일",diamond:"다이아몬드",diamond_boots:"다이아몬드 부츠",diamond_chestplate:"다이아몬드 흉갑",diamond_helmet:"다이아몬드 투구",diamond_horse_armor:"다이아몬드 말 갑옷",diamond_leggings:"다이아몬드 레깅스",diamond_nautilus_armor:"다이아몬드 앵무조개 갑옷",diamond_pickaxe:"다이아몬드 곡괭이",diamond_shovel:"다이아몬드 삽",diamond_spear:"다이아몬드 창",diamond_sword:"다이아몬드 검",dune_armor_trim_smithing_template:"모래 언덕 갑옷 장식 형판",emerald:"에메랄드",enchanted_golden_apple:"마법이 부여된 황금 사과",ender_pearl:"엔더 진주",experience_bottle:"경험치 병",eye_armor_trim_smithing_template:"눈 갑옷 장식 형판",feather:"깃털",fire_charge:"화염구",fishing_rod:"낚싯대",flint:"부싯돌",flint_and_steel:"부싯돌과 부시",gilded_blackstone:"금 박힌 흑암",glass_bottle:"유리병",glistering_melon_slice:"반짝이는 수박 조각",glow_berries:"발광 열매",goat_horn:"염소 뿔",gold_block:"금 블록",gold_ingot:"금 주괴",gold_nugget:"금 조각",golden_apple:"황금 사과",golden_axe:"황금 도끼",golden_boots:"황금 부츠",golden_carrot:"황금 당근",golden_chestplate:"황금 흉갑",golden_helmet:"황금 투구",golden_hoe:"황금 괭이",golden_horse_armor:"황금 말 갑옷",golden_leggings:"황금 레깅스",golden_nautilus_armor:"황금 앵무조개 갑옷",golden_pickaxe:"황금 곡괭이",golden_shovel:"황금 삽",golden_sword:"황금 검",gunpowder:"화약",heart_of_the_sea:"바다의 심장",iron_axe:"철 도끼",iron_block:"철 블록",iron_boots:"철 부츠",iron_chain:"철 사슬",iron_chestplate:"철 흉갑",iron_helmet:"철 투구",iron_horse_armor:"철 말 갑옷",iron_ingot:"철 주괴",iron_leggings:"철 레깅스",iron_nautilus_armor:"철 앵무조개 갑옷",iron_nugget:"철 조각",iron_pickaxe:"철 곡괭이",iron_shovel:"철 삽",iron_spear:"철 창",iron_sword:"철 검",jungle_pyramid_map:"정글 사원 지도",lapis_lazuli:"청금석",lead:"끈",leather:"가죽",leather_boots:"가죽 부츠",leather_chestplate:"가죽 튜닉",leather_helmet:"가죽 모자",leather_leggings:"가죽 바지",light_weighted_pressure_plate:"가벼운 압력판",lodestone:"자석석",magma_cream:"마그마 크림",map:"지도",melon_seeds:"수박 씨앗",moss_block:"이끼 블록",music_disc_bounce:"음반 (Bounce)",music_disc_otherside:"음반 (otherside)",music_disc_pigstep:"음반 (Pigstep)",name_tag:"이름표",nether_wart:"네더 사마귀",netherite_scrap:"네더라이트 파편",netherite_upgrade_smithing_template:"네더라이트 강화 형판",obsidian:"흑요석",paper:"종이",piglin_banner_pattern:"현수막 무늬 (주둥이)",poisonous_potato:"독이 있는 감자",potato:"감자",potion:"물약",powered_rail:"전동 레일",prismarine_crystals:"프리즈머린 수정",pumpkin:"호박",pumpkin_seeds:"호박 씨앗",rabbit_hide:"토끼 가죽",rail:"레일",redstone:"레드스톤 가루",rib_armor_trim_smithing_template:"갈비뼈 갑옷 장식 형판",rotten_flesh:"썩은 살점",saddle:"안장",sand:"모래",sentry_armor_trim_smithing_template:"파수꾼 갑옷 장식 형판",shears:"가위",snout_armor_trim_smithing_template:"주둥이 갑옷 장식 형판",spectral_arrow:"분광 화살",spider_eye:"거미 눈",spire_armor_trim_smithing_template:"첨탑 갑옷 장식 형판",spyglass:"망원경",stone_axe:"돌 도끼",straw_bed:"짚 침대",string:"실",suspicious_stew:"수상한 스튜",tnt:"TNT",torch:"횃불",tripwire_hook:"철사 덫 갈고리",warm_ocean_ruins_map:"바다 유적 지도",wheat:"밀",white_candle:"흰색 양초",white_cushion:"흰색 방석",wild_armor_trim_smithing_template:"야생 갑옷 장식 형판",wooden_axe:"나무 도끼",woodland_mansion_map:"삼림 대저택 지도",enchanted_book:"마법이 부여된 책",acacia_planks:"아카시아나무 판자",acacia_sapling:"아카시아나무 묘목",bamboo_hanging_sign:"대나무 매다는 표지판",bamboo_planks:"대나무 판자",barrel:"통",beef:"익히지 않은 소고기",beetroot_soup:"비트 수프",black_wool:"검은색 양털",blue_ice:"푸른 얼음",bolt_armor_trim_smithing_template:"나사 갑옷 장식 형판",bone_meal:"뼛가루",brown_wool:"갈색 양털",cactus:"선인장",cake:"케이크",clay_ball:"점토 덩이",cod:"익히지 않은 대구",dandelion:"민들레",dead_bush:"죽은 덤불",diamond_axe:"다이아몬드 도끼",diamond_block:"다이아몬드 블록",egg:"달걀",emerald_block:"에메랄드 블록",fern:"고사리",flow_armor_trim_smithing_template:"흐름 갑옷 장식 형판",flow_banner_pattern:"현수막 무늬 (흐름)",flower_pot:"화분",furnace:"화로",gray_wool:"회색 양털",green_dye:"초록색 염료",guster_banner_pattern:"현수막 무늬 (돌풍)",heavy_core:"무거운 코어",honey_bottle:"꿀이 든 병",honeycomb:"벌집 조각",large_fern:"큰 고사리",light_gray_wool:"회백색 양털",lingering_potion:"잔류형 물약",milk_bucket:"우유 양동이",music_disc_creator:"음반 (Creator)",music_disc_creator_music_box:"음반 (Creator 오르골)",music_disc_precipice:"음반 (Precipice)",mutton:"익히지 않은 양고기",oak_sapling:"참나무 묘목",ominous_bottle:"불길한 병",poppy:"양귀비",porkchop:"익히지 않은 돼지고기",pumpkin_pie:"호박 파이",salmon:"익히지 않은 연어",scaffolding:"비계",shield:"방패",short_grass:"잔디",smooth_stone:"매끄러운 돌",snow_block:"눈 블록",splash_potion:"투척용 물약",spruce_log:"가문비나무 원목",spruce_sapling:"가문비나무 묘목",spruce_sign:"가문비나무 표지판",stick:"막대기",stone:"돌",stone_bricks:"석재 벽돌",stone_pickaxe:"돌 곡괭이",sweet_berries:"달콤한 열매",tall_grass:"큰 잔디",tipped_arrow:"효과 화살",trial_key:"시련의 열쇠",trident:"삼지창",tuff:"응회암",water_bucket:"물 양동이",wheat_seeds:"밀 씨앗",white_wool:"흰색 양털",wind_charge:"돌풍구",yellow_dye:"노란색 염료",amethyst_shard:"자수정 조각",baked_potato:"구운 감자",candle:"양초",diamond_hoe:"다이아몬드 괭이",disc_fragment_5:"음반 조각 (5)",echo_shard:"메아리 조각",music_disc_13:"음반 (13)",music_disc_cat:"음반 (cat)",packed_ice:"꽁꽁 언 얼음",sculk:"스컬크",sculk_catalyst:"스컬크 촉매",sculk_sensor:"스컬크 감지체",silence_armor_trim_smithing_template:"고요 갑옷 장식 형판",snowball:"눈덩이",soul_torch:"영혼 횃불",ward_armor_trim_smithing_template:"수호 갑옷 장식 형판",golden_spear:"황금 창",netherite_spear:"네더라이트 창"};
 const ENCH_KO = {protection:"보호",fire_protection:"화염으로부터 보호",blast_protection:"폭발로부터 보호",projectile_protection:"발사체로부터 보호",respiration:"호흡",aqua_affinity:"친수성",thorns:"가시",swift_sneak:"신속한 잠행",feather_falling:"가벼운 착지",depth_strider:"물갈퀴",frost_walker:"차가운 걸음",soul_speed:"영혼 가속",sharpness:"날카로움",smite:"강타",bane_of_arthropods:"살충",knockback:"밀치기",fire_aspect:"발화",looting:"약탈",sweeping_edge:"휩쓸기",efficiency:"효율",silk_touch:"섬세한 손길",fortune:"행운",luck_of_the_sea:"바다의 행운",lure:"미끼",power:"힘",punch:"밀어내기",flame:"화염",infinity:"무한",quick_charge:"빠른 장전",multishot:"다중 발사",piercing:"관통",impaling:"찌르기",riptide:"급류",loyalty:"충성",channeling:"집전",density:"밀도",breach:"돌파",wind_burst:"돌풍",mending:"수선",unbreaking:"내구성",curse_of_vanishing:"소실 저주",curse_of_binding:"귀속 저주",lunge:"돌진"};
-const TABLE_KO = {"chests/desert_pyramid":"보물 상자","chests/jungle_temple":"보물 상자","chests/jungle_temple_dispenser":"화살 발사기","chests/igloo_chest":"지하실 상자","chests/shipwreck_treasure":"보물 상자","chests/shipwreck_supply":"보급 상자","chests/shipwreck_map":"지도 상자","chests/pillager_outpost":"상자","chests/ruined_portal":"상자","chests/buried_treasure":"보물 상자","chests/abandoned_mineshaft":"광산 수레 상자","chests/nether_bridge":"상자","chests/bastion_bridge":"다리 상자","chests/bastion_other":"상자","chests/bastion_treasure":"보물 상자","chests/bastion_hoglin_stable":"마구간 상자","chests/end_city_treasure":"보물 상자","chests/stronghold_corridor":"복도 상자","chests/stronghold_crossing":"교차로 상자","chests/stronghold_library":"서재 상자","chests/abandoned_camp_common_chest":"상자","chests/ancient_city":"상자","chests/ancient_city_ice_box":"얼음 상자","chests/abandoned_camp_secret_chest":"숨겨진 상자","barrels/abandoned_camp_barrel":"통"};
+const TABLE_KO = {"chests/desert_pyramid":"보물 상자","chests/jungle_temple":"보물 상자","chests/jungle_temple_dispenser":"화살 발사기","chests/igloo_chest":"지하실 상자","chests/shipwreck_treasure":"보물 상자","chests/shipwreck_supply":"보급 상자","chests/shipwreck_map":"지도 상자","chests/pillager_outpost":"상자","chests/ruined_portal":"상자","chests/buried_treasure":"보물 상자","chests/abandoned_mineshaft":"광산 수레 상자","chests/nether_bridge":"상자","chests/bastion_bridge":"다리 상자","chests/bastion_other":"상자","chests/bastion_treasure":"보물 상자","chests/bastion_hoglin_stable":"마구간 상자","chests/end_city_treasure":"보물 상자","chests/stronghold_corridor":"복도 상자","chests/stronghold_crossing":"교차로 상자","chests/stronghold_library":"서재 상자","chests/abandoned_camp_common_chest":"상자","chests/ancient_city":"상자","chests/ancient_city_ice_box":"얼음 상자","chests/trial_chambers/supply":"보급 상자","chests/trial_chambers/corridor":"복도 통","chests/trial_chambers/entrance":"입구 상자","chests/trial_chambers/intersection":"교차로 상자","chests/trial_chambers/intersection_barrel":"교차로 통","chests/trial_chambers/reward":"보상 상자","pots/trial_chambers/corridor":"장식 항아리","dispensers/trial_chambers/chamber":"발사기","dispensers/trial_chambers/corridor":"복도 발사기","chests/village/village_armorer":"갑옷 제조인 상자","chests/village/village_butcher":"도살업자 상자","chests/village/village_cartographer":"지도 제작자 상자","chests/village/village_desert_house":"집 상자","chests/village/village_fisher":"어부 상자","chests/village/village_fletcher":"화살 제조인 상자","chests/village/village_mason":"석공 상자","chests/village/village_plains_house":"집 상자","chests/village/village_savanna_house":"집 상자","chests/village/village_shepherd":"양치기 상자","chests/village/village_snowy_house":"집 상자","chests/village/village_taiga_house":"집 상자","chests/village/village_tannery":"가죽 세공인 상자","chests/village/village_temple":"신전 상자","chests/village/village_toolsmith":"도구 대장장이 상자","chests/village/village_weaponsmith":"무기 대장장이 상자","chests/abandoned_camp_secret_chest":"숨겨진 상자","barrels/abandoned_camp_barrel":"통"};
 const EFFECT_KO = { speed: "신속", slowness: "구속", haste: "성급함", strength: "힘", instant_health: "즉시 회복", instant_damage: "즉시 피해", jump_boost: "점프 강화", nausea: "멀미", regeneration: "재생", resistance: "저항", fire_resistance: "화염 저항", water_breathing: "수중 호흡", invisibility: "투명화", blindness: "실명", night_vision: "야간 투시", hunger: "허기", weakness: "나약함", poison: "독", wither: "시듦", saturation: "포화", slow_falling: "느린 낙하", luck: "행운", darkness: "어둠" };
 const MAP_TARGET = { desert_pyramid_map: 1, jungle_pyramid_map: 2, woodland_mansion_map: 9, warm_ocean_ruins_map: 6, buried_ancient_city_map: 13, buried_mineshaft_map: 15, buried_trial_chambers_map: 25, abandoned_camp_map: 26 };
 function mapTargetTxt(st, cx, cz) {   // 탐험 지도가 가리키는 곳: 상자 위치에서 가장 가까운 그 구조물
@@ -1646,17 +1646,51 @@ function ancientCityLoot(x, z, rdq) {
   }
   return out.join("\n");
 }
-const LOOT_ST = new Set([13, 1, 2, 4, 7, 10, 11, 12, 14, 15, 18, 19, 21, 121, 26, 27]);
-function lootHtml(st, x, z) {
+// 마을·시련의 방: 조각 데이터를 받아 와서 조립 → 상자마다 청크 장식 난수
+const jigsawCache = {};
+function jigsawData(name) {
+  if (!jigsawCache[name]) jigsawCache[name] = fetch("jigsaw/" + name + ".json").then(r => r.json()).then(d => ({ d, asm: makeAssembler(d) }));
+  return jigsawCache[name];
+}
+function jigsawLoot(st, D, x, z, rdq) {
+  const seed = BigInt.asIntN(64, (BigInt(mapState.hi >>> 0) << 32n) | BigInt(mapState.lo >>> 0));
+  const VT = ["plains", "desert", "savanna", "taiga", "snowy"], VSALT = { desert: 40039, plains: 40040, savanna: 40041, snowy: 40042, taiga: 40043 };
+  let pcs, salt;
+  if (st === 25) { pcs = D.asm(seed, x >> 4, z >> 4, { startPool: "trial_chambers/chamber/end", yMin: -40, yMax: -20, maxDepth: 20, maxDist: 116, pad: [10, 10], aliases: D.d.A }); salt = 30004; }
+  else {
+    const ty = VT[hoverEx.subtype_flag(5, x, z) & 7] || "plains";
+    pcs = D.asm(seed, x >> 4, z >> 4, { startPool: `village/${ty}/town_centers`, y: 0, heightFn: (a, b) => hoverEx.wg_height(a, b), projectStart: true, maxDepth: 6, maxDist: 80, hack: true });
+    salt = VSALT[ty];
+  }
+  if (!pcs) return "";
+  if (!jigsawLoot.nb) jigsawLoot.nb = hoverEx.malloc(128);
+  const nb = jigsawLoot.nb;
+  const seqs = {}, used = {}, out = [];
+  for (const c of piecesChests(D.d, pcs)) {
+    const cx = c.x >> 4, cz = c.z >> 4, k = cx + "," + cz;
+    if (!seqs[k]) seqs[k] = rdq(hoverEx.salt_longs(cx * 16, cz * 16, salt, 64)).trim().split(" ");
+    used[k] = used[k] || 0;
+    const ls = BigInt.asUintN(64, BigInt(seqs[k][used[k]++]));
+    if (!c.table) continue;
+    const unsure = pcs.slice(0, c.piece).some(q => q.el.t === "f" && (q.pos[0] >> 4) === cx && (q.pos[2] >> 4) === cz);
+    new Uint8Array(hoverEx.memory.buffer, nb, 128).set(new TextEncoder().encode(c.table + "\0"));
+    out.push(`C|${c.table}|${c.x}|${c.z}|0|${unsure ? "u" : "0"}|0|0|${c.y}`);
+    out.push(rdq(hoverEx.loot_named(nb, Number(ls & 0xffffffffn), Number(ls >> 32n))).trim());
+  }
+  return out.join("\n");
+}
+const LOOT_ST = new Set([5, 25, 13, 1, 2, 4, 7, 10, 11, 12, 14, 15, 18, 19, 21, 121, 26, 27]);
+async function lootHtml(st, x, z) {
   hoverEx.set_seed_dim(mapState.lo, mapState.hi, hoverEx.mc_wd(), mapState.dim);
   const rdq = q => { const u = new Uint8Array(hoverEx.memory.buffer, q); let n = 0; while (u[n]) n++; return new TextDecoder().decode(u.slice(0, n)); };
   let txt;
   if (st === 13) txt = ancientCityLoot(x, z, rdq);
+  else if (st === 5 || st === 25) { const d = await jigsawData(st === 5 ? "village" : "trial_chambers"); hoverEx.set_seed_dim(mapState.lo, mapState.hi, hoverEx.mc_wd(), mapState.dim); txt = jigsawLoot(st, d, x, z, rdq); }
   else txt = rdq(hoverEx.loot_struct(st === 121 ? 21 : st, x, z, 60));
   const chests = [];
   for (const l of txt.split("\n")) {
     const f = l.split("|");
-    if (f[0] === "C") chests.push({ t: f[1], x: +f[2], z: +f[3], y: f[8], items: new Map() });
+    if (f[0] === "C") chests.push({ t: f[1], x: +f[2], z: +f[3], y: f[8], u: f[5] === "u", items: new Map() });
     else if (f[0] === "I" && chests.length) {
       const id = f[1].replace("minecraft:", ""), cnt = +f[2];
       const ench = f[3] ? f[3].split(",").map(e => { const [k, lv] = e.split(":"); return (ENCH_KO[k] || k) + (ONE_LV.has(k) ? "" : " " + (ROMAN[+lv] || lv)); }) : [];
@@ -1676,13 +1710,18 @@ function lootHtml(st, x, z) {
   if (!chests.length) return `<div class="loot"><span class="d">${st === 4 ? "지하실이 없는 이글루라서 상자가 없어요." : "계산할 수 있는 상자가 없어요."}</span></div>`;
   const esc = t => t.replace(/[<&]/g, c => c === "<" ? "&lt;" : "&amp;");
   let h = `<div class="loot">`;
-  chests.forEach((c, i) => {
-    h += `<div class="lc"><b>${esc(TABLE_KO[c.t] || c.t)}</b> <span class="d">${c.y !== undefined ? `${c.x}, ${c.y}, ${c.z}` : `${c.x}, ${c.z}`}</span><ul>`;
-    for (const [k, v] of c.items) h += `<li>${k.includes('<span class="d">→') ? k : esc(k)}${v > 1 ? ` <span class="d">×${v}</span>` : ""}</li>`;
-    h += `</ul></div>`;
-  });
+  const one = c => {
+    let r = `<div class="lc"><b>${esc(TABLE_KO[c.t] || c.t)}</b> <span class="d">${c.y !== undefined ? `${c.x}, ${c.y}, ${c.z}` : `${c.x}, ${c.z}`}${c.u ? " · 틀릴 수 있음" : ""}</span><ul>`;
+    for (const [k, v] of c.items) r += `<li>${k.includes('<span class="d">→') ? k : esc(k)}${v > 1 ? ` <span class="d">×${v}</span>` : ""}</li>`;
+    return r + `</ul></div>`;
+  };
+  const minor = c => /^(pots|dispensers)\//.test(c.t);   // 시련의 방 항아리·발사기는 접어 둠
+  chests.filter(c => !minor(c)).forEach(c => h += one(c));
+  const mn = chests.filter(minor);
+  if (mn.length) h += `<details><summary class="d">장식 항아리·발사기 ${mn.length}개</summary>${mn.map(one).join("")}</details>`;
   if (st === 27) h += `<p class="d">엔드 유적은 일부 상자가 틀릴 수 있어요.</p>`;
-  if (st === 13) h += `<p class="d">고대 도시 상자 ${chests.length}개 (좌표는 x, y, z). 이미 열었거나 부서진 상자는 다를 수 있어요.</p>`;
+  if (st === 13 || st === 25) h += `<p class="d">${st === 13 ? "고대 도시" : "시련의 방"} 상자 ${chests.length}개 (좌표는 x, y, z). 이미 열었거나 부서진 상자는 다를 수 있어요.</p>`;
+  if (st === 5) h += `<p class="d">마을 상자 ${chests.length}개 (좌표는 x, y, z). 마을은 땅 높이를 따라 지어져서, 언덕이 심한 곳은 위치나 내용물이 틀릴 수 있어요. 나무·꽃 같은 장식이 먼저 놓인 청크의 상자도 틀릴 수 있어요.</p>`;
   return h + `</div>`;
 }
 // 링크 공유: 시드·차원·위치·확대를 주소 # 뒤에 담음
@@ -1725,7 +1764,7 @@ function openPop(hit, px, py) {
   pop.querySelector(".vis").onchange = (e) => { setVisited(key, e.target.checked); scheduleDraw(); renderNear(); };
   wireBm(pop, x, z);
   const lb = pop.querySelector(".lootb");
-  if (lb) lb.onclick = () => { let h; try { h = lootHtml(st, x, z); } catch (e) { h = '<div class="loot"><span class="d">계산하다가 문제가 생겼어요.</span></div>'; } lb.outerHTML = h; placePop(pop, px, py); };
+  if (lb) lb.onclick = async () => { let h; lb.disabled = true; lb.textContent = "계산 중…"; try { h = await lootHtml(st, x, z); } catch (e) { h = '<div class="loot"><span class="d">계산하다가 문제가 생겼어요.</span></div>'; } lb.outerHTML = h; placePop(pop, px, py); };
   placePop(pop, px, py);
 }
 function showInfoAt(px, py, withTip) {
@@ -1836,6 +1875,28 @@ class JRandom {
     this.setSeed(BigInt.asIntN(64, BigInt(cx) * a) ^ BigInt.asIntN(64, BigInt(cz) * b) ^ BigInt.asIntN(64, BigInt(worldSeed)));
   }
 }
+// Mth.getSeed(x, y, z)
+function mthSeed(x, y, z) {
+  let l = BigInt.asIntN(64, BigInt(Math.imul(x, 3129871)) ^ (BigInt(z) * 116129781n) ^ BigInt(y));
+  l = BigInt.asIntN(64, l * l * 42317861n + l * 11n);
+  return l >> 16n;
+}
+// 풀 별칭 (시련의 방 생성기 몹 종류): RandomSource.create(seed).forkPositional().at(pos)
+function aliasLookup(aliases, worldSeed, pos) {
+  const map = {};
+  if (!aliases || !aliases.length) return map;
+  const r0 = new JRandom(worldSeed), fs = r0.nextLong();
+  const r = new JRandom(BigInt.asIntN(64, mthSeed(pos[0], pos[1], pos[2]) ^ fs));
+  const pick = list => { const tot = list.reduce((a, b) => a + b.weight, 0); let i = r.nextInt(tot); for (const e of list) { i -= e.weight; if (i < 0) return e.data; } };
+  const res = b => {
+    const t = b.type.replace('minecraft:', '');
+    if (t === 'direct') map[b.alias.replace('minecraft:', '')] = b.target.replace('minecraft:', '');
+    else if (t === 'random') map[b.alias.replace('minecraft:', '')] = pick(b.targets).replace('minecraft:', '');
+    else if (t === 'random_group') pick(b.groups).forEach(res);
+  };
+  aliases.forEach(res);
+  return map;
+}
 function shuffle(list, rnd) { for (let i = list.length; i > 1; i--) { const k = rnd.nextInt(i); const t = list[i - 1]; list[i - 1] = list[k]; list[k] = t; } return list; }
 
 // ---------- 방향·회전 ----------
@@ -1851,7 +1912,10 @@ function makeAssembler(data) {
   const T = data.T, P = data.P;
   const pools = {};
   for (const [k, p] of Object.entries(P)) { const list = []; for (const [w, e] of p.el) for (let i = 0; i < w; i++) list.push(e); pools[k] = { list, fb: p.fb }; }
+  if (!pools.empty) pools.empty = { list: [], fb: 'empty' };
   const getPool = (name) => pools[name.replace('minecraft:', '')] || null;
+  const ySpan = e => e.t === 's' ? T[e.l].s[1] : e.t === 'l' ? Math.max(...e.e.map(ySpan)) : 1;
+  const maxSize = p => { if (p.max === undefined) p.max = Math.max(0, ...p.list.filter(e => e.t !== 'e').map(ySpan)); return p.max; };
 
   function tmplBox(name, pos, r) {
     const s = T[name].s, a = rotPos(0, 0, 0, r), b = rotPos(s[0] - 1, s[1] - 1, s[2] - 1, r);
@@ -1888,57 +1952,89 @@ function makeAssembler(data) {
   };
 
   // worldSeed: BigInt, (cx, cz) 시작 청크, opts: {startPool, startJigsaw, y, maxDepth, maxDist}
+  // opts: {startPool, startJigsaw?, y | yMin..yMax, heightFn?(x,z) 지면 높이(첫 빈칸), maxDepth, maxDist, pad:[아래,위], hack, aliases}
   return function assemble(worldSeed, cx, cz, opts) {
     const rnd = new JRandom(0n); rnd.setLargeFeatureSeed(worldSeed, cx, cz);
-    const pos0 = [cx * 16, opts.y, cz * 16];
+    const y0 = opts.yMin !== undefined ? rnd.nextInt(opts.yMax - opts.yMin + 1) + opts.yMin : (opts.y || 0);
+    const pos0 = [cx * 16, y0, cz * 16];
+    const alias = aliasLookup(opts.aliases, worldSeed, pos0);
+    const poolOf = n => { n = n.replace('minecraft:', ''); return getPool(alias[n] || n); };
     const rot = rnd.nextInt(4);
-    const sp = getPool(opts.startPool);
+    const sp = poolOf(opts.startPool);
     const el0 = sp.list[rnd.nextInt(sp.list.length)];
-    let jp = null;
-    for (const j of shuffledJigsaws(el0, pos0, rot, rnd)) if (j.name === opts.startJigsaw) { jp = j.p; break; }
-    if (!jp) return null;
-    const v = [jp[0] - pos0[0], jp[1] - pos0[1], jp[2] - pos0[2]];
-    const bp1 = [pos0[0] - v[0], pos0[1] - v[1], pos0[2] - v[2]];
+    let bp1 = [...pos0], v = [0, 0, 0];
+    if (opts.startJigsaw) {
+      let jp = null;
+      for (const j of shuffledJigsaws(el0, pos0, rot, rnd)) if (j.name === opts.startJigsaw) { jp = j.p; break; }
+      if (!jp) return null;
+      v = [jp[0] - pos0[0], jp[1] - pos0[1], jp[2] - pos0[2]];
+      bp1 = [pos0[0] - v[0], pos0[1] - v[1], pos0[2] - v[2]];
+    }
     let bb = elBox(el0, bp1, rot);
-    const k = bp1[1], l = bb[1] + 1, dy = k - l;            // 지면 기준 보정 (groundLevelDelta = 1)
+    const ci = Math.floor((bb[3] + bb[0]) / 2), cj = Math.floor((bb[5] + bb[2]) / 2);
+    const k = opts.heightFn && opts.projectStart ? pos0[1] + opts.heightFn(ci, cj) : bp1[1];
+    const dy = k - (bb[1] + 1);
     bp1[1] += dy; bb = [bb[0], bb[1] + dy, bb[2], bb[3], bb[4] + dy, bb[5]];
-    const ci = Math.floor((bb[3] + bb[0]) / 2), cj = Math.floor((bb[5] + bb[2]) / 2), cy = k + v[1];
-    const D = opts.maxDist;
+    const cy = k + v[1];
+    const D = opts.maxDist, pad = opts.pad || [0, 0];
     const pieces = [{ el: el0, pos: bp1, rot, bb, depth: 0 }];
-    const outer = { c: [ci - D, cy - D, cj - D, ci + D, cy + D, cj + D], r: [bb] };
+    const outer = { c: [ci - D, Math.max(cy - D, -64 + pad[0]), cj - D, ci + D, Math.min(cy + D, 319 - pad[1]), cj + D], r: [bb] };
     const queue = [{ pc: pieces[0], free: outer, depth: 0, pri: 0, seq: 0 }];
     let seq = 1;
     while (queue.length) {
       // 우선순위가 높은 것부터, 같으면 먼저 들어온 것부터
       let bi = 0; for (let i = 1; i < queue.length; i++) if (queue[i].pri > queue[bi].pri) bi = i;
       const st = queue.splice(bi, 1)[0];
-      const pc = st.pc, pbb = pc.bb, i0 = pbb[1];
+      const pc = st.pc, pbb = pc.bb, i0 = pbb[1], pRigid = pc.el.pr !== 't';
       let own = null;
       for (const jg of shuffledJigsaws(pc.el, pc.pos, pc.rot, rnd)) {
         const fs = STEP[jg.front], bp2 = [jg.p[0] + fs[0], jg.p[1] + fs[1], jg.p[2] + fs[2]];
         const j = jg.p[1] - i0;
-        const pool = getPool(jg.pool);
+        const pn = jg.pool.replace('minecraft:', '');
+        const pool = poolOf(pn);
         if (!pool) continue;
-        if (pool.list.length === 0 && jg.pool.replace('minecraft:', '') !== 'empty') continue;
-        const fb = getPool(pool.fb) || { list: [] };
+        if (pool.list.length === 0 && (alias[pn] || pn) !== 'empty') continue;
+        const fb = getPool(pool.fb);
+        if (!fb || (fb.list.length === 0 && pool.fb !== 'empty')) continue;
         const inParent = inside(pbb, bp2);
         let shape;
         if (inParent) { if (!own) own = { c: [...pbb], r: [] }; shape = own; } else shape = st.free;
+        let kh = null;
         const cands = [];
         if (st.depth !== opts.maxDepth) cands.push(...shuffle([...pool.list], rnd));
         cands.push(...shuffle([...fb.list], rnd));
         let placed = false;
         for (const el1 of cands) {
           if (el1.t === 'e') break;
+          const cRigid = el1.pr !== 't';
           for (const r1 of shuffle([...ROTS], rnd)) {
             const js1 = shuffledJigsaws(el1, [0, 0, 0], r1, rnd);
+            let hack = 0;
+            if (opts.hack) {
+              const b0 = elBox(el1, [0, 0, 0], r1);
+              if (b0[4] - b0[1] + 1 <= 16) for (const q of js1) {
+                const st2 = STEP[q.front], nq = [q.p[0] + st2[0], q.p[1] + st2[1], q.p[2] + st2[2]];
+                if (!inside(b0, nq)) continue;
+                const qp = poolOf(q.pool); if (!qp) continue;
+                const qf = getPool(qp.fb);
+                hack = Math.max(hack, maxSize(qp), qf ? maxSize(qf) : 0);
+              }
+            }
             for (const j1 of js1) {
               if (!canAttach(jg, j1)) continue;
               const bp4 = [bp2[0] - j1.p[0], bp2[1] - j1.p[1], bp2[2] - j1.p[2]];
-              const bb3 = elBox(el1, bp4, r1);        // rigid끼리라 높이 보정은 0
+              let bb3 = elBox(el1, bp4, r1);
+              const i1 = j1.p[1];
+              let k1;
+              if (pRigid && cRigid) k1 = i0 + (j - i1 + fs[1]);
+              else { if (kh === null) kh = opts.heightFn(jg.p[0], jg.p[2]); k1 = kh - i1; }
+              const l1 = k1 - bb3[1];
+              bb3 = [bb3[0], bb3[1] + l1, bb3[2], bb3[3], bb3[4] + l1, bb3[5]];
+              const pos5 = [bp4[0], bp4[1] + l1, bp4[2]];
+              if (hack > 0) { const i2 = Math.max(hack + 1, bb3[4] - bb3[1]); bb3[4] = Math.max(bb3[4], bb3[1] + i2); }
               if (!fits(shape, bb3)) continue;
               shape.r.push(bb3);
-              const np = { el: el1, pos: bp4, rot: r1, bb: bb3, depth: st.depth + 1 };
+              const np = { el: el1, pos: pos5, rot: r1, bb: bb3, depth: st.depth + 1 };
               pieces.push(np);
               if (st.depth + 1 <= opts.maxDepth) queue.push({ pc: np, free: shape, depth: st.depth + 1, pri: jg.place, seq: seq++ });
               placed = true; break;
