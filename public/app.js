@@ -1748,7 +1748,7 @@ async function openPlan(st, x, z) {
   if (!box) {
     box = document.createElement("div"); box.id = "planBox";
     box.innerHTML = `<div class="ph"><b class="pt"></b><span class="d pc"></span><span class="sp"></span>
-      <label>층 <input type="range" class="py" style="width:140px"></label><span class="pyv d"></span><label><input type="checkbox" class="pall" checked> 전체 층</label><label><input type="checkbox" class="pol"> 조각 테두리</label>
+      <label>층 <input type="range" class="py" style="width:140px"></label><span class="pyv d"></span><label><input type="checkbox" class="pall" checked> 전체 층</label><label><input type="checkbox" class="pol"> 조각 테두리</label><label><input type="checkbox" class="pic"> 상자 아이콘</label>
       <button type="button" class="pz" data-z="1.4">＋</button><button type="button" class="pz" data-z="0.7">－</button><button type="button" class="px">닫기</button></div>
       <div class="ph lg"></div>
       <div class="pb"><div class="cv"><canvas></canvas><div class="tip"></div></div><div class="pi"></div></div>`;
@@ -1756,7 +1756,7 @@ async function openPlan(st, x, z) {
     box.querySelector(".px").onclick = () => { box.classList.remove("on"); PLAN.on = false; };
     box.querySelectorAll(".pz").forEach(b => b.onclick = () => { PLAN.s *= +b.dataset.z; drawPlan(); });
     box.querySelector(".py").oninput = () => { box.querySelector(".pall").checked = false; drawPlan(); };
-    box.querySelector(".pall").onchange = drawPlan; box.querySelector(".pol").onchange = drawPlan;
+    box.querySelector(".pall").onchange = drawPlan; box.querySelector(".pol").onchange = drawPlan; box.querySelector(".pic").checked = localStorage.getItem("planIcon") === "1"; box.querySelector(".pic").onchange = e => { try { localStorage.setItem("planIcon", e.target.checked ? "1" : "0"); } catch (x) {} drawPlan(); };
     const cv = box.querySelector("canvas"), pts = new Map();
     let drag = null, moved = false, pinch = 0;
     cv.addEventListener("pointerdown", e => { cv.setPointerCapture(e.pointerId); pts.set(e.pointerId, [e.offsetX, e.offsetY]); drag = [e.offsetX, e.offsetY]; moved = false; if (pts.size === 2) { const [a, b] = [...pts.values()]; pinch = Math.hypot(a[0] - b[0], a[1] - b[1]); } });
@@ -1788,7 +1788,7 @@ async function openPlan(st, x, z) {
   try { PLAN.tops = await topsData(tname); } catch (e) {}
   for (const p of lastPieces || []) if (p.el.t !== "f") { x0 = Math.min(x0, p.bb[0]); x1 = Math.max(x1, p.bb[3]); z0 = Math.min(z0, p.bb[2]); z1 = Math.max(z1, p.bb[5]); }
   PLAN.all = (lastPieces || []).filter(p => p.el.t !== "f"); PLAN.box = [x0, z0];
-  Object.assign(PLAN, { st, pcs, chests: chests.map(c => ({ ...c, y: c.y !== undefined ? +c.y : 0 })), cx: (x0 + x1) / 2, cz: (z0 + z1) / 2, s: 0, sel: -1, ext: [x1 - x0 + 1, z1 - z0 + 1] });
+  Object.assign(PLAN, { st, pcs, chests: chests.map(c => ({ ...c, y: c.y !== undefined ? +c.y : 0 })), cx: (x0 + x1) / 2, cz: (z0 + z1) / 2, s: 0, sel: -1, hov: -1, ext: [x1 - x0 + 1, z1 - z0 + 1] });
   const yr = box.querySelector(".py"); yr.min = y0; yr.max = y1; yr.value = Math.round((y0 + y1) / 2); box.querySelector(".pall").checked = true;
   const main = PLAN.chests.filter(c => !/^(pots|dispensers)\//.test(c.t)).length;
   box.querySelector(".pc").textContent = `조각 ${pcs.length}개 · 상자 ${main}개${PLAN.chests.length > main ? ` (+ 항아리·발사기 ${PLAN.chests.length - main}개)` : ""}`;
@@ -1884,14 +1884,25 @@ function drawPlan() {
     g.globalAlpha = on(p) ? 0.9 : 0.15; g.strokeStyle = "#0b0f12"; g.lineWidth = 1; g.strokeRect(a + .5, b + .5, ww - 1, hh - 1);
   }
   g.globalAlpha = 1;
-  const r = Math.max(3, Math.min(7, PLAN.s * 0.6));
-  PLAN.chests.forEach((c, i) => {
+  const r = Math.max(3, Math.min(7, PLAN.s * 0.6)), icon = $("planBox").querySelector(".pic").checked;
+  const draw = (c, i) => {
     const vis = fy === null || Math.abs(c.y - fy) <= 4;
-    const px = sx(c.x + 0.5), pz = sz(c.z + 0.5);
+    const px = sx(c.x + 0.5), pz = sz(c.z + 0.5), hot = i === PLAN.hov, sel = i === PLAN.sel;
     g.globalAlpha = vis ? 1 : 0.2;
-    g.beginPath(); g.arc(px, pz, i === PLAN.sel ? r + 3 : r, 0, 7); g.fillStyle = chestColor(c.t); g.fill();
-    g.lineWidth = i === PLAN.sel ? 2.5 : 1.2; g.strokeStyle = i === PLAN.sel ? "#fff" : "#000"; g.stroke();
-  });
+    if (icon && /^chests\//.test(c.t) && !/barrel/.test(c.t)) {   // 상자 아이콘: 나무 상자 + 금색 걸쇠
+      const k = Math.max(12, Math.min(20, PLAN.s * 1.2)) * (hot ? 1.6 : sel ? 1.3 : 1), a = px - k / 2, b = pz - k / 2;
+      g.fillStyle = "#8b5a2b"; g.fillRect(a, b, k, k);
+      g.fillStyle = "#6b4220"; g.fillRect(a, b + k * 0.42, k, k * 0.08);
+      g.fillStyle = "#f2c94c"; g.fillRect(px - k * 0.1, b + k * 0.32, k * 0.2, k * 0.26);
+      g.lineWidth = hot || sel ? 2 : 1; g.strokeStyle = hot || sel ? "#fff" : "#2a1a0c"; g.strokeRect(a + .5, b + .5, k - 1, k - 1);
+    } else {
+      g.beginPath(); g.arc(px, pz, hot ? r * 1.9 + 2 : sel ? r + 3 : r, 0, 7); g.fillStyle = chestColor(c.t); g.fill();
+      g.lineWidth = hot || sel ? 2.5 : 1.2; g.strokeStyle = hot || sel ? "#fff" : "#000"; g.stroke();
+    }
+  };
+  PLAN.chests.forEach((c, i) => { if (i !== PLAN.hov && i !== PLAN.sel) draw(c, i); });
+  if (PLAN.sel >= 0) draw(PLAN.chests[PLAN.sel], PLAN.sel);
+  if (PLAN.hov >= 0 && PLAN.hov !== PLAN.sel) draw(PLAN.chests[PLAN.hov], PLAN.hov);
   g.globalAlpha = 1;
   g.fillStyle = "#e8eee9"; g.font = "bold 13px sans-serif"; g.textAlign = "center"; g.fillText("N", w - 22, 22);
   g.beginPath(); g.moveTo(w - 22, 28); g.lineTo(w - 27, 40); g.lineTo(w - 17, 40); g.closePath(); g.fill();
@@ -1899,13 +1910,14 @@ function drawPlan() {
   const L = 16 * PLAN.s; g.fillRect(12, 14, L, 2); g.textAlign = "left"; g.font = "11px sans-serif"; g.fillText("16칸", 12 + L + 6, 19);
 }
 function planHit(px, py) {
-  const { sx, sz } = planView(), fy = planFloor(), r = Math.max(6, PLAN.s * 0.8);
+  const { sx, sz } = planView(), fy = planFloor(), r = Math.max(14, PLAN.s * 1.2);   // 가까이만 가도 잡히게
   let best = -1, bd = 1e9;
   PLAN.chests.forEach((c, i) => { if (fy !== null && Math.abs(c.y - fy) > 4) return; const d = Math.hypot(sx(c.x + .5) - px, sz(c.z + .5) - py); if (d < r && d < bd) { bd = d; best = i; } });
   return best;
 }
 function planHover(px, py) {
   const tip = $("planBox").querySelector(".tip"), i = planHit(px, py);
+  if (i !== PLAN.hov) { PLAN.hov = i; $("planBox").querySelector("canvas").style.cursor = i >= 0 ? "pointer" : "grab"; drawPlan(); }
   if (i >= 0) { const c = PLAN.chests[i]; tip.textContent = `${TABLE_KO[c.t] || c.t} · ${c.x}, ${c.y}, ${c.z}`; return; }
   const X = Math.floor((px - planView().w / 2) / PLAN.s + PLAN.cx), Z = Math.floor((py - planView().h / 2) / PLAN.s + PLAN.cz), fy = planFloor();
   const p = PLAN.pcs.filter(p => X >= p.bb[0] && X <= p.bb[3] && Z >= p.bb[2] && Z <= p.bb[5] && (fy === null || (p.bb[1] <= fy && p.bb[4] >= fy))).pop();
