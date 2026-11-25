@@ -2038,11 +2038,11 @@ function drawPlan() {
   if (PLAN.sel >= 0) draw(PLAN.chests[PLAN.sel], PLAN.sel);
   if (PLAN.hov >= 0 && PLAN.hov !== PLAN.sel) draw(PLAN.chests[PLAN.hov], PLAN.hov);
   g.globalAlpha = 1;
-  if (PLAN.members && PLAN.members.length > 1) PLAN.members.forEach((m, i) => {   // 겹친 구조물 번호표
-    const px = sx(m.cx), pz = sz(m.cz), t = `${i + 1}. ${PLAN_NAME[m.st]}`;
-    g.font = "bold 13px sans-serif"; g.textAlign = "center"; const tw = g.measureText(t).width + 12;
-    g.globalAlpha = 0.85; g.fillStyle = i === 0 ? "#3a6ea5" : "#a5563a"; g.fillRect(px - tw / 2, pz - 11, tw, 22);
-    g.globalAlpha = 1; g.fillStyle = "#fff"; g.fillText(t, px, pz + 5);
+  if (PLAN.members && PLAN.members.length > 1) PLAN.members.forEach((m, i) => {   // 겹친 구조물 번호: 작은 동그라미만 (이름은 마우스를 올리면)
+    const px = sx(m.cx), pz = sz(m.cz);
+    g.globalAlpha = 0.75; g.beginPath(); g.arc(px, pz, 9, 0, 7); g.fillStyle = i === 0 ? "#3a6ea5" : "#a5563a"; g.fill();
+    g.globalAlpha = 1; g.lineWidth = 1.5; g.strokeStyle = "#fff"; g.stroke();
+    g.fillStyle = "#fff"; g.font = "bold 11px sans-serif"; g.textAlign = "center"; g.fillText(String(i + 1), px, pz + 4);
   });
   g.fillStyle = "#e8eee9"; g.font = "bold 13px sans-serif"; g.textAlign = "center"; g.fillText("N", w - 22, 22);
   g.beginPath(); g.moveTo(w - 22, 28); g.lineTo(w - 27, 40); g.lineTo(w - 17, 40); g.closePath(); g.fill();
@@ -2059,6 +2059,7 @@ function planHover(px, py) {
   const tip = $("planBox").querySelector(".tip"), i = planHit(px, py);
   if (i !== PLAN.hov) { PLAN.hov = i; $("planBox").querySelector("canvas").style.cursor = i >= 0 ? "pointer" : "grab"; drawPlan(); }
   if (i >= 0) { const c = PLAN.chests[i]; tip.textContent = `${TABLE_KO[c.t] || c.t} · ${c.x}, ${c.y}, ${c.z}`; return; }
+  if (PLAN.members && PLAN.members.length > 1) { const v = planView(); const mi = PLAN.members.findIndex(m => Math.hypot(v.sx(m.cx) - px, v.sz(m.cz) - py) < 12); if (mi >= 0) { const m = PLAN.members[mi]; tip.textContent = `${mi + 1}. ${PLAN_NAME[m.st]}${mi === 0 ? " (선택한 것)" : ""} · ${m.x}, ${m.z}`; return; } }
   const X = Math.floor((px - planView().w / 2) / PLAN.s + PLAN.cx), Z = Math.floor((py - planView().h / 2) / PLAN.s + PLAN.cz), fy = planFloor();
   const p = PLAN.pcs.filter(p => X >= p.bb[0] && X <= p.bb[3] && Z >= p.bb[2] && Z <= p.bb[5] && (fy === null || (p.bb[1] <= fy && p.bb[4] >= fy))).pop();
   tip.textContent = `X ${X}, Z ${Z}` + (p ? ` · ${(p.el.l || (p.el.e && p.el.e[0].l) || "").split("/").slice(-2).join("/")} (Y ${p.bb[1]}~${p.bb[4]})` : "");
