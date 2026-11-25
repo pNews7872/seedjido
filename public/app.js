@@ -1796,7 +1796,7 @@ async function openPlan(st, x, z) {
   if (!box) {
     box = document.createElement("div"); box.id = "planBox";
     box.innerHTML = `<div class="ph"><b class="pt"></b><span class="d pc"></span><span class="sp"></span>
-      <label>층 <input type="range" class="py" style="width:140px"></label><span class="pyv d"></span><label><input type="checkbox" class="pall" checked> 전체 층</label><label><input type="checkbox" class="pol"> 조각 테두리</label><label><input type="checkbox" class="pic"> 상자 아이콘</label><label><input type="checkbox" class="pter"> 주변 지형</label>
+      <label>층 <input type="range" class="py" style="width:140px"></label><span class="pyv d"></span><label><input type="checkbox" class="pall" checked> 전체 층</label><label><input type="checkbox" class="pol"> 조각 테두리</label><label><input type="checkbox" class="pic"> 상자 아이콘</label><label><input type="checkbox" class="pter"> 주변 지형</label><label><input type="checkbox" class="pgrp"> 겹친 구조물 같이 보기</label>
       <button type="button" class="pz" data-z="1.4">＋</button><button type="button" class="pz" data-z="0.7">－</button><button type="button" class="px">닫기</button></div>
       <div class="ph lg"></div>
       <div class="pb"><div class="cv"><canvas></canvas><div class="tip"></div></div><div class="pi"></div></div>`;
@@ -1804,7 +1804,7 @@ async function openPlan(st, x, z) {
     box.querySelector(".px").onclick = () => { box.classList.remove("on"); PLAN.on = false; };
     box.querySelectorAll(".pz").forEach(b => b.onclick = () => { PLAN.s *= +b.dataset.z; drawPlan(); });
     box.querySelector(".py").oninput = () => { box.querySelector(".pall").checked = false; drawPlan(); };
-    box.querySelector(".pall").onchange = drawPlan; box.querySelector(".pol").onchange = drawPlan; box.querySelector(".pic").checked = localStorage.getItem("planIcon") === "1"; box.querySelector(".pter").checked = localStorage.getItem("planTerr") === "1"; box.querySelector(".pter").onchange = e => { try { localStorage.setItem("planTerr", e.target.checked ? "1" : "0"); } catch (x) {} drawPlan(); }; box.querySelector(".pic").onchange = e => { try { localStorage.setItem("planIcon", e.target.checked ? "1" : "0"); } catch (x) {} drawPlan(); };
+    box.querySelector(".pall").onchange = drawPlan; box.querySelector(".pol").onchange = drawPlan; box.querySelector(".pic").checked = localStorage.getItem("planIcon") === "1"; box.querySelector(".pter").checked = localStorage.getItem("planTerr") === "1"; box.querySelector(".pgrp").checked = localStorage.getItem("planGrp") === "1"; box.querySelector(".pgrp").onchange = e => { try { localStorage.setItem("planGrp", e.target.checked ? "1" : "0"); } catch (x) {} planSetup(); }; box.querySelector(".pter").onchange = e => { try { localStorage.setItem("planTerr", e.target.checked ? "1" : "0"); } catch (x) {} drawPlan(); }; box.querySelector(".pic").onchange = e => { try { localStorage.setItem("planIcon", e.target.checked ? "1" : "0"); } catch (x) {} drawPlan(); };
     const cv = box.querySelector("canvas"), pts = new Map();
     let drag = null, moved = false, pinch = 0;
     cv.addEventListener("pointerdown", e => { cv.setPointerCapture(e.pointerId); pts.set(e.pointerId, [e.offsetX, e.offsetY]); drag = [e.offsetX, e.offsetY]; moved = false; if (pts.size === 2) { const [a, b] = [...pts.values()]; pinch = Math.hypot(a[0] - b[0], a[1] - b[1]); } });
@@ -1827,18 +1827,28 @@ async function openPlan(st, x, z) {
   // 땅 다듬기 범위가 겹치는 구조물을 묶어서 함께 그림 (같은 종류·다른 종류 모두, 최대 6개)
   let members;
   try { members = await planGroup(st, x, z); } catch (e) { box.querySelector(".pc").textContent = "계산하다가 문제가 생겼어요."; return; }
+  PLAN.allMembers = members; PLAN.st0 = st; PLAN.intro = box.querySelector(".pi").innerHTML;
+  PLAN.tsize = {}; PLAN.topsBy = {};
+  for (const t of new Set(members.map(m => m.st))) {
+    const tn = PLAN_TN[t];
+    Object.assign(PLAN.tsize, Object.fromEntries(Object.entries((t === 13 ? AC_DATA : (await jigsawData(tn)).d).T).map(([k, v]) => [k, v.s])));
+    try { PLAN.topsBy[t] = await topsData(tn); } catch (e) {}
+  }
+  box.querySelector(".pgrp").parentNode.style.display = members.length > 1 ? "" : "none";
+  planSetup();
+}
+// 겹친 구조물을 같이 그릴지(체크 칸)에 따라 그릴 조각·상자를 정함. 땅 다듬기는 항상 겹친 구조물 모두 반영
+function planSetup() {
+  const box = $("planBox"), st = PLAN.st0, all = PLAN.allMembers, show = all.length > 1 && box.querySelector(".pgrp").checked;
+  const members = show ? all : [all[0]];
+  PLAN.rkey = null;
+  PLAN.beardFull = all.flatMap((m, i) => m.pcs.map(p => { p._st = m.st; return p; }));
   const full = [], chests = [];
   members.forEach((m, i) => { for (const p of m.pcs) { p._st = m.st; p._m = i; full.push(p); } for (const c of m.ch) { c._m = i; chests.push(c); } });
   // 주민·동물 같은 1칸짜리 조각은 빼고 (생성기는 남김)
   const pcs = full.filter(p => p.el.t !== "f" && ((p.bb[3] - p.bb[0] + 1) * (p.bb[5] - p.bb[2] + 1) > 2 || /spawner/.test(p.el.l || "")));
   let x0 = 1e9, x1 = -1e9, z0 = 1e9, z1 = -1e9, y0 = 1e9, y1 = -1e9;
   for (const p of pcs) { x0 = Math.min(x0, p.bb[0]); x1 = Math.max(x1, p.bb[3]); z0 = Math.min(z0, p.bb[2]); z1 = Math.max(z1, p.bb[5]); y0 = Math.min(y0, p.bb[1]); y1 = Math.max(y1, p.bb[4]); }
-  PLAN.rkey = null; PLAN.tsize = {}; PLAN.topsBy = {};
-  for (const t of new Set(members.map(m => m.st))) {
-    const tn = PLAN_TN[t];
-    Object.assign(PLAN.tsize, Object.fromEntries(Object.entries((t === 13 ? AC_DATA : (await jigsawData(tn)).d).T).map(([k, v]) => [k, v.s])));
-    try { PLAN.topsBy[t] = await topsData(tn); } catch (e) {}
-  }
   PLAN.tops = PLAN.topsBy[st] || null;
   for (const p of full) if (p.el.t !== "f") { x0 = Math.min(x0, p.bb[0]); x1 = Math.max(x1, p.bb[3]); z0 = Math.min(z0, p.bb[2]); z1 = Math.max(z1, p.bb[5]); }
   const MG = 32; x0 -= MG; z0 -= MG; x1 += MG; z1 += MG;   // 주변 지형용 여유
@@ -1852,15 +1862,16 @@ async function openPlan(st, x, z) {
     for (const p of PLAN.all) if (p._m === 0 && p.el.t === "s") { const a = PLAN.tops.get(p.el.l); for (let i = 1; i < a.length; i += 4) { const yy = a[i] + p.pos[1]; hs[yy] = (hs[yy] || 0) + 1; } }
     const top = Object.entries(hs).sort((a, b) => b[1] - a[1])[0]; if (top) PLAN.repY = +top[0] + 1;
   }
-  if (members.length > 1) {
-    const cnt = {}; for (const m of members) cnt[m.st] = (cnt[m.st] || 0) + 1;
-    PLAN.groupTxt = Object.entries(cnt).map(([t, n]) => `${PLAN_NAME[t]} ${n}개`).join(" + ");
-    box.querySelector(".pi").innerHTML = `<div class="grp"><b>구조물 ${members.length}개가 겹쳐 있어요</b><br><span class="d">게임이 구조물 주변 땅을 깎거나 메우는 범위가 서로 겹쳐서 함께 그렸어요: ${PLAN.groupTxt}</span><ol>${members.map((m, i) => `<li><a href="#" data-m="${i}">${PLAN_NAME[m.st]}${i === 0 ? " (선택한 것)" : ""}</a> <span class="d">${m.x}, ${m.z}</span></li>`).join("")}</ol></div>` + box.querySelector(".pi").innerHTML;
-    box.querySelectorAll(".grp a").forEach(el => el.onclick = ev => { ev.preventDefault(); const m = members[+el.dataset.m]; PLAN.cx = m.cx; PLAN.cz = m.cz; drawPlan(); });
+  box.querySelector(".pi").innerHTML = PLAN.intro;
+  if (all.length > 1) {
+    const cnt = {}; for (const m of all.slice(1)) cnt[m.st] = (cnt[m.st] || 0) + 1;
+    PLAN.groupTxt = Object.entries(cnt).map(([t, n]) => `${PLAN_NAME[t]} ${n}개`).join(", ");
+    box.querySelector(".pi").innerHTML = `<div class="grp"><b>다른 구조물과 이어져 있어요</b><br><span class="d">이 ${PLAN_NAME[st]} 주변 땅을 깎는 범위가 아래 구조물과 겹쳐요.${show ? "" : " 위쪽의 \"겹친 구조물 같이 보기\"를 켜면 함께 그려요."}</span><ul>${all.slice(1).map((m, i) => `<li>${show ? `<a href="#" data-m="${i + 1}">${PLAN_NAME[m.st]}</a>` : PLAN_NAME[m.st]} <span class="d">${m.x}, ${m.z}</span></li>`).join("")}</ul></div>` + PLAN.intro;
+    box.querySelectorAll(".grp a").forEach(el => el.onclick = ev => { ev.preventDefault(); const m = all[+el.dataset.m]; PLAN.cx = m.cx; PLAN.cz = m.cz; drawPlan(); });
   } else PLAN.groupTxt = "";
   const yr = box.querySelector(".py"); yr.min = y0; yr.max = y1; yr.value = st === 13 ? PLAN.repY : Math.round((y0 + y1) / 2); box.querySelector(".pall").checked = true;
   const main = PLAN.chests.filter(c => !/^(pots|dispensers)\//.test(c.t)).length;
-  box.querySelector(".pc").textContent = (PLAN.groupTxt ? `겹친 구조물: ${PLAN.groupTxt} · ` : "") + `조각 ${pcs.length}개 · 상자 ${main}개${PLAN.chests.length > main ? ` (+ 항아리·발사기 ${PLAN.chests.length - main}개)` : ""}`;
+  box.querySelector(".pc").textContent = (PLAN.groupTxt ? `이어진 구조물: ${PLAN.groupTxt} · ` : "") + `조각 ${pcs.length}개 · 상자 ${main}개${PLAN.chests.length > main ? ` (+ 항아리·발사기 ${PLAN.chests.length - main}개)` : ""}`;
   const LG = { 13: [["#7b5cc4", "도시 중심"], ["#2f8f8a", "건물"], ["#4a5560", "벽"], ["#9a7b4f", "입구"]], 25: [["#c97b3a", "방"], ["#5a6f8a", "복도"], ["#4f9a5b", "교차로"], ["#d4b13a", "보상"], ["#d04a4a", "생성기"]], 5: [["#d4a13a", "마을 중심"], ["#a0613a", "건물"], ["#8a7a5a", "길"]] };
   const types = [...new Set(members.map(m => m.st))], lg = types.flatMap(t => (LG[t] || []).map(([c, n]) => [c, types.length > 1 ? `${PLAN_NAME[t]} ${n}` : n]));
   box.querySelector(".lg").innerHTML = lg.map(([c, n]) => `<span><i style="background:${c}"></i>${n}</span>`).join("") + `<span><i style="background:#ffd54a;border-radius:50%"></i>상자</span><span><i style="background:#b07a3a;border-radius:50%"></i>통</span>` + (types.includes(25) ? `<span><i style="background:#e58fb0;border-radius:50%"></i>항아리</span><span><i style="background:#9aa3ab;border-radius:50%"></i>발사기</span>` : "");
@@ -1946,7 +1957,7 @@ function biomeGround(id) {
 function planBeard(on) {
   if (!on) { hoverEx.beard_set(0, 0, 0, 0, 0); return; }
   const P = PLAN, TY = { 5: 2, 13: 3, 25: 4 }, rig = [], jn = [];
-  for (const p of P.full) { if (p.el.pr !== "t") rig.push(p.bb[0], p.bb[1], p.bb[2], p.bb[3], p.bb[4], p.bb[5], p.gld || 1, TY[p._st]); for (const j of p.jn || []) jn.push(...j); }
+  for (const p of P.beardFull || P.full) { if (p.el.pr !== "t") rig.push(p.bb[0], p.bb[1], p.bb[2], p.bb[3], p.bb[4], p.bb[5], p.gld || 1, TY[p._st]); for (const j of p.jn || []) jn.push(...j); }
   const a = hoverEx.malloc(rig.length * 4 + 4), b = hoverEx.malloc(jn.length * 4 + 4);
   new Int32Array(hoverEx.memory.buffer, a, rig.length).set(rig); new Int32Array(hoverEx.memory.buffer, b, jn.length).set(jn);
   hoverEx.beard_set(a, rig.length / 8, b, jn.length / 3, 0); hoverEx.free(a); hoverEx.free(b);
@@ -2038,12 +2049,6 @@ function drawPlan() {
   if (PLAN.sel >= 0) draw(PLAN.chests[PLAN.sel], PLAN.sel);
   if (PLAN.hov >= 0 && PLAN.hov !== PLAN.sel) draw(PLAN.chests[PLAN.hov], PLAN.hov);
   g.globalAlpha = 1;
-  if (PLAN.members && PLAN.members.length > 1) PLAN.members.forEach((m, i) => {   // 겹친 구조물 번호: 작은 동그라미만 (이름은 마우스를 올리면)
-    const px = sx(m.cx), pz = sz(m.cz);
-    g.globalAlpha = 0.75; g.beginPath(); g.arc(px, pz, 9, 0, 7); g.fillStyle = i === 0 ? "#3a6ea5" : "#a5563a"; g.fill();
-    g.globalAlpha = 1; g.lineWidth = 1.5; g.strokeStyle = "#fff"; g.stroke();
-    g.fillStyle = "#fff"; g.font = "bold 11px sans-serif"; g.textAlign = "center"; g.fillText(String(i + 1), px, pz + 4);
-  });
   g.fillStyle = "#e8eee9"; g.font = "bold 13px sans-serif"; g.textAlign = "center"; g.fillText("N", w - 22, 22);
   g.beginPath(); g.moveTo(w - 22, 28); g.lineTo(w - 27, 40); g.lineTo(w - 17, 40); g.closePath(); g.fill();
   // 축척: 16블록(청크 하나)
@@ -2059,7 +2064,6 @@ function planHover(px, py) {
   const tip = $("planBox").querySelector(".tip"), i = planHit(px, py);
   if (i !== PLAN.hov) { PLAN.hov = i; $("planBox").querySelector("canvas").style.cursor = i >= 0 ? "pointer" : "grab"; drawPlan(); }
   if (i >= 0) { const c = PLAN.chests[i]; tip.textContent = `${TABLE_KO[c.t] || c.t} · ${c.x}, ${c.y}, ${c.z}`; return; }
-  if (PLAN.members && PLAN.members.length > 1) { const v = planView(); const mi = PLAN.members.findIndex(m => Math.hypot(v.sx(m.cx) - px, v.sz(m.cz) - py) < 12); if (mi >= 0) { const m = PLAN.members[mi]; tip.textContent = `${mi + 1}. ${PLAN_NAME[m.st]}${mi === 0 ? " (선택한 것)" : ""} · ${m.x}, ${m.z}`; return; } }
   const X = Math.floor((px - planView().w / 2) / PLAN.s + PLAN.cx), Z = Math.floor((py - planView().h / 2) / PLAN.s + PLAN.cz), fy = planFloor();
   const p = PLAN.pcs.filter(p => X >= p.bb[0] && X <= p.bb[3] && Z >= p.bb[2] && Z <= p.bb[5] && (fy === null || (p.bb[1] <= fy && p.bb[4] >= fy))).pop();
   tip.textContent = `X ${X}, Z ${Z}` + (p ? ` · ${(p.el.l || (p.el.e && p.el.e[0].l) || "").split("/").slice(-2).join("/")} (Y ${p.bb[1]}~${p.bb[4]})` : "");
@@ -2067,7 +2071,7 @@ function planHover(px, py) {
 function planClick(px, py) {
   const i = planHit(px, py); if (i < 0) return;
   PLAN.sel = i; drawPlan();
-  const c = PLAN.chests[i], grp = PLAN.members && PLAN.members.length > 1;
+  const c = PLAN.chests[i], grp = PLAN.members && PLAN.members.length > 1;   // 같이 볼 때만 어느 구조물 상자인지
   $("planBox").querySelector(".pi").innerHTML = (grp ? `<p class="d">${c._m + 1}. ${PLAN_NAME[PLAN.members[c._m].st]}의 상자</p>` : "") + `<div class="loot">${chestHtml(c)}</div>`;
 }
 // 링크 공유: 시드·차원·위치·확대를 주소 # 뒤에 담음
