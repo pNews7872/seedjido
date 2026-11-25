@@ -1634,6 +1634,7 @@ function ancientCityLoot(x, z, rdq) {
   const seed = (BigInt(mapState.hi >>> 0) << 32n) | BigInt(mapState.lo >>> 0);
   const pcs = asm(BigInt.asIntN(64, seed), x >> 4, z >> 4, { startPool: "ancient_city/city_center", startJigsaw: "minecraft:city_anchor", y: -27, maxDepth: 7, maxDist: 116 });
   if (!pcs) return "";
+  lastPieces = pcs;
   const seqs = {}, used = {}, out = [];
   for (const c of piecesChests(AC_DATA, pcs)) {
     const cx = c.x >> 4, cz = c.z >> 4, k = cx + "," + cz;
@@ -1663,6 +1664,7 @@ function jigsawLoot(st, D, x, z, rdq) {
     salt = VSALT[ty];
   }
   if (!pcs) return "";
+  lastPieces = pcs;
   if (!jigsawLoot.nb) jigsawLoot.nb = hoverEx.malloc(128);
   const nb = jigsawLoot.nb;
   const seqs = {}, used = {}, out = [];
@@ -1680,7 +1682,9 @@ function jigsawLoot(st, D, x, z, rdq) {
   return out.join("\n");
 }
 const LOOT_ST = new Set([5, 25, 13, 1, 2, 4, 7, 10, 11, 12, 14, 15, 18, 19, 21, 121, 26, 27]);
-async function lootHtml(st, x, z) {
+let lastPieces = null;
+const PLAN_ST = new Set([5, 13, 25]);
+async function lootChests(st, x, z) {
   hoverEx.set_seed_dim(mapState.lo, mapState.hi, hoverEx.mc_wd(), mapState.dim);
   const rdq = q => { const u = new Uint8Array(hoverEx.memory.buffer, q); let n = 0; while (u[n]) n++; return new TextDecoder().decode(u.slice(0, n)); };
   let txt;
@@ -1707,14 +1711,19 @@ async function lootHtml(st, x, z) {
       const m = chests[chests.length - 1].items; m.set(key, (m.get(key) || 0) + cnt);
     }
   }
+  return chests;
+}
+const escH = t => t.replace(/[<&]/g, c => c === "<" ? "&lt;" : "&amp;");
+function chestHtml(c) {
+  let r = `<div class="lc"><b>${escH(TABLE_KO[c.t] || c.t)}</b> <span class="d">${c.y !== undefined ? `${c.x}, ${c.y}, ${c.z}` : `${c.x}, ${c.z}`}${c.u ? " · 틀릴 수 있음" : ""}</span><ul>`;
+  for (const [k, v] of c.items) r += `<li>${k.includes('<span class="d">→') ? k : escH(k)}${v > 1 ? ` <span class="d">×${v}</span>` : ""}</li>`;
+  return r + (c.items.size ? "" : `<li class="d">비어 있음</li>`) + `</ul></div>`;
+}
+async function lootHtml(st, x, z) {
+  const chests = await lootChests(st, x, z);
   if (!chests.length) return `<div class="loot"><span class="d">${st === 4 ? "지하실이 없는 이글루라서 상자가 없어요." : "계산할 수 있는 상자가 없어요."}</span></div>`;
-  const esc = t => t.replace(/[<&]/g, c => c === "<" ? "&lt;" : "&amp;");
   let h = `<div class="loot">`;
-  const one = c => {
-    let r = `<div class="lc"><b>${esc(TABLE_KO[c.t] || c.t)}</b> <span class="d">${c.y !== undefined ? `${c.x}, ${c.y}, ${c.z}` : `${c.x}, ${c.z}`}${c.u ? " · 틀릴 수 있음" : ""}</span><ul>`;
-    for (const [k, v] of c.items) r += `<li>${k.includes('<span class="d">→') ? k : esc(k)}${v > 1 ? ` <span class="d">×${v}</span>` : ""}</li>`;
-    return r + `</ul></div>`;
-  };
+  const one = chestHtml;
   const minor = c => /^(pots|dispensers)\//.test(c.t);   // 시련의 방 항아리·발사기는 접어 둠
   chests.filter(c => !minor(c)).forEach(c => h += one(c));
   const mn = chests.filter(minor);
@@ -1723,6 +1732,117 @@ async function lootHtml(st, x, z) {
   if (st === 13 || st === 25) h += `<p class="d">${st === 13 ? "고대 도시" : "시련의 방"} 상자 ${chests.length}개 (좌표는 x, y, z). 이미 열었거나 부서진 상자는 다를 수 있어요.</p>`;
   if (st === 5) h += `<p class="d">마을 상자 ${chests.length}개 (좌표는 x, y, z). 마을은 땅 높이를 따라 지어져서, 언덕이 심한 곳은 위치나 내용물이 틀릴 수 있어요. 나무·꽃 같은 장식이 먼저 놓인 청크의 상자도 틀릴 수 있어요.</p>`;
   return h + `</div>`;
+}
+// 평면도: 조립한 조각을 위에서 내려다본 배치도로 그리고, 상자를 누르면 내용물
+const PLAN = { on: false };
+function planColor(st, p) {
+  const n = p.el.t === "s" ? p.el.l : p.el.t === "l" ? (p.el.e[0].l || "") : "";
+  if (st === 13) return /city_center\/walls|\/walls\//.test(n) ? "#4a5560" : /city_center/.test(n) ? "#7b5cc4" : /entrance/.test(n) ? "#9a7b4f" : "#2f8f8a";
+  if (st === 25) return /spawner/.test(n) ? "#d04a4a" : /chamber|chambers\/chamber/.test(n) ? "#c97b3a" : /intersection/.test(n) ? "#4f9a5b" : /hallway|corridor/.test(n) ? "#5a6f8a" : /reward|vault/.test(n) ? "#d4b13a" : "#6b7680";
+  return /streets|terminators/.test(n) ? "#8a7a5a" : /town_centers/.test(n) ? "#d4a13a" : /houses/.test(n) ? "#a0613a" : "#6b7680";
+}
+const PLAN_NAME = { 13: "고대 도시", 25: "시련의 방", 5: "마을" };
+function chestColor(t) { return /pots\//.test(t) ? "#e58fb0" : /dispensers\//.test(t) ? "#9aa3ab" : /barrel/.test(t) ? "#b07a3a" : "#ffd54a"; }
+async function openPlan(st, x, z) {
+  let box = $("planBox");
+  if (!box) {
+    box = document.createElement("div"); box.id = "planBox";
+    box.innerHTML = `<div class="ph"><b class="pt"></b><span class="d pc"></span><span class="sp"></span>
+      <label>층 <input type="range" class="py" style="width:140px"></label><span class="pyv d"></span><label><input type="checkbox" class="pall" checked> 전체 층</label>
+      <button type="button" class="pz" data-z="1.4">＋</button><button type="button" class="pz" data-z="0.7">－</button><button type="button" class="px">닫기</button></div>
+      <div class="ph lg"></div>
+      <div class="pb"><div class="cv"><canvas></canvas><div class="tip"></div></div><div class="pi"></div></div>`;
+    document.body.appendChild(box);
+    box.querySelector(".px").onclick = () => { box.classList.remove("on"); PLAN.on = false; };
+    box.querySelectorAll(".pz").forEach(b => b.onclick = () => { PLAN.s *= +b.dataset.z; drawPlan(); });
+    box.querySelector(".py").oninput = () => { box.querySelector(".pall").checked = false; drawPlan(); };
+    box.querySelector(".pall").onchange = drawPlan;
+    const cv = box.querySelector("canvas"), pts = new Map();
+    let drag = null, moved = false, pinch = 0;
+    cv.addEventListener("pointerdown", e => { cv.setPointerCapture(e.pointerId); pts.set(e.pointerId, [e.offsetX, e.offsetY]); drag = [e.offsetX, e.offsetY]; moved = false; if (pts.size === 2) { const [a, b] = [...pts.values()]; pinch = Math.hypot(a[0] - b[0], a[1] - b[1]); } });
+    cv.addEventListener("pointermove", e => {
+      if (pts.has(e.pointerId)) pts.set(e.pointerId, [e.offsetX, e.offsetY]);
+      if (pts.size === 2) { const [a, b] = [...pts.values()]; const d = Math.hypot(a[0] - b[0], a[1] - b[1]); if (pinch) { PLAN.s *= d / pinch; drawPlan(); } pinch = d; moved = true; return; }
+      if (drag && pts.size === 1) { const dx = e.offsetX - drag[0], dy = e.offsetY - drag[1]; if (Math.abs(dx) + Math.abs(dy) > 3) moved = true; if (moved) { PLAN.cx -= dx / PLAN.s; PLAN.cz -= dy / PLAN.s; drag = [e.offsetX, e.offsetY]; drawPlan(); } return; }
+      planHover(e.offsetX, e.offsetY);
+    });
+    const up = e => { pts.delete(e.pointerId); if (pts.size < 2) pinch = 0; if (drag && !moved && pts.size === 0) planClick(e.offsetX, e.offsetY); if (!pts.size) drag = null; };
+    cv.addEventListener("pointerup", up); cv.addEventListener("pointercancel", up);
+    cv.addEventListener("wheel", e => { e.preventDefault(); PLAN.s *= e.deltaY < 0 ? 1.2 : 1 / 1.2; drawPlan(); }, { passive: false });
+    cv.addEventListener("contextmenu", e => e.preventDefault());
+    window.addEventListener("resize", () => PLAN.on && drawPlan());
+  }
+  box.classList.add("on"); PLAN.on = true;
+  box.querySelector(".pt").textContent = (PLAN_NAME[st] || "") + " 평면도";
+  box.querySelector(".pc").textContent = "계산 중…";
+  box.querySelector(".pi").innerHTML = `<p class="d">상자 점을 누르면 내용물이 여기에 나와요. 위쪽이 북쪽(-Z)이에요.</p>`;
+  let chests;
+  try { chests = await lootChests(st, x, z); } catch (e) { box.querySelector(".pc").textContent = "계산하다가 문제가 생겼어요."; return; }
+  // 주민·동물 같은 1칸짜리 조각은 빼고 (생성기는 남김)
+  const pcs = (lastPieces || []).filter(p => p.el.t !== "f" && ((p.bb[3] - p.bb[0] + 1) * (p.bb[5] - p.bb[2] + 1) > 2 || /spawner/.test(p.el.l || "")));
+  let x0 = 1e9, x1 = -1e9, z0 = 1e9, z1 = -1e9, y0 = 1e9, y1 = -1e9;
+  for (const p of pcs) { x0 = Math.min(x0, p.bb[0]); x1 = Math.max(x1, p.bb[3]); z0 = Math.min(z0, p.bb[2]); z1 = Math.max(z1, p.bb[5]); y0 = Math.min(y0, p.bb[1]); y1 = Math.max(y1, p.bb[4]); }
+  Object.assign(PLAN, { st, pcs, chests: chests.map(c => ({ ...c, y: c.y !== undefined ? +c.y : 0 })), cx: (x0 + x1) / 2, cz: (z0 + z1) / 2, s: 0, sel: -1, ext: [x1 - x0 + 1, z1 - z0 + 1] });
+  const yr = box.querySelector(".py"); yr.min = y0; yr.max = y1; yr.value = Math.round((y0 + y1) / 2); box.querySelector(".pall").checked = true;
+  const main = PLAN.chests.filter(c => !/^(pots|dispensers)\//.test(c.t)).length;
+  box.querySelector(".pc").textContent = `조각 ${pcs.length}개 · 상자 ${main}개${PLAN.chests.length > main ? ` (+ 항아리·발사기 ${PLAN.chests.length - main}개)` : ""}`;
+  const lg = { 13: [["#7b5cc4", "도시 중심"], ["#2f8f8a", "건물"], ["#4a5560", "벽"], ["#9a7b4f", "입구"]], 25: [["#c97b3a", "방"], ["#5a6f8a", "복도"], ["#4f9a5b", "교차로"], ["#d4b13a", "보상"], ["#d04a4a", "생성기"]], 5: [["#d4a13a", "마을 중심"], ["#a0613a", "건물"], ["#8a7a5a", "길"]] }[st] || [];
+  box.querySelector(".lg").innerHTML = lg.map(([c, n]) => `<span><i style="background:${c}"></i>${n}</span>`).join("") + `<span><i style="background:#ffd54a;border-radius:50%"></i>상자</span><span><i style="background:#b07a3a;border-radius:50%"></i>통</span>` + (st === 25 ? `<span><i style="background:#e58fb0;border-radius:50%"></i>항아리</span><span><i style="background:#9aa3ab;border-radius:50%"></i>발사기</span>` : "");
+  drawPlan();
+}
+function planView() {
+  const cv = $("planBox").querySelector("canvas"), w = cv.clientWidth, h = cv.clientHeight;
+  if (!PLAN.s) PLAN.s = Math.min(w / (PLAN.ext[0] + 8), h / (PLAN.ext[1] + 8));
+  return { cv, w, h, sx: X => (X - PLAN.cx) * PLAN.s + w / 2, sz: Z => (Z - PLAN.cz) * PLAN.s + h / 2 };
+}
+function planFloor() { const b = $("planBox"); return b.querySelector(".pall").checked ? null : +b.querySelector(".py").value; }
+function drawPlan() {
+  if (!PLAN.on || !PLAN.pcs) return;
+  const { cv, w, h, sx, sz } = planView(), dpr = window.devicePixelRatio || 1;
+  if (cv.width !== Math.round(w * dpr) || cv.height !== Math.round(h * dpr)) { cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr); }
+  const g = cv.getContext("2d"); g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, w, h);
+  const fy = planFloor(); $("planBox").querySelector(".pyv").textContent = fy === null ? "" : "Y " + fy;
+  const on = p => fy === null || (p.bb[1] <= fy && p.bb[4] >= fy);
+  const order = [...PLAN.pcs].sort((a, b) => (on(a) - on(b)) || (a.bb[1] - b.bb[1]));
+  for (const p of order) {
+    const a = sx(p.bb[0]), b = sz(p.bb[2]), ww = (p.bb[3] - p.bb[0] + 1) * PLAN.s, hh = (p.bb[5] - p.bb[2] + 1) * PLAN.s;
+    const street = PLAN.st === 5 && /streets|terminators/.test(p.el.l || "");
+    g.globalAlpha = on(p) ? (fy === null ? (street ? 0.3 : 0.55) : 0.9) : 0.12;
+    g.fillStyle = planColor(PLAN.st, p); g.fillRect(a, b, ww, hh);
+    g.globalAlpha = on(p) ? 0.9 : 0.15; g.strokeStyle = "#0b0f12"; g.lineWidth = 1; g.strokeRect(a + .5, b + .5, ww - 1, hh - 1);
+  }
+  g.globalAlpha = 1;
+  const r = Math.max(3, Math.min(7, PLAN.s * 0.6));
+  PLAN.chests.forEach((c, i) => {
+    const vis = fy === null || Math.abs(c.y - fy) <= 4;
+    const px = sx(c.x + 0.5), pz = sz(c.z + 0.5);
+    g.globalAlpha = vis ? 1 : 0.2;
+    g.beginPath(); g.arc(px, pz, i === PLAN.sel ? r + 3 : r, 0, 7); g.fillStyle = chestColor(c.t); g.fill();
+    g.lineWidth = i === PLAN.sel ? 2.5 : 1.2; g.strokeStyle = i === PLAN.sel ? "#fff" : "#000"; g.stroke();
+  });
+  g.globalAlpha = 1;
+  g.fillStyle = "#e8eee9"; g.font = "bold 13px sans-serif"; g.textAlign = "center"; g.fillText("N", w - 22, 22);
+  g.beginPath(); g.moveTo(w - 22, 28); g.lineTo(w - 27, 40); g.lineTo(w - 17, 40); g.closePath(); g.fill();
+  // 축척: 16블록(청크 하나)
+  const L = 16 * PLAN.s; g.fillRect(12, 14, L, 2); g.textAlign = "left"; g.font = "11px sans-serif"; g.fillText("16칸", 12 + L + 6, 19);
+}
+function planHit(px, py) {
+  const { sx, sz } = planView(), fy = planFloor(), r = Math.max(6, PLAN.s * 0.8);
+  let best = -1, bd = 1e9;
+  PLAN.chests.forEach((c, i) => { if (fy !== null && Math.abs(c.y - fy) > 4) return; const d = Math.hypot(sx(c.x + .5) - px, sz(c.z + .5) - py); if (d < r && d < bd) { bd = d; best = i; } });
+  return best;
+}
+function planHover(px, py) {
+  const tip = $("planBox").querySelector(".tip"), i = planHit(px, py);
+  if (i >= 0) { const c = PLAN.chests[i]; tip.textContent = `${TABLE_KO[c.t] || c.t} · ${c.x}, ${c.y}, ${c.z}`; return; }
+  const X = Math.floor((px - planView().w / 2) / PLAN.s + PLAN.cx), Z = Math.floor((py - planView().h / 2) / PLAN.s + PLAN.cz), fy = planFloor();
+  const p = PLAN.pcs.filter(p => X >= p.bb[0] && X <= p.bb[3] && Z >= p.bb[2] && Z <= p.bb[5] && (fy === null || (p.bb[1] <= fy && p.bb[4] >= fy))).pop();
+  tip.textContent = `X ${X}, Z ${Z}` + (p ? ` · ${(p.el.l || (p.el.e && p.el.e[0].l) || "").split("/").slice(-2).join("/")} (Y ${p.bb[1]}~${p.bb[4]})` : "");
+}
+function planClick(px, py) {
+  const i = planHit(px, py); if (i < 0) return;
+  PLAN.sel = i; drawPlan();
+  $("planBox").querySelector(".pi").innerHTML = `<div class="loot">${chestHtml(PLAN.chests[i])}</div>`;
 }
 // 링크 공유: 시드·차원·위치·확대를 주소 # 뒤에 담음
 function shareUrl() {
@@ -1750,7 +1870,7 @@ function openPop(hit, px, py) {
   pop.innerHTML = `<button type="button" class="x" aria-label="닫기">×</button>
     <div class="hd">${iconTag(st, 16)}${SNAME[st]}</div>
     <div class="co">X ${x}<br>Y ${yTxt}${yy.note ? ` <span class="d">(${yy.note})</span>` : ""}<br>Z ${z}${cityTxt(hit)}${shipTxt(hit)}${entrTxt(hit)}${featTxt(hit)}${linkTxt(x, z)}</div>
-    <div class="row"><button type="button" class="cp">좌표 복사</button><label><input type="checkbox" class="vis"${visitedSet().has(key) ? " checked" : ""}>다녀옴</label></div>${LOOT_ST.has(st) ? '<button type="button" class="lootb">상자 내용물 보기</button>' : ""}${bmRowHtml(SNAME[st] || "")}`;
+    <div class="row"><button type="button" class="cp">좌표 복사</button><label><input type="checkbox" class="vis"${visitedSet().has(key) ? " checked" : ""}>다녀옴</label></div>${PLAN_ST.has(st) ? '<button type="button" class="planb">평면도 보기</button>' : ""}${LOOT_ST.has(st) ? '<button type="button" class="lootb">상자 내용물 보기</button>' : ""}${bmRowHtml(SNAME[st] || "")}`;
   pop.querySelector(".x").onclick = closePop;
   const cvb = pop.querySelector(".cv"); if (cvb) cvb.onclick = () => { closePop(); $("caveOn").checked = true; mapState.cave = true; setCaveY(+cvb.dataset.y); dropQueue(); scheduleDraw(); };
   const cp = pop.querySelector(".cp");
@@ -1763,6 +1883,8 @@ function openPop(hit, px, py) {
   };
   pop.querySelector(".vis").onchange = (e) => { setVisited(key, e.target.checked); scheduleDraw(); renderNear(); };
   wireBm(pop, x, z);
+  const pb = pop.querySelector(".planb");
+  if (pb) pb.onclick = () => openPlan(st, x, z);
   const lb = pop.querySelector(".lootb");
   if (lb) lb.onclick = async () => { let h; lb.disabled = true; lb.textContent = "계산 중…"; try { h = await lootHtml(st, x, z); } catch (e) { h = '<div class="loot"><span class="d">계산하다가 문제가 생겼어요.</span></div>'; } lb.outerHTML = h; placePop(pop, px, py); };
   placePop(pop, px, py);
