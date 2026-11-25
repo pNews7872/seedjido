@@ -1748,7 +1748,7 @@ async function openPlan(st, x, z) {
   if (!box) {
     box = document.createElement("div"); box.id = "planBox";
     box.innerHTML = `<div class="ph"><b class="pt"></b><span class="d pc"></span><span class="sp"></span>
-      <label>층 <input type="range" class="py" style="width:140px"></label><span class="pyv d"></span><label><input type="checkbox" class="pall" checked> 전체 층</label><label><input type="checkbox" class="pol"> 조각 테두리</label><label><input type="checkbox" class="pic"> 상자 아이콘</label>
+      <label>층 <input type="range" class="py" style="width:140px"></label><span class="pyv d"></span><label><input type="checkbox" class="pall" checked> 전체 층</label><label><input type="checkbox" class="pol"> 조각 테두리</label><label><input type="checkbox" class="pic"> 상자 아이콘</label><label><input type="checkbox" class="pter"> 주변 지형</label>
       <button type="button" class="pz" data-z="1.4">＋</button><button type="button" class="pz" data-z="0.7">－</button><button type="button" class="px">닫기</button></div>
       <div class="ph lg"></div>
       <div class="pb"><div class="cv"><canvas></canvas><div class="tip"></div></div><div class="pi"></div></div>`;
@@ -1756,7 +1756,7 @@ async function openPlan(st, x, z) {
     box.querySelector(".px").onclick = () => { box.classList.remove("on"); PLAN.on = false; };
     box.querySelectorAll(".pz").forEach(b => b.onclick = () => { PLAN.s *= +b.dataset.z; drawPlan(); });
     box.querySelector(".py").oninput = () => { box.querySelector(".pall").checked = false; drawPlan(); };
-    box.querySelector(".pall").onchange = drawPlan; box.querySelector(".pol").onchange = drawPlan; box.querySelector(".pic").checked = localStorage.getItem("planIcon") === "1"; box.querySelector(".pic").onchange = e => { try { localStorage.setItem("planIcon", e.target.checked ? "1" : "0"); } catch (x) {} drawPlan(); };
+    box.querySelector(".pall").onchange = drawPlan; box.querySelector(".pol").onchange = drawPlan; box.querySelector(".pic").checked = localStorage.getItem("planIcon") === "1"; box.querySelector(".pter").checked = localStorage.getItem("planTerr") === "1"; box.querySelector(".pter").onchange = e => { try { localStorage.setItem("planTerr", e.target.checked ? "1" : "0"); } catch (x) {} drawPlan(); }; box.querySelector(".pic").onchange = e => { try { localStorage.setItem("planIcon", e.target.checked ? "1" : "0"); } catch (x) {} drawPlan(); };
     const cv = box.querySelector("canvas"), pts = new Map();
     let drag = null, moved = false, pinch = 0;
     cv.addEventListener("pointerdown", e => { cv.setPointerCapture(e.pointerId); pts.set(e.pointerId, [e.offsetX, e.offsetY]); drag = [e.offsetX, e.offsetY]; moved = false; if (pts.size === 2) { const [a, b] = [...pts.values()]; pinch = Math.hypot(a[0] - b[0], a[1] - b[1]); } });
@@ -1775,7 +1775,7 @@ async function openPlan(st, x, z) {
   box.classList.add("on"); PLAN.on = true;
   box.querySelector(".pt").textContent = (PLAN_NAME[st] || "") + " 평면도";
   box.querySelector(".pc").textContent = "계산 중…";
-  box.querySelector(".pi").innerHTML = `<p class="d">상자 점을 누르면 내용물이 여기에 나와요. 위쪽이 북쪽(-Z)이에요.</p><p class="d">층을 고르면 그 높이보다 위에 있는 블록을 걷어 내고 보여 줘요. 무작위로 부서지는 블록, 땅, 나무 같은 장식은 빠져 있어요.</p>`;
+  box.querySelector(".pi").innerHTML = `<p class="d">상자 점을 누르면 내용물이 여기에 나와요. 위쪽이 북쪽(-Z)이에요.</p><p class="d">층을 고르면 그 높이보다 위에 있는 블록을 걷어 내고 보여 줘요. 무작위로 부서지는 블록, 나무 같은 장식은 빠져 있어요.</p><p class="d">주변 지형: 땅속 구조물은 고른 높이에서 자른 단면(돌·동굴·물·용암), 마을은 위에서 본 땅이에요. 구조물 바로 옆 몇 칸은 게임이 땅을 깎거나 메워서 다를 수 있어요.</p>`;
   let chests;
   try { chests = await lootChests(st, x, z); } catch (e) { box.querySelector(".pc").textContent = "계산하다가 문제가 생겼어요."; return; }
   // 주민·동물 같은 1칸짜리 조각은 빼고 (생성기는 남김)
@@ -1787,8 +1787,11 @@ async function openPlan(st, x, z) {
   PLAN.tsize = Object.fromEntries(Object.entries((st === 13 ? AC_DATA : (await jigsawData(tname)).d).T).map(([k, v]) => [k, v.s]));
   try { PLAN.tops = await topsData(tname); } catch (e) {}
   for (const p of lastPieces || []) if (p.el.t !== "f") { x0 = Math.min(x0, p.bb[0]); x1 = Math.max(x1, p.bb[3]); z0 = Math.min(z0, p.bb[2]); z1 = Math.max(z1, p.bb[5]); }
-  PLAN.all = (lastPieces || []).filter(p => p.el.t !== "f"); PLAN.box = [x0, z0];
+  const MG = 32; x0 -= MG; z0 -= MG; x1 += MG; z1 += MG;   // 주변 지형용 여유
+  PLAN.all = (lastPieces || []).filter(p => p.el.t !== "f"); PLAN.box = [x0, z0]; PLAN.terr = {}; PLAN.surf = null;
   Object.assign(PLAN, { st, pcs, chests: chests.map(c => ({ ...c, y: c.y !== undefined ? +c.y : 0 })), cx: (x0 + x1) / 2, cz: (z0 + z1) / 2, s: 0, sel: -1, hov: -1, ext: [x1 - x0 + 1, z1 - z0 + 1] });
+  { const hst = {}; for (const p of pcs) { const a = (p.bb[3] - p.bb[0] + 1) * (p.bb[5] - p.bb[2] + 1); hst[p.bb[1]] = (hst[p.bb[1]] || 0) + a; }
+    PLAN.repY = +Object.entries(hst).sort((a, b) => b[1] - a[1])[0][0] + 2; }   // 바닥이 가장 넓은 높이 + 2 (벽을 자르는 높이)
   const yr = box.querySelector(".py"); yr.min = y0; yr.max = y1; yr.value = Math.round((y0 + y1) / 2); box.querySelector(".pall").checked = true;
   const main = PLAN.chests.filter(c => !/^(pots|dispensers)\//.test(c.t)).length;
   box.querySelector(".pc").textContent = `조각 ${pcs.length}개 · 상자 ${main}개${PLAN.chests.length > main ? ` (+ 항아리·발사기 ${PLAN.chests.length - main}개)` : ""}`;
@@ -1859,6 +1862,50 @@ function planRaster() {
   g.putImageData(im, 0, 0);
   P.rkey = key; P.raster = cv; return cv;
 }
+// 주변 지형: 땅속 구조물은 높이 Y의 단면(돌·동굴·물·용암), 마을은 지표면을 위에서 본 모습
+function biomeGround(id) {
+  const b = (BIOMES.find(v => v.id === id) || {}).en || "";
+  if (/badlands/.test(b)) return [181, 101, 43];
+  if (/desert|beach/.test(b) && !/snowy/.test(b)) return [216, 204, 149];
+  if (/snowy|frozen|ice|grove|jagged|slopes/.test(b)) return [236, 242, 244];
+  if (/stony|peaks|gravelly/.test(b)) return [125, 125, 125];
+  if (/swamp/.test(b)) return [76, 101, 56];
+  if (/jungle/.test(b)) return [70, 150, 40];
+  if (/savanna/.test(b)) return [150, 160, 80];
+  if (/mushroom/.test(b)) return [150, 120, 140];
+  return [106, 168, 79];
+}
+function planTerrain() {
+  const P = PLAN, W = P.ext[0], H = P.ext[1], [x0, z0] = P.box;
+  hoverEx.set_seed_dim(mapState.lo, mapState.hi, hoverEx.mc_wd(), 0);
+  const cv = document.createElement("canvas"); cv.width = W; cv.height = H;
+  const g = cv.getContext("2d"), im = g.createImageData(W, H), d = im.data;
+  if (P.st === 5) {
+    if (P.surf) return P.surf;
+    const hp = hoverEx.malloc(W * H * 2), wp = hoverEx.malloc(W * H);
+    hoverEx.surf_area(x0, z0, W, H, hp, wp);
+    const hy = new Int16Array(hoverEx.memory.buffer, hp, W * H).slice(), wt = new Uint8Array(hoverEx.memory.buffer, wp, W * H).slice();
+    hoverEx.free(hp); hoverEx.free(wp);
+    const bio = {};
+    let lo = 1e9, hi = -1e9; for (const v of hy) { lo = Math.min(lo, v); hi = Math.max(hi, v); }
+    for (let z = 0; z < H; z++) for (let x = 0; x < W; x++) {
+      const k = z * W + x, bk = (x >> 2) + "," + (z >> 2);
+      if (bio[bk] === undefined) bio[bk] = biomeGround(hoverEx.biome_at(x0 + x, z0 + z, hy[k]));
+      const c = wt[k] ? [63, 118, 228] : bio[bk], n = z > 0 ? hy[k - W] : hy[k];
+      let f = wt[k] ? 1 : hy[k] > n ? 1.08 : hy[k] < n ? 0.74 : 0.9; f *= 0.75 + 0.25 * (hi > lo ? (hy[k] - lo) / (hi - lo) : 1);
+      d[k * 4] = Math.min(255, c[0] * f); d[k * 4 + 1] = Math.min(255, c[1] * f); d[k * 4 + 2] = Math.min(255, c[2] * f); d[k * 4 + 3] = 255;
+    }
+    g.putImageData(im, 0, 0); return P.surf = cv;
+  }
+  const fy = planFloor(), y = fy === null ? P.repY : fy;
+  if (P.terr[y]) return P.terr[y];
+  const bp = hoverEx.malloc(W * H);
+  hoverEx.slice_area(x0, z0, W, H, y, bp);
+  const u = new Uint8Array(hoverEx.memory.buffer, bp, W * H).slice(); hoverEx.free(bp);
+  const rock = y < 0 ? [74, 74, 82] : [110, 112, 116], C = [rock, [14, 17, 20], [47, 95, 191], [208, 84, 28]];
+  for (let k = 0; k < W * H; k++) { const c = C[u[k]]; d[k * 4] = c[0]; d[k * 4 + 1] = c[1]; d[k * 4 + 2] = c[2]; d[k * 4 + 3] = 255; }
+  g.putImageData(im, 0, 0); return P.terr[y] = cv;
+}
 function planView() {
   const cv = $("planBox").querySelector("canvas"), w = cv.clientWidth, h = cv.clientHeight;
   if (!PLAN.s) PLAN.s = Math.min(w / (PLAN.ext[0] + 8), h / (PLAN.ext[1] + 8));
@@ -1873,6 +1920,11 @@ function drawPlan() {
   const fy = planFloor(); $("planBox").querySelector(".pyv").textContent = fy === null ? "" : "Y " + fy;
   const on = p => fy === null || (p.bb[1] <= fy && p.bb[4] >= fy);
   const ras = planRaster(), outline = $("planBox").querySelector(".pol").checked;
+  if ($("planBox").querySelector(".pter").checked) {
+    let t = null; try { t = planTerrain(); } catch (e) {}
+    if (t) { g.imageSmoothingEnabled = false; g.drawImage(t, sx(PLAN.box[0]), sz(PLAN.box[1]), PLAN.ext[0] * PLAN.s, PLAN.ext[1] * PLAN.s); }
+    if (PLAN.st !== 5) $("planBox").querySelector(".pyv").textContent = "지형 단면 Y " + (fy === null ? PLAN.repY : fy);
+  }
   if (ras) { g.imageSmoothingEnabled = false; g.drawImage(ras, sx(PLAN.box[0]), sz(PLAN.box[1]), PLAN.ext[0] * PLAN.s, PLAN.ext[1] * PLAN.s); }
   const order = ras && !outline ? [] : [...PLAN.pcs].sort((a, b) => (on(a) - on(b)) || (a.bb[1] - b.bb[1]));
   for (const p of order) {
