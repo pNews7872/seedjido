@@ -1,0 +1,8 @@
+combo 0 R=600 exact 6 (23.7s) fast 6 (6.5s) missed 0  speedup 3.64x
+combo 1 R=300 exact 377 (9.0s) fast 376 (5.1s) missed 1  speedup 1.78x
+combo 2 R=600 exact 19 (24.3s) fast 19 (5.7s) missed 0  speedup 4.24x
+combo 3 R=600 exact 387 (22.3s) fast 386 (6.4s) missed 1  speedup 3.50x
+combo 4 R=300 exact 178 (9.4s) fast 178 (5.0s) missed 0  speedup 1.89x
+combo 5 R=600 exact 606 (22.9s) fast 606 (14.8s) missed 0  speedup 1.55x
+combo 6 R=600 exact 124 (24.4s) fast 121 (5.6s) missed 3  speedup 4.35x
+combo 7 R=600 exact 261 (23.6s) fast 261 (7.1s) missed 0  speedup 3.33x

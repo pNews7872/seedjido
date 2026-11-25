@@ -1,0 +1,6 @@
+set -e
+EXP="-Wl,--export=ec_dbg "; for f in test_seed nearest ids_ptr ys_ptr out_ptr sids_ptr rect_ptr structs_rect gen_area spawn_xz biome_at mc_wd set_seed set_seed_dim malloc free height_at cave_ptr cave_slice cave_entrances feat_ptr features_tile dbg_dungeon set_lava_min dbg_block set_aquifer heights_area end_center slime_near sh_near end_gate1 loot_struct loot_biome dbg_chunkseeds subtype_flag dbg_variant dbg_vy dbg_pos dbg_viable dbg_vpos dbg_bv loot_seed salt_longs wg_height dbg_fin loot_named slice_area surf_area beard_set mine_boxes pieces_struct dbg_sh; do EXP="$EXP -Wl,--export=$f"; done
+SRC=""; for f in generator biomes layers biomenoise noise finders terrainnoise xradv carver features/mineshaft features/stronghold features/fortress features/end_city features/abandoned_camp; do SRC="$SRC /home/claude/xcub/$f.c"; done
+LOOT="$(find /home/claude/xcub/loot -name "*.c" | grep -v _gen | tr "\n" " ") /home/claude/xcub/util.c"
+clang --target=wasm32-wasi -isystem /usr/include/wasm32-wasi -I/home/claude/xcub -O3 -nostartfiles -nodefaultlibs -Wl,--no-entry -Wl,--strip-all -Wl,--allow-undefined $EXP -L/usr/lib/wasm32-wasi -o seed3.wasm seedwasm3.c carver_tile.c $SRC $LOOT -lc 2>&1 | grep -v "warning:" | grep -E "error|undefined" || true
+ls -la seed3.wasm

@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>바이옴 시드 찾기</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;700&family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+/* 레이아웃: 왼쪽 조건 패널, 오른쪽 결과 표와 바이옴 지도. 좁은 화면에서는 한 줄로 쌓임 */
+:root {
+  --bg: #eceeea;
+  --surface: #fbfcfa;
+  --ink: #1c2320;
+  --muted: #5d6963;
+  --line: #d2d9d4;
+  --accent: #2c7356;
+  --accent-ink: #ffffff;
+  --mark: #a8661c;
+  --chip: #e3e8e4;
+  --font-body: "IBM Plex Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, Consolas, monospace;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #111513; --surface: #191f1c; --ink: #e5ebe7; --muted: #98a59e;
+    --line: #2b3430; --accent: #57b88a; --accent-ink: #0d1411; --mark: #e0a356; --chip: #222a26;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #111513; --surface: #191f1c; --ink: #e5ebe7; --muted: #98a59e;
+  --line: #2b3430; --accent: #57b88a; --accent-ink: #0d1411; --mark: #e0a356; --chip: #222a26;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body { background: var(--bg); color: var(--ink); font-family: var(--font-body); font-size: 15px; line-height: 1.55; }
+.wrap { max-width: 1180px; margin: 0 auto; padding: 24px 16px 48px; display: grid; gap: 20px; }
+header h1 { font-size: 26px; line-height: 1.25; margin: 0 0 4px; text-wrap: balance; letter-spacing: -0.01em; }
+header p { margin: 0; color: var(--muted); max-width: 68ch; }
+.grid { display: grid; grid-template-columns: 360px 1fr; gap: 20px; align-items: start; }
+@media (max-width: 860px) { .grid { grid-template-columns: 1fr; } }
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 18px; display: grid; gap: 16px; }
+.panel h2 { font-size: 14px; margin: 0; color: var(--muted); font-weight: 600; letter-spacing: 0.02em; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--line); background: var(--chip); color: var(--ink); border-radius: 999px; padding: 4px 10px 4px 6px; font: inherit; font-size: 13px; cursor: pointer; }
+.chip .sw { width: 12px; height: 12px; border-radius: 3px; border: 1px solid rgba(0,0,0,.25); }
+.chip[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.chip:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px solid var(--mark); outline-offset: 2px; }
+.chip small { opacity: .75; }
+.grp { flex-basis: 100%; font-size: 12px; color: var(--muted); margin-top: 6px; }
+.grp:first-child { margin-top: 0; }
+.chips { max-height: 360px; overflow-y: auto; padding-right: 4px; }
+.fields { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 12px; }
+.field { display: grid; gap: 4px; }
+.field label { font-size: 13px; color: var(--muted); }
+.field input:disabled { opacity: .5; }
+.field input, .field select { font: inherit; font-family: var(--font-mono); font-size: 14px; padding: 7px 9px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--ink); width: 100%; }
+.field.full { grid-column: 1 / -1; }
+.hint { font-size: 12.5px; color: var(--muted); margin: 0; }
+.check { display: flex; gap: 8px; align-items: flex-start; font-size: 14px; cursor: pointer; }
+.check input { margin-top: 4px; width: 16px; height: 16px; accent-color: var(--accent); }
+.actions { display: flex; gap: 8px; flex-wrap: wrap; }
+button.primary, button.ghost { font: inherit; font-weight: 600; border-radius: 8px; padding: 10px 16px; cursor: pointer; border: 1px solid var(--accent); }
+button.primary { background: var(--accent); color: var(--accent-ink); flex: 1; }
+button.ghost { background: transparent; color: var(--ink); border-color: var(--line); }
+button:disabled { opacity: .5; cursor: default; }
+.status { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.stat { background: var(--bg); border-radius: 8px; padding: 8px 10px; }
+.stat b { display: block; font-family: var(--font-mono); font-size: 18px; font-variant-numeric: tabular-nums; }
+.stat span { font-size: 12px; color: var(--muted); }
+.state { font-size: 13px; display: flex; align-items: center; gap: 8px; color: var(--muted); }
+.dot { width: 8px; height: 8px; border-radius: 50%; background: var(--line); }
+.state.on .dot { background: var(--accent); animation: pulse 1s infinite alternate; }
+@keyframes pulse { to { opacity: .35; } }
+@media (prefers-reduced-motion: reduce) { .state.on .dot { animation: none; } }
+.right { display: grid; gap: 20px; }
+.tablewrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 14px; }
+th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+th { font-size: 12.5px; color: var(--muted); font-weight: 600; }
+td.num { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+tr.row { cursor: pointer; }
+tr.row:hover td { background: var(--chip); }
+tr.row.sel td { background: color-mix(in srgb, var(--accent) 14%, transparent); }
+.seed { font-family: var(--font-mono); font-weight: 600; }
+.tag { font-size: 11px; color: var(--mark); border: 1px solid var(--mark); border-radius: 4px; padding: 0 4px; margin-left: 6px; }
+.mini { font: inherit; font-size: 12px; padding: 3px 8px; border-radius: 6px; border: 1px solid var(--line); background: transparent; color: var(--ink); cursor: pointer; }
+.empty { color: var(--muted); font-size: 14px; padding: 12px 2px; }
+.mapbox { display: grid; grid-template-columns: minmax(0, 420px) 1fr; gap: 16px; align-items: start; }
+@media (max-width: 640px) { .mapbox { grid-template-columns: 1fr; } }
+canvas { width: 100%; height: auto; border-radius: 8px; border: 1px solid var(--line); image-rendering: pixelated; background: var(--bg); }
+.legend { display: grid; gap: 6px; font-size: 13px; }
+.legend div { display: flex; align-items: center; gap: 8px; }
+.legend .sw { width: 14px; height: 14px; border-radius: 3px; border: 1px solid rgba(0,0,0,.25); flex: none; }
+.maphead { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.maphead a { color: var(--accent); font-size: 13px; }
+.notes { font-size: 13px; color: var(--muted); display: grid; gap: 4px; margin: 0; padding-left: 18px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>바이옴 시드 찾기</h1>
+    <p>원하는 바이옴들이 모두 스폰 지점에서 반경 안에 있는 자바 에디션 시드를 브라우저에서 직접 계산해 찾아요. 지형 공식은 26.3 기준이에요 (얼룩진 숲, 유황 동굴, 창백한 정원 포함).</p>
+  </header>
+
+  <div class="grid">
+    <section class="panel" aria-label="검색 조건">
+      <h2>꼭 있어야 할 바이옴 (최대 8개)</h2>
+      <div class="chips" id="chips"></div>
+      <p class="hint">땅속 바이옴은 땅속 높이(무성한·점적석·유황 동굴 y=0, 깊은 어둠 y=-40)에서, 나머지는 지표면 기준으로 확인해요. 바이옴에 마우스를 올리면 영어 이름이 보여요.</p>
+
+      <h2>범위와 방식</h2>
+      <div class="fields">
+        <div class="field"><label for="radius">반경 (블록)</label><input id="radius" type="number" min="64" max="5000" step="50" value="500"></div>
+        <div class="field"><label for="step">확인 간격</label>
+          <select id="step"><option value="16">16칸 (정밀, 느림)</option><option value="32" selected>32칸 (보통)</option><option value="64">64칸 (빠름, 작은 바이옴 놓침)</option></select></div>
+        <div class="field full"><label for="center">거리 기준</label>
+          <select id="center"><option value="spawn" selected>실제 스폰 지점 (계산)</option><option value="coord">직접 입력한 좌표</option></select></div>
+        <div class="field"><label for="cx">중심 X</label><input id="cx" type="number" value="0" disabled></div>
+        <div class="field"><label for="cz">중심 Z</label><input id="cz" type="number" value="0" disabled></div>
+        <div class="field"><label for="mode">시드 고르는 방식</label>
+          <select id="mode"><option value="small">작은 숫자부터</option><option value="random">무작위</option></select></div>
+        <div class="field"><label for="start">시작 숫자</label><input id="start" type="number" min="0" value="0"></div>
+        <div class="field"><label for="target">찾을 개수</label><input id="target" type="number" min="1" max="200" value="10"></div>
+        <div class="field"><label for="threads">동시 계산</label><input id="threads" type="number" min="1" max="32" value="4"></div>
+      </div>
+
+      <label class="check" for="fast"><input id="fast" type="checkbox"> <span><b>빠른 검색</b> <span class="tag">베타</span><br><span class="hint">기후 값으로 "여기엔 절대 안 생기는" 시드를 먼저 걸러내요. 조건에 따라 1.2~4배 빨라져요. 시험에서는 놓친 시드가 없었지만, 아주 드물게 놓칠 수 있어요.</span></span></label>
+      <div class="actions">
+        <button class="primary" id="go" type="button">검색 시작</button>
+        <button class="ghost" id="stop" type="button" disabled>멈추기</button>
+      </div>
+      <div class="state" id="state"><span class="dot"></span><span id="stateText">준비됨</span></div>
+      <div class="status">
+        <div class="stat"><b id="checked">0</b><span>검사한 시드</span></div>
+        <div class="stat"><b id="rate">0</b><span>초당 검사</span></div>
+        <div class="stat"><b id="found">0</b><span>찾은 시드</span></div>
+      </div>
+    </section>
+
+    <div class="right">
+      <section class="panel" aria-label="결과">
+        <h2>결과 · 행을 누르면 지도가 바뀌어요</h2>
+        <div class="tablewrap"><table id="results"></table></div>
+      </section>
+
+      <section class="panel" aria-label="바이옴 지도">
+        <div class="maphead"><h2 id="mapTitle">지도</h2><a id="cbLink" href="https://www.chunkbase.com/apps/seed-map" target="_blank" rel="noopener">Chunkbase에서 열기</a></div>
+        <div class="mapbox">
+          <canvas id="map" width="240" height="240" aria-label="선택한 시드의 지표면 바이옴 지도"></canvas>
+          <div class="legend" id="legend"></div>
+        </div>
+        <ul class="notes">
+          <li>지도 가운데 십자가 기준점(스폰 또는 입력한 좌표), 점선 원이 검색 반경이에요. 색 점이 각 바이옴까지 가장 가까운 지점이에요.</li>
+          <li>스폰 지점은 게임과 같은 방식으로 계산한 월드 스폰이에요. 실제로 처음 나타나는 위치는 그 주변 약 10칸 안에서 무작위로 정해져요.</li>
+          <li>26.3까지 반영된 Cubiomes 포크(xpple/cubiomes, MIT 라이선스)로 계산해요. 게임과 완전히 같다는 보장은 없으니, 쓰기 전에 Chunkbase나 게임 안에서 한 번 확인하세요.</li>
+        </ul>
+      </section>
+    </div>
+  </div>
+</div>
+
+<script>
+const WASM_B64 = "__WASM__";
+const COLORS = __COLORS__;
+COLORS[186] = "c9cac2"; // 창백한 정원을 지도에서 알아보기 쉽게
+const BIOMES = [
+  {id:-1, name:"바다 (모든 종류)", en:"", g:"묶음", y:256, color:"2a4fb0"},
+  {id:-2, name:"악지 (모든 종류)", en:"", g:"묶음", y:256, color:"d25f12"},
+  {id:186, name:"창백한 정원", en:"pale_garden", g:"희귀", y:256},
+  {id:184, name:"맹그로브 늪", en:"mangrove_swamp", g:"희귀", y:256},
+  {id:185, name:"벚나무 숲", en:"cherry_grove", g:"희귀", y:256},
+  {id:14, name:"버섯 들판", en:"mushroom_fields", g:"희귀", y:256},
+  {id:140, name:"얼음 가시 평원", en:"ice_spikes", g:"희귀", y:256},
+  {id:165, name:"침식된 악지", en:"eroded_badlands", g:"희귀", y:256},
+  {id:168, name:"대나무 정글", en:"bamboo_jungle", g:"희귀", y:256},
+  {id:129, name:"해바라기 평원", en:"sunflower_plains", g:"희귀", y:256},
+  {id:132, name:"꽃 숲", en:"flower_forest", g:"희귀", y:256},
+  {id:188, name:"얼룩진 숲 (단풍)", en:"dappled_forest", g:"희귀", y:256},
+  {id:1, name:"평원", en:"plains", g:"평원·숲", y:256},
+  {id:4, name:"숲", en:"forest", g:"평원·숲", y:256},
+  {id:27, name:"자작나무 숲", en:"birch_forest", g:"평원·숲", y:256},
+  {id:155, name:"원시 자작나무 숲", en:"old_growth_birch_forest", g:"평원·숲", y:256},
+  {id:29, name:"어두운 숲", en:"dark_forest", g:"평원·숲", y:256},
+  {id:177, name:"목초지", en:"meadow", g:"평원·숲", y:256},
+  {id:6, name:"늪", en:"swamp", g:"평원·숲", y:256},
+  {id:7, name:"강", en:"river", g:"평원·숲", y:256},
+  {id:2, name:"사막", en:"desert", g:"따뜻한 곳", y:256},
+  {id:35, name:"사바나", en:"savanna", g:"따뜻한 곳", y:256},
+  {id:36, name:"사바나 고원", en:"savanna_plateau", g:"따뜻한 곳", y:256},
+  {id:163, name:"바람이 세찬 사바나", en:"windswept_savanna", g:"따뜻한 곳", y:256},
+  {id:21, name:"정글", en:"jungle", g:"따뜻한 곳", y:256},
+  {id:23, name:"듬성듬성한 정글", en:"sparse_jungle", g:"따뜻한 곳", y:256},
+  {id:37, name:"악지", en:"badlands", g:"따뜻한 곳", y:256},
+  {id:38, name:"나무가 우거진 악지", en:"wooded_badlands", g:"따뜻한 곳", y:256},
+  {id:5, name:"타이가", en:"taiga", g:"추운 곳", y:256},
+  {id:30, name:"눈 덮인 타이가", en:"snowy_taiga", g:"추운 곳", y:256},
+  {id:32, name:"원시 소나무 타이가", en:"old_growth_pine_taiga", g:"추운 곳", y:256},
+  {id:160, name:"원시 가문비나무 타이가", en:"old_growth_spruce_taiga", g:"추운 곳", y:256},
+  {id:12, name:"눈 덮인 평원", en:"snowy_plains", g:"추운 곳", y:256},
+  {id:11, name:"얼어붙은 강", en:"frozen_river", g:"추운 곳", y:256},
+  {id:26, name:"눈 덮인 해변", en:"snowy_beach", g:"추운 곳", y:256},
+  {id:3, name:"바람이 세찬 언덕", en:"windswept_hills", g:"산", y:256},
+  {id:131, name:"바람이 세찬 자갈 언덕", en:"windswept_gravelly_hills", g:"산", y:256},
+  {id:34, name:"바람이 세찬 숲", en:"windswept_forest", g:"산", y:256},
+  {id:178, name:"수림", en:"grove", g:"산", y:256},
+  {id:179, name:"눈 덮인 비탈", en:"snowy_slopes", g:"산", y:256},
+  {id:180, name:"뾰족한 봉우리", en:"jagged_peaks", g:"산", y:256},
+  {id:181, name:"얼어붙은 봉우리", en:"frozen_peaks", g:"산", y:256},
+  {id:182, name:"바위 봉우리", en:"stony_peaks", g:"산", y:256},
+  {id:16, name:"해변", en:"beach", g:"물가·바다", y:256},
+  {id:25, name:"돌 해안", en:"stony_shore", g:"물가·바다", y:256},
+  {id:0, name:"바다", en:"ocean", g:"물가·바다", y:256},
+  {id:24, name:"깊은 바다", en:"deep_ocean", g:"물가·바다", y:256},
+  {id:44, name:"따뜻한 바다", en:"warm_ocean", g:"물가·바다", y:256},
+  {id:45, name:"미지근한 바다", en:"lukewarm_ocean", g:"물가·바다", y:256},
+  {id:48, name:"깊고 미지근한 바다", en:"deep_lukewarm_ocean", g:"물가·바다", y:256},
+  {id:46, name:"차가운 바다", en:"cold_ocean", g:"물가·바다", y:256},
+  {id:49, name:"깊고 차가운 바다", en:"deep_cold_ocean", g:"물가·바다", y:256},
+  {id:10, name:"얼어붙은 바다", en:"frozen_ocean", g:"물가·바다", y:256},
+  {id:50, name:"깊고 얼어붙은 바다", en:"deep_frozen_ocean", g:"물가·바다", y:256},
+  {id:175, name:"무성한 동굴", en:"lush_caves", g:"땅속", y:0, under:true},
+  {id:174, name:"점적석 동굴", en:"dripstone_caves", g:"땅속", y:0, under:true},
+  {id:183, name:"깊은 어둠", en:"deep_dark", g:"땅속", y:-40, under:true},
+  {id:187, name:"유황 동굴", en:"sulfur_caves", g:"땅속", y:0, under:true},
+];
+const colorOf = b => "#" + (b.color || COLORS[b.id] || "888888");
+
+let selected = [186, 184];
+const chipsEl = document.getElementById("chips");
+function renderChips() {
+  chipsEl.innerHTML = "";
+  let lastG = "";
+  for (const b of BIOMES) {
+    if (b.g !== lastG) { lastG = b.g; const h = document.createElement("div"); h.className = "grp"; h.textContent = b.g; chipsEl.appendChild(h); }
+    const el = document.createElement("button");
+    el.type = "button"; el.className = "chip"; el.title = b.en || "";
+    el.setAttribute("aria-pressed", selected.includes(b.id) ? "true" : "false");
+    el.innerHTML = `<span class="sw" style="background:${colorOf(b)}"></span>${b.name}`;
+    el.addEventListener("click", () => {
+      if (running) return;
+      if (selected.includes(b.id)) selected = selected.filter(x => x !== b.id);
+      else if (selected.length < 8) selected.push(b.id);
+      renderChips();
+    });
+    chipsEl.appendChild(el);
+  }
+}
+renderChips();
+
+// ---- wasm ----
+function b64ToBytes(s) { const bin = atob(s); const u = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i); return u; }
+const wasiStub = { wasi_snapshot_preview1: new Proxy({}, { get: () => () => 0 }) };
+let wasmModule, mainEx;
+const ready = WebAssembly.compile(b64ToBytes(WASM_B64)).then(async m => {
+  wasmModule = m;
+  const inst = await WebAssembly.instantiate(m, wasiStub);
+  mainEx = inst.exports;
+});
+
+const workerSrc = `
+let ex, MC, running = false, cfg, idx = 0, cursor = 0n;
+const stub = { wasi_snapshot_preview1: new Proxy({}, { get: () => () => 0 }) };
+onmessage = async (ev) => {
+  const d = ev.data;
+  if (d.type === "init") {
+    const inst = await WebAssembly.instantiate(d.module, stub);
+    ex = inst.exports; MC = ex.mc_wd(); postMessage({ type: "ready" });
+  } else if (d.type === "run") {
+    cfg = d.cfg; idx = d.index; cursor = BigInt(cfg.start) + BigInt(idx);
+    const m = new Int32Array(ex.memory.buffer);
+    const ip = ex.ids_ptr() >> 2, yp = ex.ys_ptr() >> 2;
+    cfg.ids.forEach((v, i) => { m[ip + i] = v; m[yp + i] = cfg.ys[i]; });
+    running = true; loop();
+  } else if (d.type === "stop") { running = false; }
+};
+const rnd = new Uint32Array(2);
+function loop() {
+  if (!running) return;
+  const n = cfg.ids.length; let checked = 0;
+  const t0 = performance.now();
+  while (performance.now() - t0 < 120) {
+    let lo, hi;
+    if (cfg.mode === "random") { crypto.getRandomValues(rnd); lo = rnd[0]; hi = rnd[1]; }
+    else { const s = BigInt.asUintN(64, cursor); lo = Number(s & 0xffffffffn); hi = Number(s >> 32n); cursor += BigInt(cfg.stride); }
+    checked++;
+    if (ex.test_seed(lo, hi, MC, n, cfg.R, cfg.step, cfg.cx, cfg.cz, cfg.spawn, cfg.fast)) {
+      ex.nearest(n, cfg.R, Math.max(8, cfg.step >> 1), cfg.cx, cfg.cz, cfg.spawn);
+      const o = ex.out_ptr() >> 2; const m = new Int32Array(ex.memory.buffer);
+      postMessage({ type: "hit", lo, hi, out: Array.from(m.slice(o, o + n * 3)), center: [m[o + 48], m[o + 49]] });
+    }
+  }
+  postMessage({ type: "progress", checked });
+  setTimeout(loop, 0);
+}`;
+const workerURL = URL.createObjectURL(new Blob([workerSrc], { type: "text/javascript" }));
+
+// ---- state ----
+let running = false, workers = [], results = [], cols = [], checkedTotal = 0, t0 = 0, target = 10, selIndex = -1;
+const $ = id => document.getElementById(id);
+const fmt = n => n.toLocaleString("ko-KR");
+const seedStr = (lo, hi) => BigInt.asIntN(64, (BigInt(hi >>> 0) << 32n) | BigInt(lo >>> 0)).toString();
+
+function setState(on, text) { $("state").classList.toggle("on", on); $("stateText").textContent = text; }
+
+function renderTable() {
+  const t = $("results");
+  if (!results.length) { t.innerHTML = `<tr><td class="empty">아직 찾은 시드가 없어요. 조건을 고르고 검색을 시작하세요.</td></tr>`; return; }
+  const sorted = results.map((r, i) => ({ r, i })).sort((a, b) => a.r.worst - b.r.worst);
+  let h = `<thead><tr><th>시드</th><th>기준점</th>${cols.map(c => `<th>${c.name}</th>`).join("")}<th>가장 먼 거리</th><th></th></tr></thead><tbody>`;
+  for (const { r, i } of sorted) {
+    h += `<tr class="row${i === selIndex ? " sel" : ""}" data-i="${i}"><td><span class="seed">${r.seed}</span>${r.example ? '<span class="tag">예시</span>' : ""}</td><td class="num">${r.spawn ? "스폰 " : ""}(${r.center[0]}, ${r.center[1]})</td>`;
+    r.pts.forEach(p => { h += `<td class="num">${p.d < 0 ? "-" : `${fmt(p.d)}칸 <span style="color:var(--muted)">(${p.x}, ${p.z})</span>`}</td>`; });
+    h += `<td class="num">${fmt(r.worst)}칸</td><td><button class="mini" type="button" data-copy="${r.seed}">복사</button></td></tr>`;
+  }
+  t.innerHTML = h + "</tbody>";
+}
+$("results").addEventListener("click", (e) => {
+  const c = e.target.closest("[data-copy]");
+  if (c) {
+    e.stopPropagation();
+    navigator.clipboard.writeText(c.dataset.copy).then(() => { c.textContent = "복사됨"; setTimeout(() => c.textContent = "복사", 1200); })
+      .catch(() => { c.textContent = "직접 복사"; });
+    return;
+  }
+  const row = e.target.closest("tr.row");
+  if (row) { selIndex = +row.dataset.i; renderTable(); drawMap(results[selIndex]); }
+});
+
+function addResult(lo, hi, out, cfg, example, center) {
+  const pts = cols.map((c, k) => ({ x: out[k*3], z: out[k*3+1], d: out[k*3+2] }));
+  const r = { lo, hi, seed: seedStr(lo, hi), pts, worst: Math.max(...pts.map(p => p.d)), cfg, cols: cols.slice(), example: !!example, center: center || [cfg.cx, cfg.cz], spawn: !!cfg.spawn };
+  results.push(r);
+  $("found").textContent = fmt(results.filter(x => !x.example).length);
+  if (selIndex < 0 || results[selIndex].example) { selIndex = results.length - 1; drawMap(r); }
+  renderTable();
+}
+
+function drawMap(r) {
+  if (!r || !mainEx) return;
+  const cv = $("map"), ctx = cv.getContext("2d"), N = cv.width;
+  const R = r.cfg.R; const [cx, cz] = r.center; const span = R * 2.3; const per = span / N;
+  mainEx.set_seed(r.lo, r.hi, mainEx.mc_wd());
+  const img = ctx.createImageData(N, N);
+  for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
+    const x = Math.round(cx - span / 2 + i * per), z = Math.round(cz - span / 2 + j * per);
+    const b = mainEx.biome_at(x, z, 256);
+    const hex = COLORS[b] || "888888"; const k = (j * N + i) * 4;
+    img.data[k] = parseInt(hex.slice(0, 2), 16); img.data[k+1] = parseInt(hex.slice(2, 4), 16); img.data[k+2] = parseInt(hex.slice(4, 6), 16); img.data[k+3] = 255;
+  }
+  ctx.putImageData(img, 0, 0);
+  const toPx = (x, z) => [(x - (cx - span / 2)) / per, (z - (cz - span / 2)) / per];
+  ctx.lineWidth = 1.5; ctx.strokeStyle = "rgba(255,255,255,.9)"; ctx.setLineDash([4, 3]);
+  ctx.beginPath(); ctx.arc(N / 2, N / 2, R / per, 0, Math.PI * 2); ctx.stroke(); ctx.setLineDash([]);
+  ctx.strokeStyle = "#fff"; ctx.beginPath(); ctx.moveTo(N/2 - 6, N/2); ctx.lineTo(N/2 + 6, N/2); ctx.moveTo(N/2, N/2 - 6); ctx.lineTo(N/2, N/2 + 6); ctx.stroke();
+  r.pts.forEach((p, k) => {
+    if (p.d < 0) return; const [px, py] = toPx(p.x, p.z);
+    ctx.fillStyle = colorOf(r.cols[k]); ctx.strokeStyle = "#111"; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(px, py, 5, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+  });
+  $("mapTitle").textContent = `지도 · 시드 ${r.seed}`;
+  $("cbLink").href = `https://www.chunkbase.com/apps/seed-map#seed=${r.seed}`;
+  $("legend").innerHTML = r.cols.map((c, k) => `<div><span class="sw" style="background:${colorOf(c)}"></span>${c.name}${c.under ? " (땅속, 지도엔 지표만 표시)" : ""}: ${r.pts[k].d < 0 ? "-" : `${fmt(r.pts[k].d)}칸, (${r.pts[k].x}, ${r.pts[k].z})`}</div>`).join("")
+    + `<div style="color:var(--muted)">지도 범위: 가로세로 약 ${fmt(Math.round(span))}칸</div>`;
+}
+
+async function start() {
+  if (!selected.length) { setState(false, "바이옴을 하나 이상 골라 주세요."); return; }
+  await ready;
+  cols = selected.map(id => BIOMES.find(b => b.id === id));
+  const cfg = {
+    ids: cols.map(c => c.id), ys: cols.map(c => c.y),
+    R: Math.max(64, Math.min(5000, +$("radius").value || 500)), step: +$("step").value,
+    cx: Math.round(+$("cx").value || 0), cz: Math.round(+$("cz").value || 0), spawn: $("center").value === "spawn" ? 1 : 0, fast: $("fast").checked ? 1500 : 0,
+    mode: $("mode").value, start: Math.max(0, Math.floor(+$("start").value || 0)),
+  };
+  target = Math.max(1, Math.min(200, +$("target").value || 10));
+  const nW = Math.max(1, Math.min(32, +$("threads").value || 4)); cfg.stride = nW;
+  results = results.filter(r => !r.example); results = []; selIndex = -1; checkedTotal = 0; t0 = performance.now();
+  $("checked").textContent = "0"; $("found").textContent = "0"; $("rate").textContent = "0"; renderTable();
+  running = true; $("go").disabled = true; $("stop").disabled = false; renderChips();
+  setState(true, "검색 중…");
+  workers = [];
+  for (let i = 0; i < nW; i++) {
+    const w = new Worker(workerURL); workers.push(w);
+    w.onmessage = (ev) => {
+      const d = ev.data;
+      if (d.type === "ready") w.postMessage({ type: "run", cfg, index: i });
+      else if (d.type === "progress") {
+        checkedTotal += d.checked; $("checked").textContent = fmt(checkedTotal);
+        const s = (performance.now() - t0) / 1000; $("rate").textContent = fmt(Math.round(checkedTotal / Math.max(s, .001)));
+      } else if (d.type === "hit" && running) {
+        addResult(d.lo, d.hi, d.out, cfg, false, d.center);
+        if (results.length >= target) stop("찾을 개수를 채워서 멈췄어요.");
+      }
+    };
+    w.postMessage({ type: "init", module: wasmModule });
+  }
+  if (cfg.mode === "small") $("start").value = cfg.start;
+}
+function stop(msg) {
+  running = false; workers.forEach(w => { w.postMessage({ type: "stop" }); w.terminate(); }); workers = [];
+  $("go").disabled = false; $("stop").disabled = true; renderChips();
+  setState(false, msg || "멈췄어요.");
+  if (results.length && $("mode").value === "small") {
+    // 다음 검색이 이어서 시작하도록 시작 숫자를 앞으로 옮김
+    const last = results.reduce((m, r) => { const s = BigInt(r.seed); return s > m ? s : m; }, 0n);
+    if (last >= 0n) $("start").value = (last + 1n).toString();
+  }
+}
+$("center").addEventListener("change", () => { const on = $("center").value === "coord"; $("cx").disabled = !on; $("cz").disabled = !on; });
+$("go").addEventListener("click", start);
+$("stop").addEventListener("click", () => stop());
+
+// 처음 열었을 때 보여 줄 예시: 창백한 정원 + 맹그로브 늪, 반경 500칸
+ready.then(() => {
+  cols = [186, 184].map(id => BIOMES.find(b => b.id === id));
+  const cfg = { R: 500, cx: 0, cz: 0, step: 32, spawn: 1 };
+  const m = new Int32Array(mainEx.memory.buffer); const ip = mainEx.ids_ptr() >> 2, yp = mainEx.ys_ptr() >> 2;
+  cols.forEach((c, i) => { m[ip + i] = c.id; m[yp + i] = c.y; });
+  for (const s of [7387, 413]) {
+    mainEx.set_seed(s, 0, mainEx.mc_wd()); mainEx.nearest(2, 500, 16, 0, 0, 1);
+    const o = mainEx.out_ptr() >> 2; const mm = new Int32Array(mainEx.memory.buffer);
+    addResult(s, 0, Array.from(mm.slice(o, o + 6)), cfg, true, [mm[o + 48], mm[o + 49]]);
+  }
+  selIndex = 0; drawMap(results[0]); renderTable();
+  $("threads").value = Math.max(1, Math.min(16, (navigator.hardwareConcurrency || 4) - 1));
+});
+renderTable();
+</script>
+</body>
+</html>

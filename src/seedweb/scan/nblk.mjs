@@ -1,0 +1,6 @@
+import fs from 'fs'; import zlib from 'zlib'; import {parseNBT,packed} from './lib.mjs';
+const dirs=['/tmp/nreg/1','/tmp/nreg/2']; const cache=new Map();
+function chunk(cx,cz){const k=cx+','+cz;if(cache.has(k))return cache.get(k);const rx=Math.floor(cx/32),rz=Math.floor(cz/32);let f=null;for(const d of dirs){const p=`${d}/r.${rx}.${rz}.mca`;if(fs.existsSync(p)){f=p;break;}}if(!f){cache.set(k,null);return null;}
+ const b=fs.readFileSync(f);const dv=new DataView(b.buffer,b.byteOffset);const i=(cx&31)+(cz&31)*32;const off=(dv.getUint32(i*4)>>>8)*4096;if(!off){cache.set(k,null);return null;}const len=dv.getUint32(off);
+ const raw=zlib.inflateSync(b.subarray(off+5,off+4+len));const r=parseNBT(new Uint8Array(raw.buffer,raw.byteOffset,raw.byteLength));cache.set(k,r);return r;}
+export function block(x,y,z){const c=chunk(Math.floor(x/16),Math.floor(z/16));if(!c)return '?';const s=c.sections.find(s=>s.Y===Math.floor(y/16));if(!s)return '?';const bs=s.block_states;const pal=bs.palette.map(e=>typeof e==='string'?e:(e.Name||e.id||e['']));let idx=0;if(pal.length>1){const bits=Math.max(4,Math.ceil(Math.log2(pal.length)));idx=packed(bs.data,bits,((y&15)<<8)|((z&15)<<4)|(x&15));}return pal[idx].replace('minecraft:','');}

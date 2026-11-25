@@ -1,0 +1,11 @@
+import fs from 'fs';
+const code=fs.readFileSync('scanworker.js','utf8');
+const msgs=[];globalThis.postMessage=m=>msgs.push(m);
+eval(code.replace('onmessage =','globalThis.onmessage ='));
+const dir='/tmp/reg/x/region'; const files=fs.readdirSync(dir).filter(f=>f.endsWith('.mca')).map(f=>{const b=fs.readFileSync(dir+'/'+f);return {name:f,arrayBuffer:async()=>b.buffer.slice(b.byteOffset,b.byteOffset+b.length)}});
+const t=Date.now();
+await globalThis.onmessage({data:{dim:0,files}});
+const d=msgs[msgs.length-1];
+console.log('ms',Date.now()-t,'chunks',d.chunks,'errors',d.errors,'spawners',d.spawners.length,'sky',d.lavaSky.length,'in',d.lavaIn.length);
+const by={};for(const s of d.spawners)by[s[3]]=(by[s[3]]||0)+1;console.log(by);
+fs.writeFileSync('/tmp/reg/scan.json',JSON.stringify(d));

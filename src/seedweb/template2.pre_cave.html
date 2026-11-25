@@ -1,0 +1,1023 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>바이옴 시드 찾기</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;700&family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+/* 레이아웃: 상단 탭(시드 찾기 / 지도 보기). 찾기 탭은 왼쪽 조건 패널 + 오른쪽 결과와 미리보기 지도, 지도 탭은 넓은 캔버스 + 옆 정보 패널 */
+:root {
+  --bg: #eceeea;
+  --surface: #fbfcfa;
+  --ink: #1c2320;
+  --muted: #5d6963;
+  --line: #d2d9d4;
+  --accent: #2c7356;
+  --accent-ink: #ffffff;
+  --mark: #a8661c;
+  --chip: #e3e8e4;
+  --font-body: "IBM Plex Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, Consolas, monospace;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #111513; --surface: #191f1c; --ink: #e5ebe7; --muted: #98a59e;
+    --line: #2b3430; --accent: #57b88a; --accent-ink: #0d1411; --mark: #e0a356; --chip: #222a26;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #111513; --surface: #191f1c; --ink: #e5ebe7; --muted: #98a59e;
+  --line: #2b3430; --accent: #57b88a; --accent-ink: #0d1411; --mark: #e0a356; --chip: #222a26;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body { background: var(--bg); color: var(--ink); font-family: var(--font-body); font-size: 15px; line-height: 1.55; }
+.wrap { max-width: 1240px; margin: 0 auto; padding: 24px 16px 48px; display: grid; gap: 18px; }
+header { display: flex; justify-content: space-between; align-items: end; gap: 16px; flex-wrap: wrap; }
+header h1 { font-size: 26px; line-height: 1.25; margin: 0 0 4px; text-wrap: balance; letter-spacing: -0.01em; }
+header p { margin: 0; color: var(--muted); max-width: 68ch; }
+.tabs { display: flex; gap: 4px; background: var(--chip); padding: 4px; border-radius: 10px; }
+.tabs button { font: inherit; font-weight: 600; border: 0; background: transparent; color: var(--muted); padding: 8px 16px; border-radius: 7px; cursor: pointer; }
+.tabs button[aria-selected="true"] { background: var(--surface); color: var(--ink); box-shadow: 0 1px 2px rgba(0,0,0,.12); }
+.view[hidden] { display: none !important; }
+.grid { display: grid; grid-template-columns: 370px 1fr; gap: 20px; align-items: start; }
+@media (max-width: 880px) { .grid { grid-template-columns: 1fr; } }
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 18px; display: grid; gap: 14px; min-width: 0; }
+.panel h2 { font-size: 14px; margin: 0; color: var(--muted); font-weight: 600; letter-spacing: 0.02em; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; max-height: 300px; overflow-y: auto; padding-right: 4px; }
+.chips.short { max-height: none; }
+.grp { flex-basis: 100%; font-size: 12px; color: var(--muted); margin-top: 6px; }
+.grp:first-child { margin-top: 0; }
+.seg { display: flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.seg button { flex: 1; border: 0; background: transparent; color: var(--muted); font: inherit; font-size: 13px; padding: 6px 0; cursor: pointer; }
+.seg button + button { border-left: 1px solid var(--line); }
+.seg button[aria-pressed="true"] { background: var(--chip); color: var(--ink); font-weight: 600; }
+.selbar { display: flex; gap: 6px; margin: -2px 0 2px; }
+.mini { border: 1px solid var(--line); background: transparent; color: var(--muted); border-radius: 6px; padding: 2px 8px; font: inherit; font-size: 12px; cursor: pointer; }
+.mini:hover { color: var(--ink); border-color: var(--ink); }
+.chip { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--line); background: var(--chip); color: var(--ink); border-radius: 999px; padding: 4px 10px 4px 6px; font: inherit; font-size: 13px; cursor: pointer; }
+.chip .sw { width: 12px; height: 12px; border-radius: 3px; border: 1px solid rgba(0,0,0,.25); flex: none; }
+.chip .ic { width: 16px; height: 16px; border-radius: 4px; font-size: 10px; font-weight: 700; display: grid; place-items: center; color: #fff; flex: none; }
+.chip[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.chip:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible, canvas:focus-visible { outline: 2px solid var(--mark); outline-offset: 2px; }
+.count { font-size: 12px; color: var(--muted); font-weight: 400; }
+.fields { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 12px; }
+.field { display: grid; gap: 4px; min-width: 0; }
+.field label { font-size: 13px; color: var(--muted); }
+.field input, .field select { font: inherit; font-family: var(--font-mono); font-size: 14px; padding: 7px 9px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--ink); width: 100%; }
+.field input:disabled { opacity: .5; }
+.field.full { grid-column: 1 / -1; }
+.hint { font-size: 12.5px; color: var(--muted); margin: 0; }
+.check { display: flex; gap: 8px; align-items: flex-start; font-size: 14px; cursor: pointer; }
+.check input { margin-top: 4px; width: 16px; height: 16px; accent-color: var(--accent); }
+.actions { display: flex; gap: 8px; flex-wrap: wrap; }
+button.primary, button.ghost { font: inherit; font-weight: 600; border-radius: 8px; padding: 10px 16px; cursor: pointer; border: 1px solid var(--accent); }
+button.primary { background: var(--accent); color: var(--accent-ink); flex: 1; }
+button.ghost { background: transparent; color: var(--ink); border-color: var(--line); }
+button:disabled { opacity: .5; cursor: default; }
+.status { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.stat { background: var(--bg); border-radius: 8px; padding: 8px 10px; }
+.stat b { display: block; font-family: var(--font-mono); font-size: 18px; font-variant-numeric: tabular-nums; }
+.stat span { font-size: 12px; color: var(--muted); }
+.state { font-size: 13px; display: flex; align-items: center; gap: 8px; color: var(--muted); }
+.dot { width: 8px; height: 8px; border-radius: 50%; background: var(--line); }
+.state.on .dot { background: var(--accent); animation: pulse 1s infinite alternate; }
+@keyframes pulse { to { opacity: .35; } }
+@media (prefers-reduced-motion: reduce) { .state.on .dot { animation: none; } }
+.right { display: grid; gap: 20px; min-width: 0; }
+.tablewrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 14px; }
+th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+th { font-size: 12.5px; color: var(--muted); font-weight: 600; }
+td.num { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+td .sub { color: var(--muted); }
+tr.row { cursor: pointer; }
+tr.row:hover td { background: var(--chip); }
+tr.row.sel td { background: color-mix(in srgb, var(--accent) 14%, transparent); }
+.seed { font-family: var(--font-mono); font-weight: 600; }
+.tag { font-size: 11px; color: var(--mark); border: 1px solid var(--mark); border-radius: 4px; padding: 0 4px; margin-left: 6px; font-weight: 600; }
+.mini { font: inherit; font-size: 12px; padding: 3px 8px; border-radius: 6px; border: 1px solid var(--line); background: transparent; color: var(--ink); cursor: pointer; }
+.empty { color: var(--muted); font-size: 14px; padding: 12px 2px; }
+.mapbox { display: grid; grid-template-columns: minmax(0, 400px) 1fr; gap: 16px; align-items: start; }
+@media (max-width: 640px) { .mapbox { grid-template-columns: 1fr; } }
+#preview { width: 100%; height: auto; border-radius: 8px; border: 1px solid var(--line); image-rendering: pixelated; background: var(--bg); }
+.legend { display: grid; gap: 6px; font-size: 13px; }
+.legend div { display: flex; align-items: center; gap: 8px; }
+.legend .sw { width: 14px; height: 14px; border-radius: 3px; border: 1px solid rgba(0,0,0,.25); flex: none; }
+.maphead { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+a { color: var(--accent); }
+.notes { font-size: 13px; color: var(--muted); display: grid; gap: 4px; margin: 0; padding-left: 18px; }
+/* map tab */
+.mapgrid { display: grid; grid-template-columns: 1fr 320px; gap: 16px; align-items: start; }
+@media (max-width: 960px) { .mapgrid { grid-template-columns: 1fr; } }
+.mapstage { position: relative; border-radius: 10px; overflow: hidden; border: 1px solid var(--line); background: #0b0f0d; height: min(72vh, 680px); min-height: 360px; touch-action: none; }
+#bigmap { width: 100%; height: 100%; display: block; cursor: grab; }
+#bigmap.drag { cursor: grabbing; }
+.overlay { position: absolute; left: 10px; bottom: 10px; background: rgba(12,16,14,.78); color: #e8eee9; font-family: var(--font-mono); font-size: 12.5px; padding: 6px 9px; border-radius: 6px; pointer-events: none; font-variant-numeric: tabular-nums; }
+.zoom { position: absolute; right: 10px; top: 10px; display: grid; gap: 4px; }
+.zoom button { width: 34px; height: 34px; font: inherit; font-weight: 700; font-size: 18px; border-radius: 6px; border: 1px solid rgba(255,255,255,.25); background: rgba(12,16,14,.78); color: #e8eee9; cursor: pointer; }
+.pop { position: absolute; z-index: 5; background: rgba(12,16,14,.94); color: #e8eee9; font-size: 13px; padding: 10px 12px 10px; border-radius: 10px; min-width: 190px; box-shadow: 0 6px 20px rgba(0,0,0,.35); display: none; }
+.pop .hd { display: flex; align-items: center; gap: 8px; font-weight: 600; margin-bottom: 6px; padding-right: 18px; }
+.pop .x { position: absolute; top: 4px; right: 6px; background: none; border: 0; color: #9aa59d; font-size: 16px; cursor: pointer; padding: 2px 4px; }
+.pop .co { font-family: ui-monospace, Menlo, monospace; font-size: 12.5px; line-height: 1.6; }
+.pop .co .d { color: #9aa59d; }
+.pop .row { display: flex; align-items: center; gap: 10px; margin-top: 8px; }
+.pop .cp { border: 1px solid #4b5a50; background: #1f2a24; color: #e8eee9; border-radius: 6px; padding: 4px 9px; font: inherit; font-size: 12px; cursor: pointer; }
+.pop label { display: inline-flex; align-items: center; gap: 5px; cursor: pointer; font-size: 12.5px; }
+.tip { position: absolute; pointer-events: none; background: rgba(12,16,14,.88); color: #e8eee9; font-size: 12.5px; padding: 5px 8px; border-radius: 6px; white-space: nowrap; transform: translate(12px, -50%); display: none; }
+.seedbar { display: flex; gap: 8px; flex-wrap: wrap; }
+.seedbar input { flex: 1; min-width: 180px; font-family: var(--font-mono); font-size: 15px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--ink); }
+.list { display: grid; gap: 2px; font-size: 13px; max-height: 260px; overflow-y: auto; }
+.list button { font: inherit; text-align: left; display: grid; grid-template-columns: 18px 1fr auto; gap: 8px; align-items: center; background: transparent; border: 0; border-radius: 6px; padding: 4px 6px; color: var(--ink); cursor: pointer; }
+.list button:hover { background: var(--chip); }
+.list .ic { width: 16px; height: 16px; border-radius: 4px; font-size: 10px; font-weight: 700; display: grid; place-items: center; color: #fff; }
+.list .d { font-family: var(--font-mono); color: var(--muted); font-variant-numeric: tabular-nums; }
+.kv { display: grid; grid-template-columns: auto 1fr; gap: 4px 10px; font-size: 13px; }
+.kv dt { color: var(--muted); }
+.kv dd { margin: 0; font-family: var(--font-mono); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>바이옴 시드 찾기</h1>
+      <p>자바 에디션 26.3 지형 공식으로 시드를 찾고, 시드 지도를 브라우저에서 직접 계산해 보여줘요.</p>
+    </div>
+    <div class="tabs" role="tablist">
+      <button role="tab" id="tabSearch" aria-selected="true" aria-controls="viewSearch" type="button">시드 찾기</button>
+      <button role="tab" id="tabMap" aria-selected="false" aria-controls="viewMap" type="button">지도 보기</button>
+    </div>
+  </header>
+
+  <!-- ================= SEARCH ================= -->
+  <div class="view" id="viewSearch" role="tabpanel">
+    <div class="grid">
+      <section class="panel" aria-label="검색 조건">
+        <h2>꼭 있어야 할 바이옴 <span class="count" id="bCount"></span></h2>
+        <div class="selbar"><button type="button" class="mini" id="bNone">모두 해제</button></div>
+        <div class="chips" id="chips"></div>
+        <p class="hint">땅속 바이옴은 땅속 높이(무성한·점적석·유황 동굴 y=0, 깊은 어둠 y=-40)에서, 나머지는 지표면 기준으로 확인해요. 마우스를 올리면 영어 이름이 보여요.</p>
+
+        <h2>꼭 있어야 할 구조물 <span class="count" id="sCount"></span></h2>
+        <div class="selbar"><button type="button" class="mini" id="sNone">모두 해제</button></div>
+        <div class="chips short" id="schips"></div>
+        <p class="hint">구조물은 생성 위치와 바이옴 조건까지 확인해요. 지형 높이 때문에 실제로는 안 생기는 경우가 드물게 있어요.</p>
+
+        <h2>범위와 방식</h2>
+        <div class="fields">
+          <div class="field"><label for="radius">반경 (블록)</label><input id="radius" type="number" min="64" max="5000" step="50" value="500"></div>
+          <div class="field"><label for="step">확인 간격</label>
+            <select id="step"><option value="16">16칸 (정밀)</option><option value="32" selected>32칸 (보통)</option><option value="64">64칸 (빠름)</option></select></div>
+          <div class="field full"><label for="center">거리 기준</label>
+            <select id="center"><option value="spawn" selected>실제 스폰 지점 (계산)</option><option value="coord">직접 입력한 좌표</option></select></div>
+          <div class="field"><label for="cx">중심 X</label><input id="cx" type="number" value="0" disabled></div>
+          <div class="field"><label for="cz">중심 Z</label><input id="cz" type="number" value="0" disabled></div>
+          <div class="field"><label for="mode">시드 고르는 방식</label>
+            <select id="mode"><option value="small">작은 숫자부터</option><option value="random">무작위</option></select></div>
+          <div class="field"><label for="start">시작 숫자</label><input id="start" type="number" min="0" value="0"></div>
+          <div class="field"><label for="target">찾을 개수</label><input id="target" type="number" min="1" max="200" value="10"></div>
+          <div class="field"><label for="threads">동시 계산</label><input id="threads" type="number" min="1" max="32" value="4"></div>
+        </div>
+        <label class="check" for="fast"><input id="fast" type="checkbox"> <span><b>빠른 검색</b> <span class="tag">베타</span><br><span class="hint">기후 값으로 바이옴이 절대 안 생기는 시드를 먼저 걸러내요. 조건에 따라 1.2~4배 빨라져요. 시험에서는 놓친 시드가 없었지만, 아주 드물게 놓칠 수 있어요.</span></span></label>
+        <div class="actions">
+          <button class="primary" id="go" type="button">검색 시작</button>
+          <button class="ghost" id="stop" type="button" disabled>멈추기</button>
+        </div>
+        <div class="state" id="state"><span class="dot"></span><span id="stateText">준비됨</span></div>
+        <div class="status">
+          <div class="stat"><b id="checked">0</b><span>검사한 시드</span></div>
+          <div class="stat"><b id="rate">0</b><span>초당 검사</span></div>
+          <div class="stat"><b id="found">0</b><span>찾은 시드</span></div>
+        </div>
+      </section>
+
+      <div class="right">
+        <section class="panel" aria-label="결과">
+          <h2>결과 · 행을 누르면 미리보기가 바뀌어요</h2>
+          <div class="tablewrap"><table id="results"></table></div>
+        </section>
+        <section class="panel" aria-label="미리보기">
+          <div class="maphead"><h2 id="pvTitle">미리보기</h2><span><button class="mini" type="button" id="pvOpen">큰 지도로 보기</button> <a id="cbLink" href="https://www.chunkbase.com/apps/seed-map" target="_blank" rel="noopener">Chunkbase에서 열기</a></span></div>
+          <div class="mapbox">
+            <canvas id="preview" width="240" height="240" aria-label="선택한 시드의 바이옴 미리보기"></canvas>
+            <div class="legend" id="legend"></div>
+          </div>
+          <ul class="notes">
+            <li>가운데 십자가 기준점, 점선 원이 검색 반경, 색 점이 각 조건까지 가장 가까운 지점이에요.</li>
+            <li>스폰 지점은 게임과 같은 방식으로 계산한 월드 스폰이에요. 처음 나타나는 위치는 그 주변 약 10칸 안에서 무작위로 정해져요.</li>
+            <li>26.3까지 반영된 Cubiomes 포크(xpple/cubiomes, MIT 라이선스)로 계산해요. 게임과 완전히 같다는 보장은 없으니 중요한 시드는 게임 안에서 확인하세요.</li>
+          </ul>
+        </section>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= MAP ================= -->
+  <div class="view" id="viewMap" role="tabpanel" hidden>
+    <div class="mapgrid">
+      <div class="mapstage" id="stage">
+        <canvas id="bigmap" tabindex="0" aria-label="시드 지도. 끌어서 이동, 휠로 확대 축소"></canvas>
+        <div class="zoom"><button type="button" id="zin" aria-label="확대">+</button><button type="button" id="zout" aria-label="축소">−</button><button type="button" id="zhome" aria-label="기준점으로 이동" title="스폰(엔드는 중앙 섬)으로 이동" style="font-size:16px">★</button></div>
+        <div class="overlay" id="cursorInfo">X 0, Z 0</div>
+        <div class="tip" id="tip"></div>
+        <div class="pop" id="pop" role="dialog" aria-label="구조물 정보"></div>
+      </div>
+      <aside class="panel" aria-label="지도 설정">
+        <h2>시드</h2>
+        <div class="seedbar"><input id="mapSeed" type="text" inputmode="numeric" value="7387" aria-label="시드"><button class="primary" id="mapGo" type="button" style="flex:none">열기</button></div>
+        <p class="hint" id="mapMsg">숫자나 글자 시드 모두 넣을 수 있어요. 글자는 게임과 같은 방식으로 숫자로 바꿔요.</p>
+        <dl class="kv" id="mapInfo"></dl>
+        <h2>차원</h2>
+        <div class="seg" id="dimSeg" role="group" aria-label="차원"><button type="button" data-dim="0" aria-pressed="true">오버월드</button><button type="button" data-dim="-1" aria-pressed="false">네더</button><button type="button" data-dim="1" aria-pressed="false">엔드</button></div>
+        <h2>표시할 구조물</h2>
+        <div class="selbar"><button type="button" class="mini" id="mAll">모두 선택</button><button type="button" class="mini" id="mNone">모두 해제</button></div>
+        <div class="chips short" id="mchips"></div>
+        <p class="hint" id="hiddenNote"></p>
+        <h2 id="nearTitle">스폰에서 가까운 구조물</h2>
+        <div class="list" id="nearList"><span class="hint">불러오는 중…</span></div>
+      </aside>
+    </div>
+  </div>
+</div>
+
+<script>
+const WASM_B64 = "__WASM__";
+const COLORS = __COLORS__;
+COLORS[186] = "c9cac2";
+// 엔드: 섬이 있는 곳은 엔드 돌 색, 작은 섬 지대는 거의 빈 공간이라 어둡게
+COLORS[9] = "d9d29e"; COLORS[41] = "c4bc86"; COLORS[42] = "e0d9a8"; COLORS[43] = "a8a074"; COLORS[40] = "b9b088"; COLORS[-2] = "120f1a";
+const BIOMES = [
+  {id:-1, name:"바다 (모든 종류)", en:"", g:"묶음", y:256, color:"2a4fb0"},
+  {id:-2, name:"악지 (모든 종류)", en:"", g:"묶음", y:256, color:"d25f12"},
+  {id:186, name:"창백한 정원", en:"pale_garden", g:"희귀", y:256},
+  {id:184, name:"맹그로브 늪", en:"mangrove_swamp", g:"희귀", y:256},
+  {id:185, name:"벚나무 숲", en:"cherry_grove", g:"희귀", y:256},
+  {id:14, name:"버섯 들판", en:"mushroom_fields", g:"희귀", y:256},
+  {id:140, name:"얼음 가시 평원", en:"ice_spikes", g:"희귀", y:256},
+  {id:165, name:"침식된 악지", en:"eroded_badlands", g:"희귀", y:256},
+  {id:168, name:"대나무 정글", en:"bamboo_jungle", g:"희귀", y:256},
+  {id:129, name:"해바라기 평원", en:"sunflower_plains", g:"희귀", y:256},
+  {id:132, name:"꽃 숲", en:"flower_forest", g:"희귀", y:256},
+  {id:188, name:"얼룩진 숲 (단풍)", en:"dappled_forest", g:"희귀", y:256},
+  {id:1, name:"평원", en:"plains", g:"평원·숲", y:256},
+  {id:4, name:"숲", en:"forest", g:"평원·숲", y:256},
+  {id:27, name:"자작나무 숲", en:"birch_forest", g:"평원·숲", y:256},
+  {id:155, name:"원시 자작나무 숲", en:"old_growth_birch_forest", g:"평원·숲", y:256},
+  {id:29, name:"어두운 숲", en:"dark_forest", g:"평원·숲", y:256},
+  {id:177, name:"목초지", en:"meadow", g:"평원·숲", y:256},
+  {id:6, name:"늪", en:"swamp", g:"평원·숲", y:256},
+  {id:7, name:"강", en:"river", g:"평원·숲", y:256},
+  {id:2, name:"사막", en:"desert", g:"따뜻한 곳", y:256},
+  {id:35, name:"사바나", en:"savanna", g:"따뜻한 곳", y:256},
+  {id:36, name:"사바나 고원", en:"savanna_plateau", g:"따뜻한 곳", y:256},
+  {id:163, name:"바람이 세찬 사바나", en:"windswept_savanna", g:"따뜻한 곳", y:256},
+  {id:21, name:"정글", en:"jungle", g:"따뜻한 곳", y:256},
+  {id:23, name:"듬성듬성한 정글", en:"sparse_jungle", g:"따뜻한 곳", y:256},
+  {id:37, name:"악지", en:"badlands", g:"따뜻한 곳", y:256},
+  {id:38, name:"나무가 우거진 악지", en:"wooded_badlands", g:"따뜻한 곳", y:256},
+  {id:5, name:"타이가", en:"taiga", g:"추운 곳", y:256},
+  {id:30, name:"눈 덮인 타이가", en:"snowy_taiga", g:"추운 곳", y:256},
+  {id:32, name:"원시 소나무 타이가", en:"old_growth_pine_taiga", g:"추운 곳", y:256},
+  {id:160, name:"원시 가문비나무 타이가", en:"old_growth_spruce_taiga", g:"추운 곳", y:256},
+  {id:12, name:"눈 덮인 평원", en:"snowy_plains", g:"추운 곳", y:256},
+  {id:11, name:"얼어붙은 강", en:"frozen_river", g:"추운 곳", y:256},
+  {id:26, name:"눈 덮인 해변", en:"snowy_beach", g:"추운 곳", y:256},
+  {id:3, name:"바람이 세찬 언덕", en:"windswept_hills", g:"산", y:256},
+  {id:131, name:"바람이 세찬 자갈 언덕", en:"windswept_gravelly_hills", g:"산", y:256},
+  {id:34, name:"바람이 세찬 숲", en:"windswept_forest", g:"산", y:256},
+  {id:178, name:"수림", en:"grove", g:"산", y:256},
+  {id:179, name:"눈 덮인 비탈", en:"snowy_slopes", g:"산", y:256},
+  {id:180, name:"뾰족한 봉우리", en:"jagged_peaks", g:"산", y:256},
+  {id:181, name:"얼어붙은 봉우리", en:"frozen_peaks", g:"산", y:256},
+  {id:182, name:"바위 봉우리", en:"stony_peaks", g:"산", y:256},
+  {id:16, name:"해변", en:"beach", g:"물가·바다", y:256},
+  {id:25, name:"돌 해안", en:"stony_shore", g:"물가·바다", y:256},
+  {id:0, name:"바다", en:"ocean", g:"물가·바다", y:256},
+  {id:24, name:"깊은 바다", en:"deep_ocean", g:"물가·바다", y:256},
+  {id:44, name:"따뜻한 바다", en:"warm_ocean", g:"물가·바다", y:256},
+  {id:45, name:"미지근한 바다", en:"lukewarm_ocean", g:"물가·바다", y:256},
+  {id:48, name:"깊고 미지근한 바다", en:"deep_lukewarm_ocean", g:"물가·바다", y:256},
+  {id:46, name:"차가운 바다", en:"cold_ocean", g:"물가·바다", y:256},
+  {id:49, name:"깊고 차가운 바다", en:"deep_cold_ocean", g:"물가·바다", y:256},
+  {id:10, name:"얼어붙은 바다", en:"frozen_ocean", g:"물가·바다", y:256},
+  {id:50, name:"깊고 얼어붙은 바다", en:"deep_frozen_ocean", g:"물가·바다", y:256},
+  {id:175, name:"무성한 동굴", en:"lush_caves", g:"땅속", y:0, under:true},
+  {id:174, name:"점적석 동굴", en:"dripstone_caves", g:"땅속", y:0, under:true},
+  {id:183, name:"깊은 어둠", en:"deep_dark", g:"땅속", y:-40, under:true},
+  {id:187, name:"유황 동굴", en:"sulfur_caves", g:"땅속", y:0, under:true},
+];
+const NAME = {}; for (const b of BIOMES) if (b.id >= 0) NAME[b.id] = b.name;
+Object.assign(NAME, { [-2]: "허공", 8: "네더 황무지", 170: "영혼 모래 골짜기", 171: "진홍빛 숲", 172: "뒤틀린 숲", 173: "현무암 삼각주", 9: "디 엔드", 40: "작은 엔드 섬", 41: "엔드 중지대", 42: "엔드 고지대", 43: "엔드 불모지" });
+const colorOf = b => "#" + (b.color || COLORS[b.id] || "888888");
+const STRUCTS = [
+  {id:5,  name:"마을", ic:"마", c:"#b7791f"},
+  {id:13, name:"고대 도시", ic:"고", c:"#1f3b57"},
+  {id:25, name:"시련의 방", ic:"시", c:"#b8642c"},
+  {id:27, name:"엔드 유적", ic:"엔", c:"#6b3fa0"},
+  {id:9,  name:"삼림 대저택", ic:"저", c:"#5a3a22"},
+  {id:8,  name:"바다 신전", ic:"신", c:"#1b8a8f"},
+  {id:7,  name:"난파선", ic:"난", c:"#7a5b3a"},
+  {id:6,  name:"바다 유적", ic:"유", c:"#3d7a6a"},
+  {id:14, name:"묻힌 보물", ic:"보", c:"#c49a12"},
+  {id:2,  name:"정글 사원", ic:"정", c:"#4c7a1e"},
+  {id:1,  name:"사막 피라미드", ic:"피", c:"#c9a347"},
+  {id:3,  name:"마녀 오두막", ic:"오", c:"#4a5a3a"},
+  {id:4,  name:"이글루", ic:"이", c:"#8fb3c9"},
+  {id:10, name:"약탈자 전초기지", ic:"약", c:"#5b5f66"},
+  {id:11, name:"폐허가 된 차원문", ic:"차", c:"#7b3fbf"},
+  {id:24, name:"길의 잔해", ic:"길", c:"#9a6b4f"},
+  {id:26, name:"버려진 캠프", ic:"캠", c:"#c0562a"},
+  // 지도 전용 (시드 찾기 조건에는 안 들어감)
+  {id:15, name:"폐광", map:true},
+  {id:17, name:"자수정 정동", map:true},
+  {id:100, name:"스포너 (동굴 거미)", map:true},
+  {id:101, name:"스포너 (좀벌레)", map:true},
+  {id:18, name:"네더 요새", dim:-1, map:true},
+  {id:19, name:"보루 잔해", dim:-1, map:true},
+  {id:12, name:"폐허가 된 차원문", dim:-1, map:true},
+  {id:20, name:"네더 화석", dim:-1, map:true},
+  {id:102, name:"스포너 (블레이즈)", dim:-1, map:true},
+  {id:21, name:"엔드 도시", dim:1, map:true},
+  {id:121, name:"엔드 도시 (엔드 배)", dim:1, map:true},
+  {id:22, name:"엔드 관문", dim:1, map:true},
+];
+for (const s of STRUCTS) s.dim = s.dim || 0;
+const SEARCH_STRUCTS = STRUCTS.filter(s => !s.map);
+const SMALL_ST = new Set([17, 100, 20, 15, 22]); // 아주 촘촘한 것은 항상 작게
+const GLOBAL_ST = new Set([27, 101]); // 월드 전체를 한 번에 계산하는 것 (엔드 유적 128개)
+const SNAME = {}; const SBY = {}; for (const s of STRUCTS) { SNAME[s.id] = s.name; SBY[s.id] = s; }
+// 구조물 아이콘: 16×16 도트. 각 구조물의 대표 특징(종, 차원문 틀, 열쇠 등)을 단순하게 새로 그림
+const PIX_PAL = {"k": "#17181b", "w": "#f4f4f4", "y": "#f2c230", "Y": "#b07d12", "o": "#e07b28", "O": "#a24d14", "b": "#8a5a2c", "B": "#4e2f15", "g": "#5fae3c", "G": "#2e6a28", "t": "#35d0c0", "T": "#11615f", "p": "#a35ae0", "P": "#4b1c7a", "s": "#9a9a9a", "S": "#5c5c5c", "d": "#3b3f47", "D": "#24272d", "c": "#9fe8ff", "n": "#ecd796", "N": "#c9a55a", "r": "#d63a3a", "R": "#8e1f1f", "m": "#6f8f4c", "i": "#eef6fa", "I": "#b3c9d6", "v": "#63b8a6", "V": "#2c6e64", "e": "#d9d6a4", "E": "#97946a", "l": "#3fd69c", "x": "#0d0d12", "q": "#4fa08b", "Q": "#2b6656", "u": "#4fd3f2", "L": "#5dffb0", "j": "#1d8f5c", "h": "#b86a43", "H": "#7f4428", "z": "#c8b39a", "Z": "#8f8172", "a": "#3a8fd6", "f": "#7a4a2a", "F": "#4a2a16", "1": "#5a2428", "2": "#33151a", "3": "#2b2731", "4": "#45404d", "5": "#b38ab3", "6": "#7d5a82", "7": "#e8e2f0", "8": "#c9a24a", "9": "#3e2a6b", "0": "#d49df2", "!": "#8c5bd1", "@": "#f4f0e0", "#": "#bdb59a", "$": "#6b6b6b", "%": "#2a3a4a", "^": "#c23b3b", "&": "#f0c23a", "*": "#ff9d2e", "(": "#a0a0a8", ")": "#55565c", "-": "#1a1a20", "+": "#2e8b8b"};
+const PIX = {"5": ["................", ".......kk.......", "......kYYk......", ".....kyyyyk.....", "....kyyyyyyk....", "....kywyyyyk....", "....kywyyyyk....", "....kyyyyyyk....", "...kyyyyyyyyk...", "...kyyyyyyyyk...", "..kyyyyyyyyyyk..", "..kYYYYYYYYYYk..", "...kkkkkkkkkk...", ".......kYk......", "........k.......", "................"], "13": ["................", "................", "kkkkkkkkkkkkkkkk", "kswswswswswswswk", "kwkkkkkkkkkkkksk", "kskDDDDDDDDDDkwk", "kwkDDTDDDDDDDksk", "kskDDDDDDDTDDkwk", "kwkDDDDDDDDDDksk", "kskkkkkkkkkkkkwk", "kswswswswswswswk", "kkkkkkkkkkkkkkkk", ".k..k..k..k..k..", "kck.kck.kck.kck.", "kuukuuukuuukuuuk", "kkkkkkkkkkkkkkkk"], "25": ["................", "................", "...kkkk.........", "..kooook........", ".kooyyook.......", ".kok..kokkkkkkk.", ".kyk..koooooooyk", ".kok..kokkkkokok", ".koOkkOok..kokok", "..kOooOk...kkkk.", "...kkkk.........", "................", "................", "................", "................", "................"], "27": ["..kkkkkkkkkkk...", "..keLEeLEeLEk...", "kkkEjEEjEEjEkkk.", "keExxxxxxxxxEek.", "kLjxxcxxxxxxjLk.", "kEExxxxxxcxxEEk.", "keExxxxxxxxxEek.", "kLjxxxxxxxxxjLk.", "kEExcxxxxxxxEEk.", "keExxxxxcxxxEek.", "kLjxxxxxxxcxjLk.", "kEExxxxxxxxxEEk.", "kkkEjEEjEEjEkkk.", "..keLEeLEeLEk...", "..kkkkkkkkkkk...", "................"], "9": ["................", "................", "......kkkkkkkkk.", ".....kBBBBBBBBBk", ".....kkkkkkkkkkk", "......kbcbbbcbk.", "......kSSSSSSSk.", "kkkkkkkkkkkkkkkk", "kBBBBBBBBBBBBBBk", "kkkkkkkkkkkkkkkk", "kbcbbcbbcbbcbbck", "kSSSSSSSSSSSSSSk", "kbbbbbbkkbbbbbbk", "kbbbbbbkkbbbbbbk", "kSSSSSSSSSSSSSSk", "kkkkkkkkkkkkkkkk"], "8": ["................", "................", ".......kk.......", "......kwwk......", ".....kvVVvk.....", "....kkkkkkkk....", "...kwvvVVvvwk...", "...kkkkkkkkkk...", "..kwvVvvvvVvwk..", "..kkkkkkkkkkkk..", ".kwvvVvvvvVvvwk.", ".kvVvvvVVvvvVvk.", ".kkkkkkkkkkkkkk.", "................", "................", "................"], "7": [".....B..........", ".....B..........", ".....B....B.....", "..BBBBBBBBBBBB..", ".....B....B.....", ".....B....B.....", "..BBBBBB..B.....", ".k...B....B.....", "kfk..B....B.kk..", "kffkkBkkkkBkffkk", "kfffffffffffffkf", ".kfFfffffffffffk", "..kfffFffffffkfk", "...kfffffFfffkk.", "....kfffffffkfk.", ".....kFFFFFk.k.."], "6": ["................", "................", "....kkk.........", "....ksk.........", "...kssk......kk.", "...kSsk.....kgk.", "...ksSk.....kgk.", "...kssk..kk.kgk.", "...ksskkkssk.kgk", "...kSsksSssk.kGk", "...ksskssSsk.kgk", "..kssssssssskkgk", "..kmssSssmsssskk", ".kmmsssssssmmmsk", ".kkkkkkkkkkkkkkk", "................"], "14": ["................", "................", "..kkkkkkkkkkkk..", ".kbbbbbbbbbbbbk.", ".kbBBBBBBBBBBbk.", ".kbbbbbbbbbbbbk.", ".kSbbbbbbbbbbSk.", ".kkkkkyyyykkkkk.", ".kSbbbyYYybbbSk.", ".kbbbbyyyybbbbk.", ".kbbbbbkkbbbbbk.", ".kbbbbbbbbbbbbk.", ".kBBBBBBBBBBBBk.", ".kSBBBBBBBBBBSk.", ".kkkkkkkkkkkkkk.", "................"], "2": ["................", "................", "...kkkkkkkkkk...", "...ksgssgsSsk...", "...kGsSssssGk...", "...kGssgsssGk...", "...ksssSsgssk...", "kkkkkkkkkkkkkkkk", "kssgsSssssssgssk", "kGsssgsssSssssGk", "kGssssxxxxsSssGk", "kGsSgsxxxxssgsGk", "kGssssxxxxssssGk", "kssgssxxxxSsssgk", "kGssssxxxxssgsGk", "kkkkkkkkkkkkkkkk"], "1": ["................", ".kkk........kkk.", "kknkk......kknkk", "knnnk......knnnk", "koook..kk..koook", "konok.knNk.konok", "koookknnnNkkoook", "knonknnnnNNknonk", "knnnkkkkkkkknnnk", "knonknonnonknonk", "knnnknnkknnknnnk", "knonknkxxknknonk", "knnnknkxxknknnnk", "knNnknkxxknknNnk", "knNNknkxxknknNNk", "kkkkkkkkkkkkkkkk"], "3": ["................", "................", ".kkkkkkkkkkkkkk.", "kBBBBBBBBBBBBBBk", "kkkkkkkkkkkkkkkk", "..kbbbbbbbbbbk..", "..kbkkkbbbkkbk..", "..kbkpkbbbkxbk..", "..kbkkkbbbkxbk..", "..kbbbbbbbkxbk..", "..kkkkkkkkkkkk..", "...kbk....kbk...", "...kbk....kbk...", "qqqkbkqqqqkbkqqq", "QqqQqqqQqqqQqqqQ", "QQQQQQQQQQQQQQQQ"], "4": ["................", "................", ".....kkkkkk.....", "...kkiiiiiikk...", "..kiiIiiiiiIik..", ".kiiiiiiiiiiiik.", ".kiIiiiiIiiiiik.", "kiiiiiiiiiiiIiik", "kiiiIiiiiiiiiiik", "kiiiiiiiikkkkiik", "kiIiiiiikiiiikIk", "kiiiiiiikIccIkik", "kiiiiIiikIccIkik", "kkkkkkkkkkkkkkkk", "................", "................"], "10": [".....kkkkkk.....", "...kkBBBBBBkk...", "..kBBBBBBBBBBk..", "..kkkkkkkkkkkk..", "..kBkbkbbkbkBk..", "..kBnnnnnnnnBk..", "..kkkkkkkkkkkk..", "....kBbBBbBk....", "....kBbBBbBk....", "....kSbBBbSk....", "....kBbBBbBk....", ".kk.kBbBBbBk.kk.", ".kBkkkkkkkkkkBk.", ".kBsSssSssSssBk.", ".kBssSssssSssBk.", ".kkkkkkkkkkkkkk."], "11": ["................", "....kkkkk.......", "...kxxPxxkkk....", "...kxkkkkPxk....", "...kxkpppkxk....", "...kPkpPpkxk....", "...kxkpppk.k....", "...kxkppPk......", "...kxkpppkkk....", "...kxkpPpkxk....", "...kPkkkkkxk....", "...kxxxPxxxk....", "...kkkkkkkkk....", "................", "................", "................"], "24": ["................", "................", ".kkkkk..........", ".khhHk..........", ".kHhhk...kkkkkk.", ".khhHk...khHhhk.", ".kHhhk...khhhHk.", ".khhHk...kHaahk.", ".kHhhkk..khayhk.", ".khhHhk..khhhHk.", "kkkkkkkkkkkkkkkk", "kzZzzzZzzzzZzzZk", "kZzzZzzzZzzzzZzk", "kzzZzzzZzzZzzzzk", "kkkkkkkkkkkkkkkk", "................"], "26": ["................", "................", "......kkkk......", ".....kwwwIk.....", "....kwwwwwIk....", "...kwwwwwwwIk...", "..kwwwkkkkwwIk..", ".kwwwkxxxxkwwIk.", ".kwwkzxxxxzkwIk.", "kwwwkzxxxxzkwwIk", "kwwwkzxxxxzkwwIk", "kkkkkzxxxxzkkkkk", "....kkkkkkkk....", "....kbSSSSbk....", "....kbbkbbbk....", "....kkkkkkkk...."], "spawn": ["................", ".....kkkkkk.....", "...kk((((((kk...", "..k((IIIIII((k..", "..k(IIIr^IIII(k.", ".k(IIIIr^IIII(k.", ".k(IIIIr^IIIII(k", ".k(IIIIkkIIIII(k", ".k(IIIIssIIIII(k", ".k(IIIIssIIIII(k", ".k(IIIIssIIII(k.", "..k(IIIIIIII(k..", "..k((IIIIII((k..", "...kk((((((kk...", ".....kkkkkk.....", "................"], "15": ["................", "kkkkkkkkkkkkkkkk", "kbbbbbbbbbbbbbbk", "kBBBBBBBBBBBBBBk", "kkkkkkkkkkkkkkkk", ".kbBk......kbBk.", ".kbBkxxxxxxkbBk.", ".kbBkxxxxxxkbBk.", ".kbBkxsxxsxkbBk.", ".kbBkbsbbsbkbBk.", ".kbBkxsxxsxkbBk.", ".kbBkbsbbsbkbBk.", ".kbBkxsxxsxkbBk.", "kbBkbbsbbsbbkbBk", "kbBkxxsxxsxxkbBk", "kkkkkkkkkkkkkkkk"], "17": ["................", ".....kkkkkk.....", "...kk$$$$$$kk...", "..k$$@@@@@@$$k..", ".k$@@!!!!!!@@$k.", ".k$@!9900099!@$k", "k$@!9!0099!0!@$k", "k$@!990!99009@$k", "k$@!09!9909!9@$k", "k$@!99009!990@$k", ".k$@!9900099!@$k", ".k$@@!!!!!!@@$k.", "..k$$@@@@@@$$k..", "...kk$$$$$$kk...", ".....kkkkkk.....", "................"], "18": ["................", "..kkkk..........", "..k11k..........", ".kk11kk.........", ".k1111k.........", ".k12k1k.........", "kkkkkkkkkkkkkkkk", "k11211121112111k", "k21112111211121k", "kkkkkkkkkkkkkkkk", ".k1k..k1k..k1k..", ".k1kkkk1kkkk1k..", ".k1k22k1k22k1k..", ".k2k..k2k..k2k..", ".k1k..k1k..k1k..", ".kkk..kkk..kkk.."], "19": ["................", "................", "kkkkkk....kkkkkk", "k3434k....k4343k", "k4343kkkkkk3434k", "k34343434343434k", "kkkkkkkkkkkkkkkk", "k&&&&&&&&&&&&&&k", "kkkkkkkkkkkkkkkk", "k43434kkkk43434k", "k34343kxxk34343k", "k43434kxxk43434k", "k34343kxxk34343k", "k43434kxxk43434k", "k34343kxxk34343k", "kkkkkkkkkkkkkkkk"], "20": ["................", "................", "kkkkkkkkkkkkkkkk", "k@@@@@@@@@@@@@@k", "k##############k", "kkk@kkk@kkk@kkkk", "..k@k.k@k.k@k...", ".k@k.k@k.k@k....", ".k@k.k@k.k@k....", ".k#k.k#k.k#k....", "..k@k.k@k.k@k...", "..k@k.k@k.k@k...", "...k@k.k@k.k@k..", "....kk..kk..kk..", "................", "................"], "21": ["....kkkkkkkk....", "...k55555555k...", "..k5555555555k..", "..kkkkkkkkkkkk..", ".....k5665k.....", ".....k6xx6k.....", "...kkk5665kkk...", "..k5555555555k..", "..kkkkk66kkkkk..", ".....k5665k.....", ".....k5xx5k.....", ".....k5665k.....", ".....k6556k.....", ".....k5xx5k.....", ".....k5665k.....", ".....kkkkkk....."], "121": ["................", "...kk......kk...", "..k77k....k77k..", ".k7(77k..k77(7k.", ".k7((7kkkk7((7k.", "k7((7(7kk7(7((7k", "k7(7((7kk7((7(7k", "k7((7(7kk7(7((7k", "k((7((7kk7((7((k", "k7(7(7k..k7(7(7k", "k(7(7(k..k(7(7(k", "k7(7(k....k(7(7k", "k((7k......k7((k", ".k(k........k(k.", "..k..........k..", "................"], "22": ["................", ".kkkkkkkkkkkkkk.", ".k$)$)$)$)$)$)k.", ".k)$)$)$)$)$)$k.", ".k$)kkkkkkkk)$k.", ".k)$k-+----k$)k.", ".k$)k---0--k)$k.", ".k)$k-0----k$)k.", ".k$)k----+-k)$k.", ".k)$k--+---k$)k.", ".k$)k-----0k)$k.", ".k)$kkkkkkkk$)k.", ".k$)$)$)$)$)$)k.", ".k)$)$)$)$)$)$k.", ".kkkkkkkkkkkkkk.", "................"], "100": ["kkkkkkkkkkkkk...", "k$$$$$$$$$$$k...", "k$-)-)-)-)-$k...", "k$-)-)-)-)-$k...", "k$-)-)-)-)-$k...", "k$$$$$$$$$$$k...", "k$-)-)-)-)-$k...", "k$-)-)-kkkkkkkkk", "k$-)-)-k%%%%%%%k", "k$$$$$$k%^%%%^%k", "k$-)-)-k%%^%^%%k", "k$$$$$$k%%%%%%%k", "kkkkkkkk%^^%^^%k", ".......k%%%%%%%k", ".......k-%-%-%-k", ".......kkkkkkkkk"], "101": ["kkkkkkkkkkkkk...", "k$$$$$$$$$$$k...", "k$-)-)-)-)-$k...", "k$-)-)-)-)-$k...", "k$-)-)-)-)-$k...", "k$$$$$$$$$$$k...", "k$-)-)-)-)-$k...", "k$-)-)-kkkkkkkkk", "k$-)-)-k(((((((k", "k$$$$$$k()()()(k", "k$-)-)-k(((((((k", "k$$$$$$k-((((-(k", "kkkkkkkk(((((((k", ".......k)()()()k", ".......k(((((((k", ".......kkkkkkkkk"], "102": ["kkkkkkkkkkkkk...", "k$$$$$$$$$$$k...", "k$-)-)-)-)-$k...", "k$-)-)-)-)-$k...", "k$-)-)-)-)-$k...", "k$$$$$$$$$$$k...", "k$-)-)-)-)-$k...", "k$-)-)-kkkkkkkkk", "k$-)-)-k&&&&&&&k", "k$$$$$$k&*&&&*&k", "k$-)-)-k&-&&&-&k", "k$$$$$$k&&&&&&&k", "kkkkkkkk&*****&k", ".......k&&&&&&&k", ".......k*&*&*&*k", ".......kkkkkkkkk"], "12": ["................", "....kkkkk.......", "...kxxPxxkkk....", "...kxkkkkPxk....", "...kxkpppkxk....", "...kPkpPpkxk....", "...kxkpppk.k....", "...kxkppPk......", "...kxkpppkkk....", "...kxkpPpkxk....", "...kPkkkkkxk....", "...kxxxPxxxk....", "...kkkkkkkkk....", "................", "................", "................"]};
+const ICONS = {}, ICON_URL = {};
+for (const s of [...STRUCTS, { id: "spawn" }]) {
+  const cv = document.createElement("canvas"); cv.width = 16; cv.height = 16; const c = cv.getContext("2d");
+  (PIX[s.id] || []).forEach((row, y) => [...row].forEach((ch, x) => { if (ch !== ".") { c.fillStyle = PIX_PAL[ch]; c.fillRect(x, y, 1, 1); } }));
+  ICON_URL[s.id] = cv.toDataURL();
+  // 지도용: 바깥에 반투명 흰 테두리 1칸 (18×18)
+  const mv = document.createElement("canvas"); mv.width = 18; mv.height = 18; const m = mv.getContext("2d");
+  const rows = PIX[s.id] || [], on = (x, y) => y >= 0 && y < 16 && x >= 0 && x < 16 && rows[y] && rows[y][x] !== ".";
+  m.fillStyle = "rgba(255,255,255,0.72)";
+  for (let y = -1; y <= 16; y++) for (let x = -1; x <= 16; x++) {
+    if (on(x, y)) continue;
+    let n = false; for (let dy = -1; dy <= 1 && !n; dy++) for (let dx = -1; dx <= 1; dx++) if (on(x + dx, y + dy)) { n = true; break; }
+    if (n) m.fillRect(x + 1, y + 1, 1, 1);
+  }
+  m.drawImage(cv, 1, 1);
+  ICONS[s.id] = mv;
+}
+const iconTag = (st, px) => `<img alt="" width="${px}" height="${px}" style="display:block;flex:none;image-rendering:pixelated" src="${ICON_URL[st]}">`;
+/* ---------------- wasm + workers ---------------- */
+function b64ToBytes(s) { const bin = atob(s); const u = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i); return u; }
+const anyStub = new Proxy({}, { get: () => () => 0 });
+const imports = { wasi_snapshot_preview1: anyStub, env: anyStub };
+let wasmModule, mainEx;
+const ready = WebAssembly.compile(b64ToBytes(WASM_B64)).then(async m => {
+  wasmModule = m; mainEx = (await WebAssembly.instantiate(m, imports)).exports;
+});
+
+const workerSrc = `
+let ex, MC, running = false, cfg, cursor = 0n;
+const anyStub = new Proxy({}, { get: () => () => 0 });
+const I32 = () => new Int32Array(ex.memory.buffer);
+onmessage = async (ev) => {
+  const d = ev.data;
+  if (d.type === "init") {
+    ex = (await WebAssembly.instantiate(d.module, { wasi_snapshot_preview1: anyStub, env: anyStub })).exports;
+    MC = ex.mc_wd(); postMessage({ type: "ready" });
+  } else if (d.type === "run") {
+    cfg = d.cfg; cursor = BigInt(cfg.start) + BigInt(d.index);
+    const m = I32(); const ip = ex.ids_ptr() >> 2, yp = ex.ys_ptr() >> 2, sp = ex.sids_ptr() >> 2;
+    cfg.ids.forEach((v, i) => { m[ip + i] = v; m[yp + i] = cfg.ys[i]; });
+    cfg.sids.forEach((v, i) => { m[sp + i] = v; });
+    running = true; loop();
+  } else if (d.type === "stop") { running = false; }
+  else if (d.type === "tile") {
+    ex.set_seed_dim(d.lo, d.hi, MC, d.dim);
+    const p = ex.gen_area(d.s, d.tx * 64, d.tz * 64, 64, 64, d.dim === -1 ? 16 : 64);
+    const ids = p ? new Int32Array(ex.memory.buffer, p, 64 * 64).slice() : new Int32Array(64 * 64).fill(-1);
+    postMessage({ type: "tile", key: d.key, ids }, [ids.buffer]);
+  } else if (d.type === "structs") {
+    ex.set_seed_dim(d.lo, d.hi, MC, d.dim);
+    const out = {};
+    for (const st of d.types) {
+      const n = ex.structs_rect(st, d.x0, d.z0, d.x1, d.z1, 4096);
+      if (n < 0) { out[st] = null; continue; }
+      const r = ex.rect_ptr() >> 2; out[st] = Array.from(I32().slice(r, r + n * 4));
+    }
+    postMessage({ type: "structs", req: d.req, tx: d.tx, tz: d.tz, out });
+  } else if (d.type === "near") {
+    ex.set_seed(d.lo, d.hi, MC); ex.spawn_xz();
+    let o = ex.out_ptr() >> 2; const sx = I32()[o + 80], sz = I32()[o + 81];
+    const sp = ex.sids_ptr() >> 2; const m = I32(); d.types.forEach((v, i) => m[sp + i] = v);
+    ex.nearest(0, d.R, 32, sx, sz, 0, d.types.length);
+    o = ex.out_ptr() >> 2; const mm = I32();
+    postMessage({ type: "near", req: d.req, spawn: [sx, sz], out: Array.from(mm.slice(o, o + d.types.length * 3)) });
+  } else if (d.type === "near2") {
+    // 지도 전용 구조물: 중심에서 R 안의 사각형을 훑어 가장 가까운 것
+    ex.set_seed_dim(d.lo, d.hi, MC, d.dim);
+    const rows = [];
+    for (const st of d.types) {
+      const n = ex.structs_rect(st, d.cx - d.R, d.cz - d.R, d.cx + d.R, d.cz + d.R, 4096);
+      if (n <= 0) continue;
+      const r = ex.rect_ptr() >> 2, m = I32(); let best = null;
+      for (let i = 0; i < n; i++) { const x = m[r + i*4], z = m[r + i*4 + 2], dd = Math.hypot(x - d.cx, z - d.cz); if (dd <= d.R && (!best || dd < best.dist)) best = { id: st, x, z, dist: Math.round(dd) }; }
+      if (best) rows.push(best);
+    }
+    postMessage({ type: "near2", req: d.req, rows });
+  }
+};
+const rnd = new Uint32Array(2);
+function loop() {
+  if (!running) return;
+  const n = cfg.ids.length, ns = cfg.sids.length; let checked = 0;
+  const t0 = performance.now();
+  while (performance.now() - t0 < 120) {
+    let lo, hi;
+    if (cfg.mode === "random") { crypto.getRandomValues(rnd); lo = rnd[0]; hi = rnd[1]; }
+    else { const s = BigInt.asUintN(64, cursor); lo = Number(s & 0xffffffffn); hi = Number(s >> 32n); cursor += BigInt(cfg.stride); }
+    checked++;
+    if (ex.test_seed(lo, hi, MC, n, cfg.R, cfg.step, cfg.cx, cfg.cz, cfg.spawn, cfg.fast, ns)) {
+      ex.nearest(n, cfg.R, Math.max(8, cfg.step >> 1), cfg.cx, cfg.cz, cfg.spawn, ns);
+      const o = ex.out_ptr() >> 2; const m = I32();
+      postMessage({ type: "hit", lo, hi, out: Array.from(m.slice(o, o + (n + ns) * 3)), center: [m[o + 80], m[o + 81]] });
+    }
+  }
+  postMessage({ type: "progress", checked });
+  setTimeout(loop, 0);
+}`;
+const workerURL = URL.createObjectURL(new Blob([workerSrc], { type: "text/javascript" }));
+
+const $ = id => document.getElementById(id);
+const fmt = n => n.toLocaleString("ko-KR");
+const seedStr = (lo, hi) => BigInt.asIntN(64, (BigInt(hi >>> 0) << 32n) | BigInt(lo >>> 0)).toString();
+function parseSeed(text) {
+  const t = String(text).trim();
+  if (/^-?\d+$/.test(t)) { try { const b = BigInt(t); if (b >= -(2n ** 63n) && b < 2n ** 63n) return BigInt.asUintN(64, b); } catch (e) {} }
+  if (!t) return 0n;
+  let h = 0; for (let i = 0; i < t.length; i++) h = (Math.imul(31, h) + t.charCodeAt(i)) | 0; // Java String.hashCode
+  return BigInt.asUintN(64, BigInt(h));
+}
+const split = u => [Number(u & 0xffffffffn), Number(u >> 32n)];
+
+/* ---------------- tabs ---------------- */
+function showTab(which) {
+  const map = which === "map";
+  $("tabSearch").setAttribute("aria-selected", map ? "false" : "true");
+  $("tabMap").setAttribute("aria-selected", map ? "true" : "false");
+  $("viewSearch").hidden = map; $("viewMap").hidden = !map;
+  if (map) { if (!mapState.loaded) openMapSeed($("mapSeed").value); else resizeMap(); }
+}
+$("tabSearch").addEventListener("click", () => showTab("search"));
+$("tabMap").addEventListener("click", () => showTab("map"));
+
+/* ---------------- search: chips ---------------- */
+let selected = [186, 184], selS = [];
+function renderChips() {
+  const el = $("chips"); el.innerHTML = ""; let lastG = "";
+  for (const b of BIOMES) {
+    if (b.g !== lastG) { lastG = b.g; const h = document.createElement("div"); h.className = "grp"; h.textContent = b.g; el.appendChild(h); }
+    const c = document.createElement("button"); c.type = "button"; c.className = "chip"; c.title = b.en || "";
+    c.setAttribute("aria-pressed", selected.includes(b.id) ? "true" : "false");
+    c.innerHTML = `<span class="sw" style="background:${colorOf(b)}"></span>${b.name}`;
+    c.addEventListener("click", () => { if (running) return; if (selected.includes(b.id)) selected = selected.filter(x => x !== b.id); else if (selected.length < 8) selected.push(b.id); renderChips(); });
+    el.appendChild(c);
+  }
+  const s = $("schips"); s.innerHTML = "";
+  for (const st of SEARCH_STRUCTS) {
+    const c = document.createElement("button"); c.type = "button"; c.className = "chip";
+    c.setAttribute("aria-pressed", selS.includes(st.id) ? "true" : "false");
+    c.innerHTML = `${iconTag(st.id, 16)}${st.name}`;
+    c.addEventListener("click", () => { if (running) return; if (selS.includes(st.id)) selS = selS.filter(x => x !== st.id); else if (selS.length < 8) selS.push(st.id); renderChips(); });
+    s.appendChild(c);
+  }
+  $("bCount").textContent = `${selected.length}/8`; $("sCount").textContent = `${selS.length}/8`;
+}
+renderChips();
+$("bNone").addEventListener("click", () => { if (running) return; selected = []; renderChips(); });
+$("sNone").addEventListener("click", () => { if (running) return; selS = []; renderChips(); });
+
+/* ---------------- search: run ---------------- */
+let running = false, workers = [], results = [], cols = [], checkedTotal = 0, t0 = 0, target = 10, selIndex = -1;
+function setState(on, text) { $("state").classList.toggle("on", on); $("stateText").textContent = text; }
+function colDefs(bids, sids) { return [...bids.map(id => ({ kind: "b", ...BIOMES.find(b => b.id === id) })), ...sids.map(id => ({ kind: "s", ...SBY[id] }))]; }
+function colSwatch(c) { return c.kind === "s" ? iconTag(c.id, 16) : `<span class="sw" style="background:${colorOf(c)}"></span>`; }
+
+function renderTable() {
+  const t = $("results");
+  if (!results.length) { t.innerHTML = `<tr><td class="empty">아직 찾은 시드가 없어요. 조건을 고르고 검색을 시작하세요.</td></tr>`; return; }
+  const sorted = results.map((r, i) => ({ r, i })).sort((a, b) => a.r.worst - b.r.worst);
+  const hc = results[results.length - 1].cols;
+  let h = `<thead><tr><th>시드</th><th>기준점</th>${hc.map(c => `<th>${c.name}</th>`).join("")}<th>가장 먼 거리</th><th></th></tr></thead><tbody>`;
+  for (const { r, i } of sorted) {
+    h += `<tr class="row${i === selIndex ? " sel" : ""}" data-i="${i}"><td><span class="seed">${r.seed}</span>${r.example ? '<span class="tag">예시</span>' : ""}</td><td class="num">${r.spawn ? "스폰 " : ""}(${r.center[0]}, ${r.center[1]})</td>`;
+    r.pts.forEach(p => { h += `<td class="num">${p.d < 0 ? "-" : `${fmt(p.d)}칸 <span class="sub">(${p.x}, ${p.z})</span>`}</td>`; });
+    h += `<td class="num">${fmt(r.worst)}칸</td><td><button class="mini" type="button" data-copy="${r.seed}">복사</button> <button class="mini" type="button" data-map="${i}">지도</button></td></tr>`;
+  }
+  t.innerHTML = h + "</tbody>";
+}
+$("results").addEventListener("click", (e) => {
+  const c = e.target.closest("[data-copy]");
+  if (c) { e.stopPropagation(); navigator.clipboard.writeText(c.dataset.copy).then(() => { c.textContent = "복사됨"; setTimeout(() => c.textContent = "복사", 1200); }).catch(() => { c.textContent = "직접 복사"; }); return; }
+  const mp = e.target.closest("[data-map]");
+  if (mp) { e.stopPropagation(); const r = results[+mp.dataset.map]; $("mapSeed").value = r.seed; showTab("map"); openMapSeed(r.seed); return; }
+  const row = e.target.closest("tr.row");
+  if (row) { selIndex = +row.dataset.i; renderTable(); drawPreview(results[selIndex]); }
+});
+$("pvOpen").addEventListener("click", () => { const r = results[selIndex]; if (!r) return; $("mapSeed").value = r.seed; showTab("map"); openMapSeed(r.seed); });
+
+function addResult(lo, hi, out, cfg, example, center, cdefs) {
+  const pts = cdefs.map((c, k) => ({ x: out[k*3], z: out[k*3+1], d: out[k*3+2] }));
+  const r = { lo, hi, seed: seedStr(lo, hi), pts, worst: Math.max(0, ...pts.map(p => p.d)), cfg, cols: cdefs, example: !!example, center: center || [cfg.cx, cfg.cz], spawn: !!cfg.spawn };
+  results.push(r);
+  $("found").textContent = fmt(results.filter(x => !x.example).length);
+  if (selIndex < 0 || results[selIndex].example) { selIndex = results.length - 1; drawPreview(r); }
+  renderTable();
+}
+
+function drawPreview(r) {
+  if (!r || !mainEx) return;
+  const cv = $("preview"), ctx = cv.getContext("2d"), N = cv.width;
+  const R = r.cfg.R; const [cx, cz] = r.center; const span = R * 2.3; const per = span / N;
+  mainEx.set_seed(r.lo, r.hi, mainEx.mc_wd());
+  const img = ctx.createImageData(N, N);
+  for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
+    const b = mainEx.biome_at(Math.round(cx - span / 2 + i * per), Math.round(cz - span / 2 + j * per), 256);
+    const hex = COLORS[b] || "888888"; const k = (j * N + i) * 4;
+    img.data[k] = parseInt(hex.slice(0, 2), 16); img.data[k+1] = parseInt(hex.slice(2, 4), 16); img.data[k+2] = parseInt(hex.slice(4, 6), 16); img.data[k+3] = 255;
+  }
+  ctx.putImageData(img, 0, 0);
+  const toPx = (x, z) => [(x - (cx - span / 2)) / per, (z - (cz - span / 2)) / per];
+  ctx.lineWidth = 1.5; ctx.strokeStyle = "rgba(255,255,255,.9)"; ctx.setLineDash([4, 3]);
+  ctx.beginPath(); ctx.arc(N / 2, N / 2, R / per, 0, Math.PI * 2); ctx.stroke(); ctx.setLineDash([]);
+  ctx.strokeStyle = "#fff"; ctx.beginPath(); ctx.moveTo(N/2 - 6, N/2); ctx.lineTo(N/2 + 6, N/2); ctx.moveTo(N/2, N/2 - 6); ctx.lineTo(N/2, N/2 + 6); ctx.stroke();
+  r.pts.forEach((p, k) => {
+    if (p.d < 0) return; const [px, py] = toPx(p.x, p.z); const c = r.cols[k];
+    ctx.lineWidth = 2; ctx.strokeStyle = "#111";
+    if (c.kind === "s") { ctx.imageSmoothingEnabled = false; ctx.drawImage(ICONS[c.id], Math.round(px - 9), Math.round(py - 9), 18, 18); }
+    else { ctx.fillStyle = colorOf(c); ctx.beginPath(); ctx.arc(px, py, 5, 0, Math.PI * 2); ctx.fill(); ctx.stroke(); }
+  });
+  $("pvTitle").textContent = `미리보기 · 시드 ${r.seed}`;
+  $("cbLink").href = `https://www.chunkbase.com/apps/seed-map#seed=${r.seed}`;
+  $("legend").innerHTML = r.cols.map((c, k) => `<div>${colSwatch(c)}${c.name}: ${r.pts[k].d < 0 ? "-" : `${fmt(r.pts[k].d)}칸, (${r.pts[k].x}, ${r.pts[k].z})`}</div>`).join("")
+    + `<div style="color:var(--muted)">범위: 가로세로 약 ${fmt(Math.round(span))}칸</div>`;
+}
+
+async function start() {
+  if (!selected.length && !selS.length) { setState(false, "바이옴이나 구조물을 하나 이상 골라 주세요."); return; }
+  await ready;
+  const cdefs = colDefs(selected, selS);
+  const bcols = cdefs.filter(c => c.kind === "b");
+  const cfg = {
+    ids: bcols.map(c => c.id), ys: bcols.map(c => c.y), sids: selS.slice(),
+    R: Math.max(64, Math.min(5000, +$("radius").value || 500)), step: +$("step").value,
+    cx: Math.round(+$("cx").value || 0), cz: Math.round(+$("cz").value || 0),
+    spawn: $("center").value === "spawn" ? 1 : 0, fast: $("fast").checked ? 1500 : 0,
+    mode: $("mode").value, start: Math.max(0, Math.floor(+$("start").value || 0)),
+  };
+  target = Math.max(1, Math.min(200, +$("target").value || 10));
+  const nW = Math.max(1, Math.min(32, +$("threads").value || 4)); cfg.stride = nW;
+  results = []; selIndex = -1; checkedTotal = 0; t0 = performance.now();
+  $("checked").textContent = "0"; $("found").textContent = "0"; $("rate").textContent = "0"; renderTable();
+  running = true; $("go").disabled = true; $("stop").disabled = false;
+  setState(true, "검색 중…");
+  workers = [];
+  for (let i = 0; i < nW; i++) {
+    const w = new Worker(workerURL); workers.push(w);
+    w.onmessage = (ev) => {
+      const d = ev.data;
+      if (d.type === "ready") w.postMessage({ type: "run", cfg, index: i });
+      else if (d.type === "progress") {
+        checkedTotal += d.checked; $("checked").textContent = fmt(checkedTotal);
+        $("rate").textContent = fmt(Math.round(checkedTotal / Math.max((performance.now() - t0) / 1000, .001)));
+      } else if (d.type === "hit" && running) {
+        addResult(d.lo, d.hi, d.out, cfg, false, d.center, cdefs);
+        if (results.length >= target) stop("찾을 개수를 채워서 멈췄어요.");
+      }
+    };
+    w.postMessage({ type: "init", module: wasmModule });
+  }
+}
+function stop(msg) {
+  running = false; workers.forEach(w => { w.postMessage({ type: "stop" }); w.terminate(); }); workers = [];
+  $("go").disabled = false; $("stop").disabled = true;
+  setState(false, msg || "멈췄어요.");
+  if (results.length && $("mode").value === "small") {
+    const last = results.reduce((m, r) => { const s = BigInt(r.seed); return s > m ? s : m; }, 0n);
+    if (last >= 0n) $("start").value = (last + 1n).toString();
+  }
+}
+$("center").addEventListener("change", () => { const on = $("center").value === "coord"; $("cx").disabled = !on; $("cz").disabled = !on; });
+$("go").addEventListener("click", start);
+$("stop").addEventListener("click", () => stop());
+
+/* ---------------- map ---------------- */
+// 축소했을 때 계산량이 큰(흔한) 구조물은 숨김: 블록/픽셀이 이 값보다 크면 표시 안 함
+const MAXBPP = { 15: 8, 17: 2, 100: 4, 101: 1e9, 18: 32, 19: 32, 12: 16, 20: 2, 102: 16, 21: 32, 121: 64, 22: 16, 6: 12, 7: 12, 14: 6, 11: 12, 24: 24, 26: 24, 3: 32, 4: 32, 1: 32, 2: 32, 10: 32, 5: 48, 25: 48, 13: 64, 8: 128, 9: 256, 27: 1e9 };
+const STILE = 2048;
+
+// 다녀온 구조물: 시드별로 브라우저에 저장 (저장이 막혀 있으면 이번 방문 동안만 기억)
+const VISITED = {};
+function visitedSet() {
+  const k = mapState.seed; if (VISITED[k]) return VISITED[k];
+  let arr = []; try { arr = JSON.parse(localStorage.getItem("visited:" + k) || "[]"); } catch (e) {}
+  return (VISITED[k] = new Set(arr));
+}
+function setVisited(key, on) {
+  const s = visitedSet(); if (on) s.add(key); else s.delete(key);
+  try { localStorage.setItem("visited:" + mapState.seed, JSON.stringify([...s])); } catch (e) {}
+}
+const mapState = { loaded: false, lo: 0, hi: 0, seed: "", cx: 0, cz: 0, bpp: 4, spawn: [0, 0], show: new Set([5, 13, 25, 27, 9, 8, 7, 2, 1, 10, 18, 19, 12, 102, 21, 121, 22]), dim: 0, globals: {}, req: 0, tiles: new Map(), queue: [], inflight: 0, gen: 0, sc: new Map(), squeue: [], sinflight: 0, strongholds: null };
+const big = $("bigmap"), bctx = big.getContext("2d");
+let mapWorkers = [], mapReady, hoverEx = null;
+function ensureMapWorkers() {
+  if (mapReady) return mapReady;
+  mapReady = ready.then(async () => {
+    hoverEx = (await WebAssembly.instantiate(wasmModule, imports)).exports;
+    await Promise.all(Array.from({ length: Math.max(2, Math.min(6, (navigator.hardwareConcurrency || 4) - 1)) }, () => new Promise(res => {
+      const w = new Worker(workerURL); w.busy = 0;
+      w.onmessage = (ev) => onMapMsg(w, ev.data, res);
+      w.postMessage({ type: "init", module: wasmModule }); mapWorkers.push(w);
+    })));
+  });
+  return mapReady;
+}
+function onMapMsg(w, d, res) {
+  if (d.type === "ready") { res(); return; }
+  if (d.type === "tile") {
+    w.busy--; mapState.inflight--;
+    const t = mapState.tiles.get(d.key); if (!t) { pump(); return; }
+    const cv = document.createElement("canvas"); cv.width = 64; cv.height = 64;
+    const c2 = cv.getContext("2d"); const img = c2.createImageData(64, 64);
+    for (let i = 0; i < 4096; i++) { const hex = COLORS[d.ids[i]] || "222222"; img.data[i*4] = parseInt(hex.slice(0,2),16); img.data[i*4+1] = parseInt(hex.slice(2,4),16); img.data[i*4+2] = parseInt(hex.slice(4,6),16); img.data[i*4+3] = 255; }
+    c2.putImageData(img, 0, 0); t.canvas = cv; t.state = 2;
+    scheduleDraw(); pump();
+  } else if (d.type === "structs") {
+    w.busy--; mapState.sinflight--;
+    if (d.req === mapState.req) {
+      for (const st in d.out) {
+        if (GLOBAL_ST.has(+st)) { mapState.globals[st] = d.out[st] || []; continue; }
+        mapState.sc.set(`${st}:${d.tx}:${d.tz}`, d.out[st] || []);
+      }
+      scheduleDraw();
+    }
+    pump();
+  } else if (d.type === "near") {
+    if (d.req !== mapState.req) return;
+    const ids = SEARCH_STRUCTS.map(s => s.id);
+    mapState.nearRows = ids.map((id, k) => ({ id, x: d.out[k*3], z: d.out[k*3+1], dist: d.out[k*3+2] })).filter(r => r.dist >= 0);
+    renderNear();
+  } else if (d.type === "near2") {
+    if (d.req !== mapState.req) return;
+    mapState.nearRows = (mapState.nearRows || []).concat(d.rows); if (--mapState.near2left <= 0) mapState.near2done = true;
+    renderNear();
+  }
+}
+function scaleFor(bpp) { return bpp <= 4 ? 4 : bpp <= 16 ? 16 : bpp <= 64 ? 64 : 256; }
+function tileKey(s, tx, tz) { return `${mapState.gen}:${s}:${tx}:${tz}`; }
+function pump() {
+  const cap = mapWorkers.length * 2;
+  while (mapState.squeue.length && mapState.inflight + mapState.sinflight < cap) {
+    const job = mapState.squeue.shift();
+    const glob = job.global;
+    const types = glob ? job.types : job.types.filter(st => !mapState.sc.has(`${st}:${job.tx}:${job.tz}`));
+    if (!types.length) continue;
+    if (!glob) types.forEach(st => mapState.sc.set(`${st}:${job.tx}:${job.tz}`, null));
+    const w = mapWorkers.reduce((a, b) => (a.busy <= b.busy ? a : b)); w.busy++; mapState.sinflight++;
+    w.postMessage({ type: "structs", req: mapState.req, lo: mapState.lo, hi: mapState.hi, dim: mapState.dim, types, tx: job.tx, tz: job.tz,
+      x0: glob ? -1e8 : job.tx * STILE, z0: glob ? -1e8 : job.tz * STILE, x1: glob ? 1e8 : job.tx * STILE + STILE - 1, z1: glob ? 1e8 : job.tz * STILE + STILE - 1 });
+  }
+  while (mapState.queue.length && mapState.inflight + mapState.sinflight < cap) {
+    const job = mapState.queue.shift(); const t = mapState.tiles.get(job.key);
+    if (!t || t.state !== 0) continue;
+    const w = mapWorkers.reduce((a, b) => (a.busy <= b.busy ? a : b));
+    t.state = 1; w.busy++; mapState.inflight++;
+    w.postMessage({ type: "tile", key: job.key, s: job.s, tx: job.tx, tz: job.tz, lo: mapState.lo, hi: mapState.hi, dim: mapState.dim });
+  }
+}
+function resizeMap() {
+  const r = $("stage").getBoundingClientRect(); const dpr = Math.min(2, window.devicePixelRatio || 1);
+  big.width = Math.max(1, Math.round(r.width * dpr)); big.height = Math.max(1, Math.round(r.height * dpr)); big.dpr = dpr;
+  scheduleDraw();
+}
+window.addEventListener("resize", () => { if (!$("viewMap").hidden) resizeMap(); });
+let drawPending = false;
+function scheduleDraw() { if (drawPending) return; drawPending = true; requestAnimationFrame(() => { drawPending = false; drawMap(); }); }
+function viewRect() { const W = big.width / (big.dpr || 1), H = big.height / (big.dpr || 1); const b = mapState.bpp; return { x0: mapState.cx - W / 2 * b, z0: mapState.cz - H / 2 * b, x1: mapState.cx + W / 2 * b, z1: mapState.cz + H / 2 * b, W, H }; }
+function wantStructs(v) {
+  const inDim = st => SBY[st] && SBY[st].dim === mapState.dim;
+  const visibleTypes = [...mapState.show].filter(st => inDim(st) && !GLOBAL_ST.has(st) && mapState.bpp <= (MAXBPP[st] || 64));
+  for (const st of mapState.show) if (GLOBAL_ST.has(st) && inDim(st) && !mapState.sc.has("g" + st)) { mapState.sc.set("g" + st, 1); mapState.squeue.unshift({ types: [st], tx: 0, tz: 0, global: true }); }
+  if (!visibleTypes.length) return;
+  const tx0 = Math.floor(v.x0 / STILE), tx1 = Math.floor(v.x1 / STILE), tz0 = Math.floor(v.z0 / STILE), tz1 = Math.floor(v.z1 / STILE);
+  if ((tx1 - tx0 + 1) * (tz1 - tz0 + 1) > 600) return;
+  const jobs = [];
+  for (let tz = tz0 - 1; tz <= tz1 + 1; tz++) for (let tx = tx0 - 1; tx <= tx1 + 1; tx++) {
+    const types = visibleTypes.filter(st => !mapState.sc.has(`${st}:${tx}:${tz}`));
+    if (types.length) jobs.push({ types, tx, tz, d: Math.hypot((tx + .5) * STILE - mapState.cx, (tz + .5) * STILE - mapState.cz) });
+  }
+  if (jobs.length) { jobs.sort((a, b) => a.d - b.d); mapState.squeue = jobs.concat(mapState.squeue.filter(j => j.global)); }
+}
+function drawMap() {
+  if (!mapState.loaded) return;
+  const dpr = big.dpr || 1; bctx.setTransform(dpr, 0, 0, dpr, 0, 0); bctx.imageSmoothingEnabled = false;
+  const v = viewRect(); const b = mapState.bpp; const s = scaleFor(b); const tb = 64 * s;
+  bctx.fillStyle = "#0b0f0d"; bctx.fillRect(0, 0, v.W, v.H);
+  const tx0 = Math.floor(v.x0 / tb), tx1 = Math.floor(v.x1 / tb), tz0 = Math.floor(v.z0 / tb), tz1 = Math.floor(v.z1 / tb);
+  const want = [];
+  for (let tz = tz0; tz <= tz1; tz++) for (let tx = tx0; tx <= tx1; tx++) {
+    const key = tileKey(s, tx, tz); let t = mapState.tiles.get(key);
+    const sx = (tx * tb - v.x0) / b, sy = (tz * tb - v.z0) / b, sw = tb / b;
+    if (!t) { t = { state: 0 }; mapState.tiles.set(key, t); want.push({ key, s, tx, tz, d: Math.hypot((tx + .5) * tb - mapState.cx, (tz + .5) * tb - mapState.cz) }); }
+    if (t.state === 2) bctx.drawImage(t.canvas, sx, sy, sw + 0.5, sw + 0.5);
+    else drawFallback(tx * tb, tz * tb, tb, v, b, s);
+  }
+  if (want.length) { want.sort((a, c) => a.d - c.d); const keys = new Set(want.map(w => w.key)); mapState.queue = want.concat(mapState.queue.filter(j => !keys.has(j.key))); }
+  wantStructs(v); pump();
+  if (mapState.tiles.size > 3000) { for (const [k, t] of mapState.tiles) { if (t.state === 2 && mapState.tiles.size > 2000) mapState.tiles.delete(k); } }
+  bctx.strokeStyle = "rgba(255,255,255,.18)"; bctx.lineWidth = 1;
+  const ox = (0 - v.x0) / b, oz = (0 - v.z0) / b;
+  bctx.beginPath(); bctx.moveTo(ox, 0); bctx.lineTo(ox, v.H); bctx.moveTo(0, oz); bctx.lineTo(v.W, oz); bctx.stroke();
+  // grid lines: chunk (16 blocks) when zoomed in, region (512 blocks) otherwise
+  const gridLines = (step, style) => {
+    bctx.beginPath();
+    for (let x = Math.ceil(v.x0 / step) * step; x <= v.x1; x += step) { const p = Math.round((x - v.x0) / b) + 0.5; bctx.moveTo(p, 0); bctx.lineTo(p, v.H); }
+    for (let z = Math.ceil(v.z0 / step) * step; z <= v.z1; z += step) { const p = Math.round((z - v.z0) / b) + 0.5; bctx.moveTo(0, p); bctx.lineTo(v.W, p); }
+    bctx.strokeStyle = style; bctx.lineWidth = 1; bctx.stroke();
+  };
+  const cpx = 16 / b, rpx = 512 / b;
+  if (cpx >= 10) gridLines(16, `rgba(255,255,255,${Math.min(0.32, 0.12 + (cpx - 10) / 14 * 0.2)})`);
+  else if (rpx >= 20) gridLines(512, "rgba(255,255,255,0.28)");
+  // structures (cached per 2048-block tile, so panning never makes them blink)
+  mapState.hits = [];
+  const bigSize = b <= 8 ? 32 : 16;
+  const sx0 = Math.floor(v.x0 / STILE) - 1, sx1 = Math.floor(v.x1 / STILE) + 1, sz0 = Math.floor(v.z0 / STILE) - 1, sz1 = Math.floor(v.z1 / STILE) + 1;
+  const hidden = []; const visited = visitedSet();
+  for (const st of mapState.show) {
+    const img = ICONS[st]; const name = SNAME[st];
+    if (!SBY[st] || SBY[st].dim !== mapState.dim) continue;
+    const size = SMALL_ST.has(st) ? 16 : bigSize;
+    const put = (x, y, z, flag) => {
+      const px = (x - v.x0) / b, py = (z - v.z0) / b;
+      if (px < -20 || py < -20 || px > v.W + 20 || py > v.H + 20) return;
+      const vis = visited.has(`${st}:${x}:${z}`);
+      { const S = size * 18 / 16; bctx.globalAlpha = vis ? 0.35 : 1; bctx.drawImage(img, Math.round(px - S / 2), Math.round(py - S / 2), S, S); bctx.globalAlpha = 1; }
+      mapState.hits.push({ px, py, r: size / 2 + 2, label: `${name} (${x}, ${z})${vis ? " · 다녀옴" : ""}`, st, x, y, z, flag });
+    };
+    if (GLOBAL_ST.has(st)) { const a = mapState.globals[st] || []; for (let i = 0; i < a.length; i += 4) put(a[i], a[i + 1], a[i + 2], a[i + 3]); continue; }
+    if (b > (MAXBPP[st] || 64)) { hidden.push(name); continue; }
+    for (let tz = sz0; tz <= sz1; tz++) for (let tx = sx0; tx <= sx1; tx++) {
+      const arr = mapState.sc.get(`${st}:${tx}:${tz}`); if (!arr) continue;
+      for (let i = 0; i < arr.length; i += 4) put(arr[i], arr[i + 1], arr[i + 2], arr[i + 3]);
+    }
+  }
+  $("hiddenNote").textContent = hidden.length ? `더 확대하면 보여요: ${hidden.join(", ")}` : "";
+  // spawn
+  if (mapState.dim === 0) {
+    const spx = (mapState.spawn[0] - v.x0) / b, spy = (mapState.spawn[1] - v.z0) / b, S = (b <= 8 ? 32 : 24) * 18 / 16;
+    bctx.drawImage(ICONS.spawn, Math.round(spx - S / 2), Math.round(spy - S / 2), S, S);
+    mapState.hits.push({ px: spx, py: spy, r: S / 2, label: `스폰 (${mapState.spawn[0]}, ${mapState.spawn[1]})` });
+  }
+  const nice = [16, 32, 64, 128, 256, 512, 1000, 2000, 5000, 10000, 20000, 50000]; let len = nice[0];
+  for (const n of nice) if (n / b <= 140) len = n;
+  bctx.fillStyle = "rgba(12,16,14,.78)"; bctx.fillRect(v.W - len / b - 22, v.H - 30, len / b + 12, 20);
+  bctx.fillStyle = "#e8eee9"; bctx.fillRect(v.W - len / b - 16, v.H - 16, len / b, 3);
+  bctx.font = "11px " + getComputedStyle(document.body).fontFamily; bctx.textAlign = "right"; bctx.fillText(`${fmt(len)}칸`, v.W - 16, v.H - 21);
+}
+function drawFallback(wx, wz, tb, v, b, s) {
+  for (const cs of [16, 64, 256]) {
+    if (cs <= s) continue; const ctb = 64 * cs;
+    const t = mapState.tiles.get(tileKey(cs, Math.floor(wx / ctb), Math.floor(wz / ctb)));
+    if (t && t.state === 2) {
+      const ox = (wx - Math.floor(wx / ctb) * ctb) / cs, oz = (wz - Math.floor(wz / ctb) * ctb) / cs, w = tb / cs;
+      bctx.drawImage(t.canvas, ox, oz, w, w, (wx - v.x0) / b, (wz - v.z0) / b, tb / b + 0.5, tb / b + 0.5); return;
+    }
+  }
+}
+const DIM_NAME = { 0: "오버월드", "-1": "네더", 1: "엔드" };
+function resetDimCaches() {
+  mapState.gen++; mapState.req++;
+  mapState.tiles.clear(); mapState.queue = []; mapState.sc.clear(); mapState.squeue = []; mapState.globals = {};
+  mapState.nearRows = []; mapState.near2done = false;
+}
+// 지금 차원의 중심 기준으로 가까운 구조물 목록을 다시 계산
+function requestNear() {
+  const d = mapState.dim, w = mapWorkers[mapWorkers.length - 1];
+  const extra = STRUCTS.filter(s => s.dim === d && s.map && !GLOBAL_ST.has(s.id)).map(s => s.id);
+  const c = d === 0 ? mapState.spawn : d === -1 ? [Math.round(mapState.spawn[0] / 8), Math.round(mapState.spawn[1] / 8)] : [0, 0];
+  mapState.nearCenter = c;
+  $("nearTitle").textContent = d === 0 ? "스폰에서 가까운 구조물" : d === -1 ? "스폰 아래(÷8)에서 가까운 구조물" : "중앙 섬(0, 0)에서 가까운 구조물";
+  $("nearList").innerHTML = `<span class="hint">계산 중…</span>`;
+  if (d === 0) w.postMessage({ type: "near", req: mapState.req, lo: mapState.lo, hi: mapState.hi, R: 6000, types: SEARCH_STRUCTS.map(s => s.id) });
+  const R = d === 1 ? 3000 : 1500, small = extra.filter(st => st === 22), rest = extra.filter(st => st !== 22);
+  mapState.near2left = (rest.length ? 1 : 0) + (small.length ? 1 : 0);
+  if (rest.length) w.postMessage({ type: "near2", req: mapState.req, lo: mapState.lo, hi: mapState.hi, dim: d, cx: c[0], cz: c[1], R, types: rest });
+  if (small.length) w.postMessage({ type: "near2", req: mapState.req, lo: mapState.lo, hi: mapState.hi, dim: d, cx: c[0], cz: c[1], R: 1500, types: small });
+  if (!mapState.near2left) mapState.near2done = true;
+}
+async function openMapSeed(text) {
+  closePop();
+  await ensureMapWorkers();
+  const u = parseSeed(text); const [lo, hi] = split(u);
+  mapState.lo = lo; mapState.hi = hi; mapState.seed = seedStr(lo, hi);
+  resetDimCaches();
+  hoverEx.set_seed(lo, hi, hoverEx.mc_wd()); hoverEx.spawn_xz();
+  const o = hoverEx.out_ptr() >> 2; const m = new Int32Array(hoverEx.memory.buffer);
+  mapState.spawn = [m[o + 80], m[o + 81]];
+  if (mapState.dim !== 0) hoverEx.set_seed_dim(lo, hi, hoverEx.mc_wd(), mapState.dim);
+  const home = homeOf(mapState.dim); mapState.cx = home[0]; mapState.cz = home[1]; mapState.bpp = mapState.dim === 1 ? 8 : 4; mapState.loaded = true;
+  const isNum = /^-?\d+$/.test(String(text).trim());
+  $("mapMsg").textContent = isNum ? "끌어서 이동하고, 휠이나 두 손가락, +/− 버튼으로 확대·축소하세요. 구조물을 누르면 좌표와 정보가 나와요." : `글자 시드 "${String(text).trim()}"을(를) 숫자 시드 ${mapState.seed}로 바꿨어요.`;
+  $("mapInfo").innerHTML = `<dt>시드</dt><dd>${mapState.seed}</dd><dt>스폰</dt><dd>${mapState.spawn[0]}, ${mapState.spawn[1]} (근사)</dd>`;
+  requestNear();
+  resizeMap();
+}
+function homeOf(d) { return d === 0 ? mapState.spawn : d === -1 ? [Math.round(mapState.spawn[0] / 8), Math.round(mapState.spawn[1] / 8)] : [0, 0]; }
+function setDim(d) {
+  if (d === mapState.dim) return;
+  closePop();
+  const prev = mapState.dim;
+  // 오버월드 ↔ 네더는 좌표를 8배로 맞춰서 같은 곳을 보여 줌
+  if (prev === 0 && d === -1) { mapState.cx /= 8; mapState.cz /= 8; }
+  else if (prev === -1 && d === 0) { mapState.cx *= 8; mapState.cz *= 8; }
+  else { const h = homeOf(d); mapState.cx = h[0]; mapState.cz = h[1]; mapState.bpp = d === 1 ? 8 : 4; }
+  mapState.dim = d;
+  document.querySelectorAll("#dimSeg button").forEach(b => b.setAttribute("aria-pressed", +b.dataset.dim === d ? "true" : "false"));
+  renderMapChips();
+  if (!mapState.loaded) return;
+  resetDimCaches();
+  hoverEx.set_seed_dim(mapState.lo, mapState.hi, hoverEx.mc_wd(), d);
+  requestNear();
+  scheduleDraw();
+}
+document.querySelectorAll("#dimSeg button").forEach(b => b.addEventListener("click", () => setDim(+b.dataset.dim)));
+function renderNear() {
+  const visited = visitedSet(), c = mapState.nearCenter || [0, 0];
+  const rows = (mapState.nearRows || []).filter(r => SBY[r.id] && SBY[r.id].dim === mapState.dim).sort((a, b) => a.dist - b.dist);
+  const R = mapState.dim === 0 ? "6,000" : mapState.dim === 1 ? "3,000" : "1,500";
+  $("nearList").innerHTML = rows.length ? rows.map(r => `<button type="button" data-x="${r.x}" data-z="${r.z}"${visited.has(`${r.id}:${r.x}:${r.z}`) ? ' style="opacity:.45"' : ''}>${iconTag(r.id, 16)}<span>${SBY[r.id].name} <span class="d">(${r.x}, ${r.z})</span></span><span class="d">${fmt(r.dist)}칸</span></button>`).join("") + (mapState.near2done ? "" : `<span class="hint">더 계산 중…</span>`) : `<span class="hint">${mapState.near2done ? `${R}칸 안에 없어요.` : "계산 중…"}</span>`;
+}
+$("nearList").addEventListener("click", (e) => { const bt = e.target.closest("button[data-x]"); if (!bt) return; mapState.cx = +bt.dataset.x; mapState.cz = +bt.dataset.z; mapState.bpp = Math.min(mapState.bpp, 2); scheduleDraw(); });
+function renderMapChips() {
+  const el = $("mchips"); el.innerHTML = "";
+  for (const st of STRUCTS.filter(s => s.dim === mapState.dim)) {
+    const c = document.createElement("button"); c.type = "button"; c.className = "chip";
+    c.setAttribute("aria-pressed", mapState.show.has(st.id) ? "true" : "false");
+    c.innerHTML = `${iconTag(st.id, 16)}${st.name}`;
+    c.addEventListener("click", () => { if (mapState.show.has(st.id)) mapState.show.delete(st.id); else mapState.show.add(st.id); renderMapChips(); scheduleDraw(); });
+    el.appendChild(c);
+  }
+}
+renderMapChips();
+$("mAll").addEventListener("click", () => { for (const st of STRUCTS) if (st.dim === mapState.dim) mapState.show.add(st.id); renderMapChips(); scheduleDraw(); });
+$("mNone").addEventListener("click", () => { for (const st of STRUCTS) if (st.dim === mapState.dim) mapState.show.delete(st.id); renderMapChips(); scheduleDraw(); });
+$("mapGo").addEventListener("click", () => openMapSeed($("mapSeed").value));
+$("mapSeed").addEventListener("keydown", (e) => { if (e.key === "Enter") openMapSeed($("mapSeed").value); });
+const clampB = x => Math.max(0.25, Math.min(512, x));
+function zoomAt(f, px, py) {
+  closePop();
+  const v = viewRect(); const wx = v.x0 + px * mapState.bpp, wz = v.z0 + py * mapState.bpp;
+  const nb = clampB(mapState.bpp * f);
+  mapState.cx = wx - (px - v.W / 2) * nb; mapState.cz = wz - (py - v.H / 2) * nb; mapState.bpp = nb;
+  scheduleDraw();
+}
+big.addEventListener("wheel", (e) => { e.preventDefault(); closePop(); const r = big.getBoundingClientRect(); zoomAt(e.deltaY > 0 ? 1.25 : 0.8, e.clientX - r.left, e.clientY - r.top); }, { passive: false });
+$("zin").addEventListener("click", () => { const v = viewRect(); zoomAt(0.5, v.W / 2, v.H / 2); });
+$("zout").addEventListener("click", () => { const v = viewRect(); zoomAt(2, v.W / 2, v.H / 2); });
+$("zhome").addEventListener("click", () => { const h = homeOf(mapState.dim); mapState.cx = h[0]; mapState.cz = h[1]; mapState.bpp = mapState.dim === 1 ? 8 : 4; scheduleDraw(); });
+
+// 손가락/마우스 조작: 손가락 수가 바뀔 때마다 기준점을 다시 잡아서, 확대 뒤 손을 떼도 지도가 튀지 않게 함
+const pointers = new Map(); let gesture = null;
+function reanchor() {
+  const pts = [...pointers.values()]; const r = big.getBoundingClientRect();
+  if (pts.length === 1) gesture = { type: "pan", x: pts[0].x, y: pts[0].y, cx: mapState.cx, cz: mapState.cz, moved: 0 };
+  else if (pts.length >= 2) {
+    const [a, c] = pts; const mx = (a.x + c.x) / 2 - r.left, my = (a.y + c.y) / 2 - r.top; const v = viewRect();
+    gesture = { type: "pinch", d0: Math.max(1, Math.hypot(a.x - c.x, a.y - c.y)), bpp: mapState.bpp, wx: v.x0 + mx * mapState.bpp, wz: v.z0 + my * mapState.bpp };
+  } else gesture = null;
+}
+big.addEventListener("pointerdown", (e) => { closePop(); big.setPointerCapture(e.pointerId); pointers.set(e.pointerId, { x: e.clientX, y: e.clientY }); reanchor(); big.classList.add("drag"); });
+big.addEventListener("pointermove", (e) => {
+  const r = big.getBoundingClientRect(); const px = e.clientX - r.left, py = e.clientY - r.top;
+  if (pointers.has(e.pointerId)) {
+    pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    const pts = [...pointers.values()];
+    if (gesture && gesture.type === "pinch" && pts.length >= 2) {
+      const [a, c] = pts; const d = Math.max(1, Math.hypot(a.x - c.x, a.y - c.y));
+      const mx = (a.x + c.x) / 2 - r.left, my = (a.y + c.y) / 2 - r.top; const v = viewRect();
+      const nb = clampB(gesture.bpp * gesture.d0 / d); mapState.bpp = nb;
+      mapState.cx = gesture.wx - (mx - v.W / 2) * nb; mapState.cz = gesture.wz - (my - v.H / 2) * nb; scheduleDraw();
+    } else if (gesture && gesture.type === "pan") {
+      gesture.moved = Math.max(gesture.moved, Math.hypot(e.clientX - gesture.x, e.clientY - gesture.y));
+      mapState.cx = gesture.cx - (e.clientX - gesture.x) * mapState.bpp; mapState.cz = gesture.cz - (e.clientY - gesture.y) * mapState.bpp; scheduleDraw();
+    }
+  }
+  if (e.pointerType === "mouse") showInfoAt(px, py, !pointers.size);
+});
+function findHit(px, py) {
+  let best = null, bd = 1e9;
+  for (const h of mapState.hits || []) { const d = Math.hypot(h.px - px, h.py - py); if (d <= h.r && d <= bd) { bd = d; best = h; } }
+  return best;
+}
+// 구조물 높이: 계산된 값이 있으면 그 값, 고정 높이가 있는 건 그 값, 나머지는 지표면 근사
+const NOY = -32768;
+function structY(hit) {
+  const { st, x, z, y } = hit;
+  if (st === 13) return { y: -51, note: "" };
+  if (st === 25) return { y: -30, note: "약 -40 ~ -20" };
+  if (st === 27 || st === 101) return { y: null, note: "지하, 높이 계산 안 됨" };
+  if (st === 17) return { y: null, note: "-58 ~ 30 사이" };
+  if (st === 19) return { y: null, note: "대략 33 부근" };
+  if (st === 12 || st === 20) return { y: null, note: "계산 안 됨" };
+  if (y !== undefined && y !== NOY) return { y, note: st === 18 || st === 102 || st === 15 || st === 100 ? "근사" : "근사" };
+  if (mapState.dim !== 0 || !hoverEx) return { y: null, note: "" };
+  const h = hoverEx.height_at(x, z);
+  if (st === 14) return { y: h - 1, note: "근사" };
+  return { y: h, note: "근사" };
+}
+function shipTxt(hit) {
+  if (hit.st !== 121 || !hit.flag) return "";
+  const dx = (hit.flag >> 12) - 2048, dz = (hit.flag & 4095) - 2048;
+  return `<br><span class="d">엔드 배 근처: ${hit.x + dx}, ${hit.z + dz}</span>`;
+}
+let popHit = null;
+function closePop() { $("pop").style.display = "none"; popHit = null; }
+function openPop(hit, px, py) {
+  popHit = hit; const { st, x, z } = hit; const key = `${st}:${x}:${z}`;
+  const yy = structY(hit); const yTxt = yy.y === null ? "~" : String(yy.y);
+  const pop = $("pop");
+  pop.innerHTML = `<button type="button" class="x" aria-label="닫기">×</button>
+    <div class="hd">${iconTag(st, 16)}${SNAME[st]}</div>
+    <div class="co">X ${x}<br>Y ${yTxt}${yy.note ? ` <span class="d">(${yy.note})</span>` : ""}<br>Z ${z}${shipTxt(hit)}</div>
+    <div class="row"><button type="button" class="cp">좌표 복사</button><label><input type="checkbox" class="vis"${visitedSet().has(key) ? " checked" : ""}>다녀옴</label></div>`;
+  pop.querySelector(".x").onclick = closePop;
+  const cp = pop.querySelector(".cp");
+  cp.onclick = async () => {
+    const txt = `${x} ${yTxt} ${z}`; let ok = false;
+    try { await navigator.clipboard.writeText(txt); ok = true; } catch (e) {
+      try { const ta = document.createElement("textarea"); ta.value = txt; document.body.appendChild(ta); ta.select(); ok = document.execCommand("copy"); ta.remove(); } catch (e2) {}
+    }
+    cp.textContent = ok ? "복사됨" : txt; setTimeout(() => { cp.textContent = "좌표 복사"; }, 1400);
+  };
+  pop.querySelector(".vis").onchange = (e) => { setVisited(key, e.target.checked); scheduleDraw(); renderNear(); };
+  pop.style.display = "block";
+  const W = big.clientWidth, H = big.clientHeight, pw = pop.offsetWidth, ph = pop.offsetHeight;
+  let lx = px + 14, ly = py - ph / 2;
+  if (lx + pw > W - 6) lx = px - pw - 14;
+  lx = Math.max(6, lx); ly = Math.max(6, Math.min(H - ph - 6, ly));
+  pop.style.left = lx + "px"; pop.style.top = ly + "px";
+}
+function showInfoAt(px, py, withTip) {
+  if (!mapState.loaded || !hoverEx) return;
+  const v = viewRect(); const wx = Math.floor(v.x0 + px * mapState.bpp), wz = Math.floor(v.z0 + py * mapState.bpp);
+  let id = hoverEx.biome_at(wx, wz, mapState.dim === -1 ? 64 : 256); if (mapState.dim === 1 && hoverEx.height_at(wx, wz) <= 0) id = -2; const bname = NAME[id] || "";
+  $("cursorInfo").textContent = `X ${fmt(wx)}, Z ${fmt(wz)} · 청크 ${Math.floor(wx / 16)}, ${Math.floor(wz / 16)}${bname ? " · " + bname : ""}`;
+  const tip = $("tip"); const hit = withTip && findHit(px, py);
+  if (hit) { tip.style.display = "block"; tip.style.left = px + "px"; tip.style.top = py + "px"; tip.textContent = hit.label; } else tip.style.display = "none";
+}
+const endPointer = (e) => {
+  const wasTap = gesture && gesture.type === "pan" && gesture.moved < 6 && pointers.size === 1;
+  pointers.delete(e.pointerId); reanchor();
+  if (!pointers.size) big.classList.remove("drag");
+  if (wasTap) {
+    const r = big.getBoundingClientRect(); const px = e.clientX - r.left, py = e.clientY - r.top;
+    const hit = findHit(px, py);
+    if (hit && hit.st !== undefined) { $("tip").style.display = "none"; openPop(hit, px, py); }
+    else { closePop(); showInfoAt(px, py, e.pointerType !== "mouse"); }
+  }
+};
+big.addEventListener("pointerup", endPointer); big.addEventListener("pointercancel", endPointer);
+big.addEventListener("keydown", (e) => {
+  const step = 60 * mapState.bpp; let used = true;
+  if (e.key === "ArrowLeft") mapState.cx -= step; else if (e.key === "ArrowRight") mapState.cx += step;
+  else if (e.key === "ArrowUp") mapState.cz -= step; else if (e.key === "ArrowDown") mapState.cz += step;
+  else if (e.key === "+" || e.key === "=") { const v = viewRect(); zoomAt(0.5, v.W / 2, v.H / 2); }
+  else if (e.key === "-") { const v = viewRect(); zoomAt(2, v.W / 2, v.H / 2); } else used = false;
+  if (used) { e.preventDefault(); scheduleDraw(); }
+});
+
+/* ---------------- first view ---------------- */
+ready.then(() => {
+  const cdefs = colDefs([186, 184], []);
+  const cfg = { R: 500, cx: 0, cz: 0, step: 32, spawn: 1 };
+  const m = new Int32Array(mainEx.memory.buffer); const ip = mainEx.ids_ptr() >> 2, yp = mainEx.ys_ptr() >> 2;
+  cdefs.forEach((c, i) => { m[ip + i] = c.id; m[yp + i] = c.y; });
+  for (const s of [413, 1931, 2187]) {
+    mainEx.set_seed(s, 0, mainEx.mc_wd()); mainEx.nearest(2, 500, 16, 0, 0, 1, 0);
+    const o = mainEx.out_ptr() >> 2; const mm = new Int32Array(mainEx.memory.buffer);
+    addResult(s, 0, Array.from(mm.slice(o, o + 6)), cfg, true, [mm[o + 80], mm[o + 81]], cdefs);
+  }
+  selIndex = 0; drawPreview(results[0]); renderTable();
+  $("threads").value = Math.max(1, Math.min(16, (navigator.hardwareConcurrency || 4) - 1));
+});
+renderTable();
+</script>
+</body>
+</html>

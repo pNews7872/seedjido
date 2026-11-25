@@ -1,0 +1,239 @@
+#include "../xcub/generator.h"
+#include "../xcub/biomes.h"
+#include "../xcub/finders.h"
+#include <stdint.h>
+#include <stdlib.h>
+#include <math.h>
+
+static Generator G;
+static int curMc = -1;
+static int idsBuf[16];
+static int ysBuf[16];
+static int outBuf[96];
+int *ids_ptr(void) { return idsBuf; }
+int *ys_ptr(void) { return ysBuf; }
+int *out_ptr(void) { return outBuf; }
+
+static int matchB(int want, int b) {
+    if (want == -1) return isOceanic(b);
+    if (want == -2) return b == badlands || b == eroded_badlands || b == wooded_badlands;
+    return b == want;
+}
+
+static int nY; static int yList[4]; static int yIdx[16];
+static void prepY(int n) {
+    nY = 0;
+    for (int i = 0; i < n; i++) {
+        int k; for (k = 0; k < nY; k++) if (yList[k] == ysBuf[i]) break;
+        if (k == nY && nY < 4) yList[nY++] = ysBuf[i];
+        yIdx[i] = k < 4 ? k : 0;
+    }
+}
+
+void set_seed(uint32_t lo, uint32_t hi, int mc) {
+    if (mc != curMc) { setupGenerator(&G, mc, 0); curMc = mc; }
+    applySeed(&G, DIM_OVERWORLD, ((uint64_t)hi << 32) | lo);
+}
+
+
+#include "../xcub/biomenoise.h"
+#include <limits.h>
+const int *getBiomeParaLimits(int mc, int id);
+static BiomeNoise PB;
+static int grpOcean[] = {0,24,10,50,44,45,48,46,49,-99};
+static int grpBad[] = {37,38,165,-99};
+// fill lim[12] with union of limits for a requested id; returns 0 if unknown
+static int limitsFor(int mc, int want, int lim[12]) {
+    int *grp = want == -1 ? grpOcean : want == -2 ? grpBad : 0;
+    int single[2] = {want, -99};
+    if (!grp) grp = single;
+    int first = 1;
+    for (int k = 0; grp[k] != -99; k++) {
+        const int *l = getBiomeParaLimits(mc, grp[k]);
+        if (!l) return 0;
+        for (int j = 0; j < 12; j += 2) {
+            if (first) { lim[j] = l[j]; lim[j+1] = l[j+1]; }
+            else { if (l[j] < lim[j]) lim[j] = l[j]; if (l[j+1] > lim[j+1]) lim[j+1] = l[j+1]; }
+        }
+        first = 0;
+    }
+    return !first;
+}
+int g_lastCx, g_lastCz;
+// conservative climate pre-check. returns 0 when some requested biome surely cannot appear.
+int prefilter(int mc, int n, int R, int step, int cx, int cz, int margin) {
+    static const int order[5] = {NP_CONTINENTALNESS, NP_TEMPERATURE, NP_HUMIDITY, NP_EROSION, NP_WEIRDNESS};
+    int lims[16][12]; int has[16];
+    for (int i = 0; i < n; i++) has[i] = limitsFor(mc, idsBuf[i], lims[i]);
+    long long R2 = (long long)R * R;
+    for (int oi = 0; oi < 5; oi++) {
+        int p = order[oi];
+        int need = 0, okMask = 0;
+        for (int i = 0; i < n; i++)
+            if (has[i] && (lims[i][2*p] != INT_MIN || lims[i][2*p+1] != INT_MAX)) need |= 1 << i;
+        if (!need) continue;
+        setClimateParaSeed(&PB, G.seed, 0, p, -1);
+        for (int x = -R; x <= R && okMask != need; x += step)
+            for (int z = -R; z <= R; z += step) {
+                if ((long long)x*x + (long long)z*z > R2) continue;
+                double v = sampleClimatePara(&PB, 0, (cx + x) / 4.0, (cz + z) / 4.0) * 10000.0;
+                for (int i = 0; i < n; i++) {
+                    if (!(need >> i & 1) || (okMask >> i & 1)) continue;
+                    double lo = lims[i][2*p] == INT_MIN ? -1e18 : lims[i][2*p] - margin;
+                    double hi = lims[i][2*p+1] == INT_MAX ? 1e18 : lims[i][2*p+1] + margin;
+                    if (v >= lo && v <= hi) okMask |= 1 << i;
+                }
+                if (okMask == need) break;
+            }
+        if (okMask != need) return 0;
+    }
+    return 1;
+}
+
+/* ---------- structures ---------- */
+static int sidsBuf[16];
+int *sids_ptr(void) { return sidsBuf; }
+static int floorDiv(int a, int b) { return a >= 0 ? a / b : -((-a + b - 1) / b); }
+static int viableAt(int st, int x, int z) {
+    if (!isViableStructurePos(st, &G, x, z, 0)) return 0;
+    if (!isViableStructureTerrain(st, &G, x, z)) return 0;
+    return 1;
+}
+/* nearest viable instance of structure st within R of (cx,cz). returns squared distance or -1 */
+static long long nearestStruct(int st, int R, int cx, int cz, int *ox, int *oz, int anyOk) {
+    long long R2 = (long long)R * R, best = -1;
+    if (st == Stronghold) {
+        StrongholdIter sh; initFirstStronghold(&sh, G.mc, G.seed);
+        for (int i = 0; i < 128; i++) {
+            int more = nextStronghold(&sh, &G);
+            long long dx = sh.pos.x - cx, dz = sh.pos.z - cz, d2 = dx*dx + dz*dz;
+            if (d2 <= R2 && (best < 0 || d2 < best)) { best = d2; *ox = sh.pos.x; *oz = sh.pos.z; if (anyOk) return best; }
+            if (!more) break;
+            long long ax = sh.nextapprox.x, az = sh.nextapprox.z;
+            double od = sqrt((double)(ax*ax + az*az)), cd = sqrt((double)cx*cx + (double)cz*cz);
+            if (od - 200 > cd + R) break; // later rings are only further away
+        }
+        return best;
+    }
+    StructureConfig sc;
+    if (!getStructureConfig(st, G.mc, &sc)) return -1;
+    int rs = sc.regionSize * 16;
+    int rx0 = floorDiv(cx - R, rs), rx1 = floorDiv(cx + R, rs);
+    int rz0 = floorDiv(cz - R, rs), rz1 = floorDiv(cz + R, rs);
+    for (int rx = rx0; rx <= rx1; rx++)
+        for (int rz = rz0; rz <= rz1; rz++) {
+            Pos p;
+            if (!getStructurePos(st, G.mc, G.seed, rx, rz, &p)) continue;
+            long long dx = p.x - cx, dz = p.z - cz, d2 = dx*dx + dz*dz;
+            if (d2 > R2 || (best >= 0 && d2 >= best)) continue;
+            if (!viableAt(st, p.x, p.z)) continue;
+            best = d2; *ox = p.x; *oz = p.z;
+            if (anyOk) return best;
+        }
+    return best;
+}
+static int isqrtll(long long d) { int r = (int)sqrt((double)d); while ((long long)r*r > d) r--; while ((long long)(r+1)*(r+1) <= d) r++; return r; }
+
+static int rectBuf[8192];
+int *rect_ptr(void) { return rectBuf; }
+/* all viable instances of st inside rectangle; returns count (x,z pairs in rectBuf) */
+int structs_rect(int st, int x0, int z0, int x1, int z1, int max) {
+    int cnt = 0;
+    if (max > 4096) max = 4096;
+    if (st == Stronghold) {
+        StrongholdIter sh; initFirstStronghold(&sh, G.mc, G.seed);
+        for (int i = 0; i < 128 && cnt < max; i++) {
+            int more = nextStronghold(&sh, &G);
+            if (sh.pos.x >= x0 && sh.pos.x <= x1 && sh.pos.z >= z0 && sh.pos.z <= z1) { rectBuf[cnt*2] = sh.pos.x; rectBuf[cnt*2+1] = sh.pos.z; cnt++; }
+            if (!more) break;
+        }
+        return cnt;
+    }
+    StructureConfig sc;
+    if (!getStructureConfig(st, G.mc, &sc)) return 0;
+    int rs = sc.regionSize * 16;
+    int rx0 = floorDiv(x0, rs), rx1 = floorDiv(x1, rs), rz0 = floorDiv(z0, rs), rz1 = floorDiv(z1, rs);
+    if ((long long)(rx1 - rx0 + 1) * (rz1 - rz0 + 1) > 40000) return -1; // too many regions at this zoom
+    for (int rx = rx0; rx <= rx1; rx++)
+        for (int rz = rz0; rz <= rz1 && cnt < max; rz++) {
+            Pos p;
+            if (!getStructurePos(st, G.mc, G.seed, rx, rz, &p)) continue;
+            if (p.x < x0 || p.x > x1 || p.z < z0 || p.z > z1) continue;
+            if (!viableAt(st, p.x, p.z)) continue;
+            rectBuf[cnt*2] = p.x; rectBuf[cnt*2+1] = p.z; cnt++;
+        }
+    return cnt;
+}
+
+/* biome area for the map */
+static int *areaCache = 0; static long areaCap = 0;
+int *gen_area(int scale, int x, int z, int sx, int sz, int y) {
+    Range r = {scale, x, z, sx, sz, y, 1};
+    size_t need = getMinCacheSize(&G, scale, sx, 1, sz);
+    if ((long)need > areaCap) { free(areaCache); areaCache = (int*)malloc(need * sizeof(int)); areaCap = (long)need; }
+    if (!areaCache) return 0;
+    if (genBiomes(&G, areaCache, r)) return 0;
+    return areaCache;
+}
+int spawn_xz(void) { Pos p = getSpawn(&G); outBuf[80] = p.x; outBuf[81] = p.z; return 1; }
+
+int test_seed(uint32_t lo, uint32_t hi, int mc, int n, int R, int step, int cx, int cz, int useSpawn, int fast, int ns) {
+    set_seed(lo, hi, mc);
+    if (useSpawn) { Pos sp = estimateSpawn(&G, 0); cx = sp.x; cz = sp.z; }
+    for (int k = 0; k < ns; k++) { int ox, oz; if (nearestStruct(sidsBuf[k], R, cx, cz, &ox, &oz, 1) < 0) return 0; }
+    if (n == 0) return 1;
+    if (fast && !prefilter(mc, n, R, step * 2, cx, cz, fast)) return 0;
+    prepY(n);
+    int found = 0, all = (1 << n) - 1;
+    long long R2 = (long long)R * R;
+    for (int pass = 0; pass < 2 && found != all; pass++) {
+        int st = pass == 0 ? step * 2 : step;
+        for (int x = -R; x <= R && found != all; x += st)
+            for (int z = -R; z <= R; z += st) {
+                if (pass == 1 && ((x + R) % (2*step) == 0) && ((z + R) % (2*step) == 0)) continue;
+                if ((long long)x*x + (long long)z*z > R2) continue;
+                int bs[4] = {-9,-9,-9,-9};
+                for (int i = 0; i < n; i++) {
+                    if (found >> i & 1) continue;
+                    int k = yIdx[i];
+                    if (bs[k] == -9) bs[k] = getBiomeAt(&G, 4, (cx + x) >> 2, yList[k] >> 2, (cz + z) >> 2);
+                    if (matchB(idsBuf[i], bs[k])) found |= 1 << i;
+                }
+                if (found == all) break;
+            }
+    }
+    return found == all;
+}
+
+void nearest(int n, int R, int step, int cx, int cz, int useSpawn, int ns) {
+    prepY(n);
+    if (useSpawn) { Pos sp = getSpawn(&G); cx = sp.x; cz = sp.z; }
+    outBuf[80] = cx; outBuf[81] = cz;
+    long long best[16];
+    for (int i = 0; i < n; i++) { best[i] = -1; outBuf[i*3] = outBuf[i*3+1] = 0; outBuf[i*3+2] = -1; }
+    long long R2 = (long long)R * R;
+    for (int x = -R; x <= R; x += step)
+        for (int z = -R; z <= R; z += step) {
+            long long d2 = (long long)x*x + (long long)z*z;
+            if (d2 > R2) continue;
+            int bs[4] = {-9,-9,-9,-9};
+            for (int i = 0; i < n; i++) {
+                if (best[i] >= 0 && d2 >= best[i]) continue;
+                int k = yIdx[i];
+                if (bs[k] == -9) bs[k] = getBiomeAt(&G, 4, (cx + x) >> 2, yList[k] >> 2, (cz + z) >> 2);
+                if (matchB(idsBuf[i], bs[k])) { best[i] = d2; outBuf[i*3] = cx + x; outBuf[i*3+1] = cz + z; }
+            }
+        }
+    for (int i = 0; i < n; i++) {
+        long long d = best[i]; int r = 0;
+        if (d >= 0) { while ((long long)(r+1)*(r+1) <= d) r++; }
+        outBuf[i*3+2] = d < 0 ? -1 : r;
+    }
+    for (int k = 0; k < ns; k++) {
+        int ox = 0, oz = 0; long long d2 = nearestStruct(sidsBuf[k], R, cx, cz, &ox, &oz, 0);
+        outBuf[(n+k)*3] = ox; outBuf[(n+k)*3+1] = oz; outBuf[(n+k)*3+2] = d2 < 0 ? -1 : isqrtll(d2);
+    }
+}
+int biome_at(int x, int z, int y) { return getBiomeAt(&G, 4, x >> 2, y >> 2, z >> 2); }
+int mc_wd(void) { return MC_26_3; }
+int height_at(int x, int z) { float y = 0; mapApproxHeight(&y, NULL, &G, NULL, x >> 2, z >> 2, 1, 1); return (int)y; }
