@@ -159,7 +159,7 @@ body.mapfull .mapstage { position: fixed; inset: 0; z-index: 60; height: auto; m
 #planBox .ph .sp { flex: 1; }
 #planBox button { background: #263038; color: #e8eee9; border: 0; border-radius: 6px; padding: 4px 10px; font: inherit; cursor: pointer; }
 #planBox .pb { flex: 1; display: flex; min-height: 0; }
-#planBox .cv { flex: 1; position: relative; min-width: 0; touch-action: none; }
+#planBox .cv { flex: 1; position: relative; min-width: 0; touch-action: none; background: #1d252b; }
 #planBox canvas { position: absolute; inset: 0; width: 100%; height: 100%; cursor: grab; }
 #planBox .pi { width: 280px; overflow-y: auto; padding: 10px 12px; border-left: 1px solid #263038; }
 #planBox .pi .lc ul { margin: 4px 0 8px 18px; padding: 0; }

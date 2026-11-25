@@ -1748,7 +1748,7 @@ async function openPlan(st, x, z) {
   if (!box) {
     box = document.createElement("div"); box.id = "planBox";
     box.innerHTML = `<div class="ph"><b class="pt"></b><span class="d pc"></span><span class="sp"></span>
-      <label>층 <input type="range" class="py" style="width:140px"></label><span class="pyv d"></span><label><input type="checkbox" class="pall" checked> 전체 층</label>
+      <label>층 <input type="range" class="py" style="width:140px"></label><span class="pyv d"></span><label><input type="checkbox" class="pall" checked> 전체 층</label><label><input type="checkbox" class="pol"> 조각 테두리</label>
       <button type="button" class="pz" data-z="1.4">＋</button><button type="button" class="pz" data-z="0.7">－</button><button type="button" class="px">닫기</button></div>
       <div class="ph lg"></div>
       <div class="pb"><div class="cv"><canvas></canvas><div class="tip"></div></div><div class="pi"></div></div>`;
@@ -1756,7 +1756,7 @@ async function openPlan(st, x, z) {
     box.querySelector(".px").onclick = () => { box.classList.remove("on"); PLAN.on = false; };
     box.querySelectorAll(".pz").forEach(b => b.onclick = () => { PLAN.s *= +b.dataset.z; drawPlan(); });
     box.querySelector(".py").oninput = () => { box.querySelector(".pall").checked = false; drawPlan(); };
-    box.querySelector(".pall").onchange = drawPlan;
+    box.querySelector(".pall").onchange = drawPlan; box.querySelector(".pol").onchange = drawPlan;
     const cv = box.querySelector("canvas"), pts = new Map();
     let drag = null, moved = false, pinch = 0;
     cv.addEventListener("pointerdown", e => { cv.setPointerCapture(e.pointerId); pts.set(e.pointerId, [e.offsetX, e.offsetY]); drag = [e.offsetX, e.offsetY]; moved = false; if (pts.size === 2) { const [a, b] = [...pts.values()]; pinch = Math.hypot(a[0] - b[0], a[1] - b[1]); } });
@@ -1775,13 +1775,19 @@ async function openPlan(st, x, z) {
   box.classList.add("on"); PLAN.on = true;
   box.querySelector(".pt").textContent = (PLAN_NAME[st] || "") + " 평면도";
   box.querySelector(".pc").textContent = "계산 중…";
-  box.querySelector(".pi").innerHTML = `<p class="d">상자 점을 누르면 내용물이 여기에 나와요. 위쪽이 북쪽(-Z)이에요.</p>`;
+  box.querySelector(".pi").innerHTML = `<p class="d">상자 점을 누르면 내용물이 여기에 나와요. 위쪽이 북쪽(-Z)이에요.</p><p class="d">층을 고르면 그 높이보다 위에 있는 블록을 걷어 내고 보여 줘요. 무작위로 부서지는 블록, 땅, 나무 같은 장식은 빠져 있어요.</p>`;
   let chests;
   try { chests = await lootChests(st, x, z); } catch (e) { box.querySelector(".pc").textContent = "계산하다가 문제가 생겼어요."; return; }
   // 주민·동물 같은 1칸짜리 조각은 빼고 (생성기는 남김)
   const pcs = (lastPieces || []).filter(p => p.el.t !== "f" && ((p.bb[3] - p.bb[0] + 1) * (p.bb[5] - p.bb[2] + 1) > 2 || /spawner/.test(p.el.l || "")));
   let x0 = 1e9, x1 = -1e9, z0 = 1e9, z1 = -1e9, y0 = 1e9, y1 = -1e9;
   for (const p of pcs) { x0 = Math.min(x0, p.bb[0]); x1 = Math.max(x1, p.bb[3]); z0 = Math.min(z0, p.bb[2]); z1 = Math.max(z1, p.bb[5]); y0 = Math.min(y0, p.bb[1]); y1 = Math.max(y1, p.bb[4]); }
+  const tname = { 13: "ancient_city", 25: "trial_chambers", 5: "village" }[st];
+  PLAN.tops = null; PLAN.rkey = null;
+  PLAN.tsize = Object.fromEntries(Object.entries((st === 13 ? AC_DATA : (await jigsawData(tname)).d).T).map(([k, v]) => [k, v.s]));
+  try { PLAN.tops = await topsData(tname); } catch (e) {}
+  for (const p of lastPieces || []) if (p.el.t !== "f") { x0 = Math.min(x0, p.bb[0]); x1 = Math.max(x1, p.bb[3]); z0 = Math.min(z0, p.bb[2]); z1 = Math.max(z1, p.bb[5]); }
+  PLAN.all = (lastPieces || []).filter(p => p.el.t !== "f"); PLAN.box = [x0, z0];
   Object.assign(PLAN, { st, pcs, chests: chests.map(c => ({ ...c, y: c.y !== undefined ? +c.y : 0 })), cx: (x0 + x1) / 2, cz: (z0 + z1) / 2, s: 0, sel: -1, ext: [x1 - x0 + 1, z1 - z0 + 1] });
   const yr = box.querySelector(".py"); yr.min = y0; yr.max = y1; yr.value = Math.round((y0 + y1) / 2); box.querySelector(".pall").checked = true;
   const main = PLAN.chests.filter(c => !/^(pots|dispensers)\//.test(c.t)).length;
@@ -1789,6 +1795,69 @@ async function openPlan(st, x, z) {
   const lg = { 13: [["#7b5cc4", "도시 중심"], ["#2f8f8a", "건물"], ["#4a5560", "벽"], ["#9a7b4f", "입구"]], 25: [["#c97b3a", "방"], ["#5a6f8a", "복도"], ["#4f9a5b", "교차로"], ["#d4b13a", "보상"], ["#d04a4a", "생성기"]], 5: [["#d4a13a", "마을 중심"], ["#a0613a", "건물"], ["#8a7a5a", "길"]] }[st] || [];
   box.querySelector(".lg").innerHTML = lg.map(([c, n]) => `<span><i style="background:${c}"></i>${n}</span>`).join("") + `<span><i style="background:#ffd54a;border-radius:50%"></i>상자</span><span><i style="background:#b07a3a;border-radius:50%"></i>통</span>` + (st === 25 ? `<span><i style="background:#e58fb0;border-radius:50%"></i>항아리</span><span><i style="background:#9aa3ab;border-radius:50%"></i>발사기</span>` : "");
   drawPlan();
+}
+// 항공샷: 템플릿마다 위에서 보이는 블록(위가 빈 블록)을 받아 와서, 조각 위치·회전대로 깔고 높이로 음영
+const DYE = { white: "#e9ecec", orange: "#f07613", magenta: "#bd44b3", light_blue: "#3aafd9", yellow: "#f8c527", lime: "#70b919", pink: "#ed8dac", gray: "#3e4447", light_gray: "#8e8e86", cyan: "#158991", purple: "#792aac", blue: "#35399d", brown: "#724728", green: "#546d1b", red: "#a12722", black: "#141519" };
+const WOOD = { oak: "#a2824e", spruce: "#6b4f2e", dark_oak: "#4a321b", acacia: "#ad5d32", jungle: "#9c6e4a", birch: "#c8b77a", mangrove: "#773934", cherry: "#e2b2a8", bamboo: "#c4b04f" };
+function blockColor(n) {
+  const dye = Object.keys(DYE).sort((a, b) => b.length - a.length).find(d => n.startsWith(d + "_"));
+  if (dye && /wool|carpet|bed|terracotta|candle|banner|concrete|glass/.test(n)) return DYE[dye];
+  const wd = Object.keys(WOOD).sort((a, b) => b.length - a.length).find(w => n.includes(w + "_"));
+  if (/leaves/.test(n)) return "#3f7f2f";
+  if (wd) return /log|wood/.test(n) && !/stripped/.test(n) ? shadeHex(WOOD[wd], 0.75) : WOOD[wd];
+  const R = [[/sculk/, "#15606a"], [/soul_(fire|lantern|torch)/, "#5fd3d7"], [/lantern|torch|lamp|campfire|glowstone|shroomlight/, "#f0c060"], [/reinforced_deepslate/, "#5a6160"],
+    [/deepslate_tile/, "#55555e"], [/deepslate_brick/, "#64646d"], [/chiseled_deepslate/, "#6e6e77"], [/deepslate/, "#6a6a73"], [/basalt/, "#55565a"],
+    [/oxidized/, "#4fa58c"], [/copper/, "#c06a45"], [/vault|trial_spawner/, "#3c4448"], [/tuff/, "#6c6d66"],
+    [/mossy|moss/, "#5f7a4a"], [/stone_brick/, "#7a7a7a"], [/smooth_stone/, "#9a9a9a"], [/cobble/, "#6f6f6f"], [/andesite/, "#8a8b8b"], [/diorite/, "#c8c8c4"], [/granite/, "#9a6b55"], [/stone|stonecutter|grindstone/, "#7d7d7d"],
+    [/sandstone|sand/, "#d8cc95"], [/terracotta/, "#985f45"], [/bricks/, "#965a46"], [/grass_block/, "#6aa84f"], [/short_grass|tall_grass|fern|vine|sapling|wheat|stem|flower|poppy|dandelion|dead_bush|cactus/, "#5d9a3c"],
+    [/dirt_path/, "#94793e"], [/farmland/, "#6e4b2a"], [/dirt|clay|podzol/, "#8b6a46"], [/water/, "#3f76e4"], [/lava|magma/, "#e0611c"], [/packed_ice|blue_ice/, "#7aa6f0"], [/ice/, "#a5c3f5"], [/snow/, "#f4f8f8"],
+    [/hay/, "#c9a52d"], [/pumpkin/, "#d98a1a"], [/melon/, "#7fae2a"], [/glass/, "#bcd9e0"], [/iron|chain|anvil|cauldron/, "#a7a7a7"], [/bookshelf|lectern|barrel|chest|crafting|cartography|fletching|smithing|loom|composter|note_block/, "#8f6b3f"],
+    [/furnace|smoker|dispenser|dropper|hopper|piston|observer/, "#6a6a6a"], [/redstone|repeater|comparator|lever/, "#b02a1a"], [/bone/, "#e3dcc0"], [/cobweb/, "#dddddd"], [/pot/, "#9a5b3e"], [/bell/, "#e0b533"]];
+  for (const [re, c] of R) if (re.test(n)) return c;
+  return "#8a8a8a";
+}
+function shadeHex(h, f) { const v = parseInt(h.slice(1), 16); return "#" + [16, 8, 0].map(k => Math.min(255, Math.round(((v >> k) & 255) * f)).toString(16).padStart(2, "0")).join(""); }
+const topsCache = {};
+function topsData(name) {
+  if (!topsCache[name]) topsCache[name] = fetch("jigsaw/" + name + "_tops.json").then(r => r.json()).then(d => {
+    const col = d.B.map(b => { const v = parseInt(blockColor(b).slice(1), 16); return [(v >> 16) & 255, (v >> 8) & 255, v & 255]; }), T = {};
+    return { col, get(t) {   // 템플릿 → Int16Array [x, y, z, 블록, ...]
+      if (T[t]) return T[t]; const r = d.R[t], sz = (PLAN.tsize[t] || [1, 1, 1])[2], out = [];
+      if (r) for (const c of r.split(";")) { const [k, v] = c.split(":"), xz = +k, a = v.split(","); for (let i = 0; i < a.length; i += 2) out.push(Math.floor(xz / sz), +a[i], xz % sz, +a[i + 1]); }
+      return T[t] = Int16Array.from(out); } };
+  });
+  return topsCache[name];
+}
+function planRaster() {
+  const P = PLAN; if (!P.tops) return null;
+  const fy = planFloor(), key = fy === null ? "all" : fy;
+  if (P.rkey === key) return P.raster;
+  const [x0, z0] = [P.box[0], P.box[1]], W = P.ext[0], H = P.ext[1];
+  const hy = new Int16Array(W * H).fill(-32768), cb = new Int16Array(W * H).fill(-1);
+  const put = (el, pos, r) => {
+    if (el.t === "l") { el.e.forEach(e => put(e, pos, r)); return; }
+    if (el.t !== "s") return;
+    const a = P.tops.get(el.l);
+    for (let i = 0; i < a.length; i += 4) {
+      const q = r === 0 ? [a[i], a[i + 2]] : r === 1 ? [-a[i + 2], a[i]] : r === 2 ? [-a[i], -a[i + 2]] : [a[i + 2], -a[i]];
+      const X = q[0] + pos[0] - x0, Z = q[1] + pos[2] - z0, Y = a[i + 1] + pos[1];
+      if (X < 0 || Z < 0 || X >= W || Z >= H || (fy !== null && Y > fy)) continue;
+      const k = Z * W + X; if (Y >= hy[k]) { hy[k] = Y; cb[k] = a[i + 3]; }
+    }
+  };
+  for (const p of P.all) put(p.el, p.pos, p.rot);
+  const cv = document.createElement("canvas"); cv.width = W; cv.height = H;
+  const g = cv.getContext("2d"), im = g.createImageData(W, H), d = im.data;
+  let lo = 32767, hi = -32768; for (let k = 0; k < W * H; k++) if (cb[k] >= 0) { lo = Math.min(lo, hy[k]); hi = Math.max(hi, hy[k]); }
+  for (let z = 0; z < H; z++) for (let x = 0; x < W; x++) {
+    const k = z * W + x; if (cb[k] < 0) continue;
+    const c = P.tops.col[cb[k]], n = z > 0 && cb[k - W] >= 0 ? hy[k - W] : hy[k];
+    let f = hy[k] > n ? 1.08 : hy[k] < n ? 0.72 : 0.9;           // 지도처럼 북쪽 이웃보다 높으면 밝게
+    f *= 0.7 + 0.3 * (hi > lo ? (hy[k] - lo) / (hi - lo) : 1);     // 낮은 곳은 어둡게
+    d[k * 4] = Math.min(255, c[0] * f); d[k * 4 + 1] = Math.min(255, c[1] * f); d[k * 4 + 2] = Math.min(255, c[2] * f); d[k * 4 + 3] = 255;
+  }
+  g.putImageData(im, 0, 0);
+  P.rkey = key; P.raster = cv; return cv;
 }
 function planView() {
   const cv = $("planBox").querySelector("canvas"), w = cv.clientWidth, h = cv.clientHeight;
@@ -1803,8 +1872,11 @@ function drawPlan() {
   const g = cv.getContext("2d"); g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, w, h);
   const fy = planFloor(); $("planBox").querySelector(".pyv").textContent = fy === null ? "" : "Y " + fy;
   const on = p => fy === null || (p.bb[1] <= fy && p.bb[4] >= fy);
-  const order = [...PLAN.pcs].sort((a, b) => (on(a) - on(b)) || (a.bb[1] - b.bb[1]));
+  const ras = planRaster(), outline = $("planBox").querySelector(".pol").checked;
+  if (ras) { g.imageSmoothingEnabled = false; g.drawImage(ras, sx(PLAN.box[0]), sz(PLAN.box[1]), PLAN.ext[0] * PLAN.s, PLAN.ext[1] * PLAN.s); }
+  const order = ras && !outline ? [] : [...PLAN.pcs].sort((a, b) => (on(a) - on(b)) || (a.bb[1] - b.bb[1]));
   for (const p of order) {
+    if (ras) { if (!on(p)) continue; g.globalAlpha = 0.8; g.strokeStyle = planColor(PLAN.st, p); g.lineWidth = 1.5; g.strokeRect(sx(p.bb[0]) + .5, sz(p.bb[2]) + .5, (p.bb[3] - p.bb[0] + 1) * PLAN.s - 1, (p.bb[5] - p.bb[2] + 1) * PLAN.s - 1); continue; }
     const a = sx(p.bb[0]), b = sz(p.bb[2]), ww = (p.bb[3] - p.bb[0] + 1) * PLAN.s, hh = (p.bb[5] - p.bb[2] + 1) * PLAN.s;
     const street = PLAN.st === 5 && /streets|terminators/.test(p.el.l || "");
     g.globalAlpha = on(p) ? (fy === null ? (street ? 0.3 : 0.55) : 0.9) : 0.12;
