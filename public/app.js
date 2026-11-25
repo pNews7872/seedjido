@@ -1792,7 +1792,12 @@ async function openPlan(st, x, z) {
   Object.assign(PLAN, { st, pcs, chests: chests.map(c => ({ ...c, y: c.y !== undefined ? +c.y : 0 })), cx: (x0 + x1) / 2, cz: (z0 + z1) / 2, s: 0, sel: -1, hov: -1, ext: [x1 - x0 + 1, z1 - z0 + 1] });
   { const hst = {}; for (const p of pcs) { const a = (p.bb[3] - p.bb[0] + 1) * (p.bb[5] - p.bb[2] + 1); hst[p.bb[1]] = (hst[p.bb[1]] || 0) + a; }
     PLAN.repY = +Object.entries(hst).sort((a, b) => b[1] - a[1])[0][0] + 2; }   // 바닥이 가장 넓은 높이 + 2 (벽을 자르는 높이)
-  const yr = box.querySelector(".py"); yr.min = y0; yr.max = y1; yr.value = Math.round((y0 + y1) / 2); box.querySelector(".pall").checked = true;
+  if (st === 13 && PLAN.tops) {   // 고대 도시: 1층 바닥(위에서 보이는 면이 가장 많은 높이) 위, 발 높이에서 자름
+    const hs = {};
+    for (const p of PLAN.all) if (p.el.t === "s") { const a = PLAN.tops.get(p.el.l); for (let i = 1; i < a.length; i += 4) { const yy = a[i] + p.pos[1]; hs[yy] = (hs[yy] || 0) + 1; } }
+    const top = Object.entries(hs).sort((a, b) => b[1] - a[1])[0]; if (top) PLAN.repY = +top[0] + 1;
+  }
+  const yr = box.querySelector(".py"); yr.min = y0; yr.max = y1; yr.value = st === 13 ? PLAN.repY : Math.round((y0 + y1) / 2); box.querySelector(".pall").checked = true;
   const main = PLAN.chests.filter(c => !/^(pots|dispensers)\//.test(c.t)).length;
   box.querySelector(".pc").textContent = `조각 ${pcs.length}개 · 상자 ${main}개${PLAN.chests.length > main ? ` (+ 항아리·발사기 ${PLAN.chests.length - main}개)` : ""}`;
   const lg = { 13: [["#7b5cc4", "도시 중심"], ["#2f8f8a", "건물"], ["#4a5560", "벽"], ["#9a7b4f", "입구"]], 25: [["#c97b3a", "방"], ["#5a6f8a", "복도"], ["#4f9a5b", "교차로"], ["#d4b13a", "보상"], ["#d04a4a", "생성기"]], 5: [["#d4a13a", "마을 중심"], ["#a0613a", "건물"], ["#8a7a5a", "길"]] }[st] || [];
