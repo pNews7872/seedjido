@@ -1775,7 +1775,7 @@ async function openPlan(st, x, z) {
   box.classList.add("on"); PLAN.on = true;
   box.querySelector(".pt").textContent = (PLAN_NAME[st] || "") + " 평면도";
   box.querySelector(".pc").textContent = "계산 중…";
-  box.querySelector(".pi").innerHTML = `<p class="d">상자 점을 누르면 내용물이 여기에 나와요. 위쪽이 북쪽(-Z)이에요.</p><p class="d">층을 고르면 그 높이보다 위에 있는 블록을 걷어 내고 보여 줘요. 무작위로 부서지는 블록, 나무 같은 장식은 빠져 있어요.</p><p class="d">주변 지형: 땅속 구조물은 고른 높이에서 자른 단면(돌·동굴·물·용암), 마을은 위에서 본 땅이에요. 구조물 바로 옆 몇 칸은 게임이 땅을 깎거나 메워서 다를 수 있어요.</p>`;
+  box.querySelector(".pi").innerHTML = `<p class="d">상자 점을 누르면 내용물이 여기에 나와요. 위쪽이 북쪽(-Z)이에요.</p><p class="d">층을 고르면 그 높이보다 위에 있는 블록을 걷어 내고 보여 줘요. 무작위로 부서지는 블록, 나무 같은 장식은 빠져 있어요.</p><p class="d">주변 지형: 땅속 구조물은 고른 높이에서 자른 단면(돌·동굴·물·용암), 마을은 위에서 본 땅이에요. 구조물이 주변 땅을 파내거나 메우는 것(게임의 땅 다듬기)도 계산에 넣었어요.</p>`;
   let chests;
   try { chests = await lootChests(st, x, z); } catch (e) { box.querySelector(".pc").textContent = "계산하다가 문제가 생겼어요."; return; }
   // 주민·동물 같은 1칸짜리 조각은 빼고 (생성기는 남김)
@@ -1788,7 +1788,7 @@ async function openPlan(st, x, z) {
   try { PLAN.tops = await topsData(tname); } catch (e) {}
   for (const p of lastPieces || []) if (p.el.t !== "f") { x0 = Math.min(x0, p.bb[0]); x1 = Math.max(x1, p.bb[3]); z0 = Math.min(z0, p.bb[2]); z1 = Math.max(z1, p.bb[5]); }
   const MG = 32; x0 -= MG; z0 -= MG; x1 += MG; z1 += MG;   // 주변 지형용 여유
-  PLAN.all = (lastPieces || []).filter(p => p.el.t !== "f"); PLAN.box = [x0, z0]; PLAN.terr = {}; PLAN.surf = null;
+  PLAN.all = (lastPieces || []).filter(p => p.el.t !== "f"); PLAN.full = lastPieces || []; PLAN.box = [x0, z0]; PLAN.terr = {}; PLAN.surf = null;
   Object.assign(PLAN, { st, pcs, chests: chests.map(c => ({ ...c, y: c.y !== undefined ? +c.y : 0 })), cx: (x0 + x1) / 2, cz: (z0 + z1) / 2, s: 0, sel: -1, hov: -1, ext: [x1 - x0 + 1, z1 - z0 + 1] });
   { const hst = {}; for (const p of pcs) { const a = (p.bb[3] - p.bb[0] + 1) * (p.bb[5] - p.bb[2] + 1); hst[p.bb[1]] = (hst[p.bb[1]] || 0) + a; }
     PLAN.repY = +Object.entries(hst).sort((a, b) => b[1] - a[1])[0][0] + 2; }   // 바닥이 가장 넓은 높이 + 2 (벽을 자르는 높이)
@@ -1880,9 +1880,24 @@ function biomeGround(id) {
   if (/mushroom/.test(b)) return [150, 120, 140];
   return [106, 168, 79];
 }
+// 게임처럼 구조물이 주변 땅을 다듬은 결과를 반영 (마을 beard_thin, 고대 도시 beard_box, 시련의 방 encapsulate)
+function planBeard(on) {
+  if (!on) { hoverEx.beard_set(0, 0, 0, 0, 0); return; }
+  const P = PLAN, ty = { 5: 2, 13: 3, 25: 4 }[P.st], rig = [], jn = [];
+  for (const p of P.full) { if (p.el.pr !== "t") rig.push(p.bb[0], p.bb[1], p.bb[2], p.bb[3], p.bb[4], p.bb[5], p.gld || 1, ty); for (const j of p.jn || []) jn.push(...j); }
+  const a = hoverEx.malloc(rig.length * 4 + 4), b = hoverEx.malloc(jn.length * 4 + 4);
+  new Int32Array(hoverEx.memory.buffer, a, rig.length).set(rig); new Int32Array(hoverEx.memory.buffer, b, jn.length).set(jn);
+  hoverEx.beard_set(a, rig.length / 8, b, jn.length / 3, 0); hoverEx.free(a); hoverEx.free(b);
+}
 function planTerrain() {
-  const P = PLAN, W = P.ext[0], H = P.ext[1], [x0, z0] = P.box;
+  const P = PLAN;
+  if (P.st === 5 ? P.surf : P.terr[planFloor() === null ? P.repY : planFloor()]) return P.st === 5 ? P.surf : P.terr[planFloor() === null ? P.repY : planFloor()];
   hoverEx.set_seed_dim(mapState.lo, mapState.hi, hoverEx.mc_wd(), 0);
+  planBeard(true);
+  try { return planTerrain2(); } finally { planBeard(false); }
+}
+function planTerrain2() {
+  const P = PLAN, W = P.ext[0], H = P.ext[1], [x0, z0] = P.box;
   const cv = document.createElement("canvas"); cv.width = W; cv.height = H;
   const g = cv.getContext("2d"), im = g.createImageData(W, H), d = im.data;
   if (P.st === 5) {
@@ -1907,10 +1922,6 @@ function planTerrain() {
   const bp = hoverEx.malloc(W * H);
   hoverEx.slice_area(x0, z0, W, H, y, bp);
   const u = new Uint8Array(hoverEx.memory.buffer, bp, W * H).slice(); hoverEx.free(bp);
-  if (P.st === 13) for (const p of P.all) {   // 고대 도시는 조각 상자 안쪽 땅을 비워 둠 (게임의 beard_box)
-    if (p.bb[1] > y || p.bb[4] < y) continue;
-    for (let z = p.bb[2]; z <= p.bb[5]; z++) for (let x = p.bb[0]; x <= p.bb[3]; x++) { const k = (z - z0) * W + (x - x0); if (k >= 0 && k < W * H && u[k] === 0) u[k] = 1; }
-  }
   const rock = y < 0 ? [58, 50, 44] : [96, 88, 78], C = [rock, [14, 17, 20], [47, 95, 191], [208, 84, 28]];
   for (let k = 0; k < W * H; k++) { const c = C[u[k]]; d[k * 4] = c[0]; d[k * 4 + 1] = c[1]; d[k * 4 + 2] = c[2]; d[k * 4 + 3] = 255; }
   g.putImageData(im, 0, 0); return P.terr[y] = cv;
@@ -2244,7 +2255,7 @@ function makeAssembler(data) {
     bp1[1] += dy; bb = [bb[0], bb[1] + dy, bb[2], bb[3], bb[4] + dy, bb[5]];
     const cy = k + v[1];
     const D = opts.maxDist, pad = opts.pad || [0, 0];
-    const pieces = [{ el: el0, pos: bp1, rot, bb, depth: 0 }];
+    const pieces = [{ el: el0, pos: bp1, rot, bb, depth: 0, gld: 1, jn: [] }];
     const outer = { c: [ci - D, Math.max(cy - D, -64 + pad[0]), cj - D, ci + D, Math.min(cy + D, 319 - pad[1]), cj + D], r: [bb] };
     const queue = [{ pc: pieces[0], free: outer, depth: 0, pri: 0, seq: 0 }];
     let seq = 1;
@@ -2301,7 +2312,15 @@ function makeAssembler(data) {
               if (hack > 0) { const i2 = Math.max(hack + 1, bb3[4] - bb3[1]); bb3[4] = Math.max(bb3[4], bb3[1] + i2); }
               if (!fits(shape, bb3)) continue;
               shape.r.push(bb3);
-              const np = { el: el1, pos: pos5, rot: r1, bb: bb3, depth: st.depth + 1 };
+              // 땅 다듬기(비어디파이어)용: 바닥 높이 보정값과 연결 지점
+              const j1v = j - i1 + fs[1];
+              const gld = cRigid ? pc.gld - j1v : 1;
+              let l2;
+              if (pRigid) l2 = i0 + j;
+              else if (cRigid) l2 = k1 + i1;
+              else { if (kh === null) kh = opts.heightFn(jg.p[0], jg.p[2]); l2 = kh + Math.trunc(j1v / 2); }
+              pc.jn.push([bp2[0], l2 - j + pc.gld, bp2[2]]);
+              const np = { el: el1, pos: pos5, rot: r1, bb: bb3, depth: st.depth + 1, gld, jn: [[jg.p[0], l2 - i1 + gld, jg.p[2]]] };
               pieces.push(np);
               if (st.depth + 1 <= opts.maxDepth) queue.push({ pc: np, free: shape, depth: st.depth + 1, pri: jg.place, seq: seq++ });
               placed = true; break;
