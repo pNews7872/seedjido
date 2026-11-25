@@ -1907,7 +1907,11 @@ function planTerrain() {
   const bp = hoverEx.malloc(W * H);
   hoverEx.slice_area(x0, z0, W, H, y, bp);
   const u = new Uint8Array(hoverEx.memory.buffer, bp, W * H).slice(); hoverEx.free(bp);
-  const rock = y < 0 ? [74, 74, 82] : [110, 112, 116], C = [rock, [14, 17, 20], [47, 95, 191], [208, 84, 28]];
+  if (P.st === 13) for (const p of P.all) {   // 고대 도시는 조각 상자 안쪽 땅을 비워 둠 (게임의 beard_box)
+    if (p.bb[1] > y || p.bb[4] < y) continue;
+    for (let z = p.bb[2]; z <= p.bb[5]; z++) for (let x = p.bb[0]; x <= p.bb[3]; x++) { const k = (z - z0) * W + (x - x0); if (k >= 0 && k < W * H && u[k] === 0) u[k] = 1; }
+  }
+  const rock = y < 0 ? [58, 50, 44] : [96, 88, 78], C = [rock, [14, 17, 20], [47, 95, 191], [208, 84, 28]];
   for (let k = 0; k < W * H; k++) { const c = C[u[k]]; d[k * 4] = c[0]; d[k * 4 + 1] = c[1]; d[k * 4 + 2] = c[2]; d[k * 4 + 3] = 255; }
   g.putImageData(im, 0, 0); return P.terr[y] = cv;
 }
