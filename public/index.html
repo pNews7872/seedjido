@@ -18,8 +18,11 @@
   <header>
     <div>
       <h1>시드 지도</h1>
-      <p>자바 에디션 26.3 지형 공식으로 시드를 찾고, 시드 지도를 브라우저에서 직접 계산해 보여줘요.</p>
+      <p><span id="verText">자바 에디션 26.3</span> 지형 공식으로 시드를 찾고, 시드 지도를 브라우저에서 직접 계산해 보여줘요.</p>
     </div>
+    <label class="verpick"><span>버전</span><select id="mcVer" aria-label="마인크래프트 버전">
+      <option value="0">자바 26.3 (최신)</option><option value="1">자바 1.21.11</option><option value="2">자바 1.21.1</option><option value="3">자바 1.20.x</option>
+      <option value="4">자바 1.18.2</option><option value="5">자바 1.16.1 (스피드런)</option><option value="6">자바 1.12.2</option><option value="7">자바 1.8.9</option></select></label>
     <div class="tabs" role="tablist">
       <button role="tab" id="tabMap" aria-selected="true" aria-controls="viewMap" type="button">지도 보기</button>
       <button role="tab" id="tabSearch" aria-selected="false" aria-controls="viewSearch" type="button">시드 찾기</button>
@@ -38,12 +41,29 @@
         <h2>꼭 있어야 할 구조물 <span class="count" id="sCount"></span></h2>
         <div class="selbar"><button type="button" class="mini" id="sNone">모두 해제</button></div>
         <div class="chips short" id="schips"></div>
-        <p class="hint">구조물은 생성 위치와 바이옴 조건까지 확인해요. 지형 높이 때문에 실제로는 안 생기는 경우가 드물게 있어요. 네더는 기준점 좌표를 8로 나눈 곳, 엔드는 드래곤을 처음 잡았을 때 생기는 관문의 출구를 기준으로 같은 반경 안을 찾아요. 엔드 유적과 좀벌레 스포너는 스폰에서 1280칸 이상 떨어져서만 생겨서 1500칸까지 찾아요. 슬라임 청크 2×2는 슬라임 청크 4개가 네모로 붙어 있는 곳이에요(슬라임 농장용). <b>느림</b> 표시는 계산이 무거워서 혼자 고르면 오래 걸려요. 상자 아이템은 반경 안 오버월드 구조물(폐광 제외)의 상자 내용물을 실제로 계산해서, 그 아이템이 든 가장 가까운 구조물을 찾아요.</p>
+        <p class="hint">구조물은 생성 위치와 바이옴 조건까지 확인해요. 지형 높이 때문에 실제로는 안 생기는 경우가 드물게 있어요. 네더는 기준점 좌표를 8로 나눈 곳, 엔드는 드래곤을 처음 잡았을 때 생기는 관문의 출구를 기준으로 같은 반경 안을 찾아요. 엔드 유적과 좀벌레 스포너는 스폰에서 1280칸 이상 떨어져서만 생겨서 1500칸까지 찾아요. 슬라임 청크 2×2는 슬라임 청크 4개가 네모로 붙어 있는 곳이에요(슬라임 농장용). <b>느림</b> 표시는 계산이 무거워서 혼자 고르면 오래 걸려요. 상자 아이템은 반경 안 오버월드 구조물(폐광 제외)의 상자 내용물을 실제로 계산해서, 그 아이템이 든 가장 가까운 구조물을 찾아요. 최신 버전(26.3)에서는 마을, 고대 도시, 시련의 방 상자도, 1.16.1에서는 마을 상자도 포함해요.</p>
+
+        <h2>스피드런 조건 <label class="srtog"><input type="checkbox" id="srOn"> 사용</label></h2>
+        <div class="srbox" id="srBox">
+          <p class="hint">체크한 조건만 검사해요. 거리는 조건마다 따로 정해요. 위의 바이옴·구조물 조건과 같이 써도 돼요.</p>
+          <div class="srrow"><label><input type="checkbox" id="srSh" checked> 엔드 유적</label><span>스폰에서 <input type="number" id="srShR" min="1300" max="3000" step="50" value="1700"> 칸 안</span></div>
+          <div class="srrow"><label><input type="checkbox" id="srFo" checked> 네더 요새</label><span>네더 스폰(스폰÷8)에서 <input type="number" id="srFoR" min="16" max="1000" step="10" value="150"> 칸 안</span></div>
+          <div class="srrow" id="srBaRow"><label><input type="checkbox" id="srBa"> 보루 잔해</label><span>그 네더 요새에서 <input type="number" id="srBaR" min="16" max="1000" step="10" value="150"> 칸 안</span></div>
+          <p class="hint" id="srBaHint">보루 잔해는 피글린과 물물교환해서 엔더진주를 얻는 곳이에요. 엔더진주는 상자에서는 엔드 유적 안에서만 나와요.</p>
+          <div class="srrow" id="srRpRow"><label><input type="checkbox" id="srRp"> 폐허가 된 차원문 틀</label><span>상자 흑요석까지 쓰고도 <input type="number" id="srRpN" min="0" max="20" value="0"> 개 이하 모자람</span></div>
+          <div class="srrow" id="srRpWRow"><label><input type="checkbox" id="srRpW"> 물 밑(바다·늪) 차원문은 빼기</label></div>
+          <p class="hint" id="srRpHint">아래 "상자 아이템" 반경 안의 폐허가 된 차원문 중, 틀의 빈칸과 우는 흑요석 자리를 그 차원문 상자의 흑요석으로 채우고도 남는 빈칸이 이 개수 이하인 것을 찾아요. 틀의 모서리 4칸은 없어도 켜져서 세지 않아요. 1.16.1과 26.3은 월드 파일로 확인했고, 1.18~1.21도 같은 방식으로 계산해요. 1.12.2·1.8.9에는 폐허가 된 차원문이 없어요.</p>
+          <div class="srrow" id="srItRow"><b>상자 아이템</b><span>스폰에서 <input type="number" id="srItR" min="50" max="1000" step="50" value="300"> 칸 안 상자들 합계</span></div>
+          <div id="srItems"></div>
+          <p class="hint" id="srItHint">상자 아이템은 폐허가 된 차원문, 난파선, 묻힌 보물, 사막 사원, 정글 사원 같은 오버월드 구조물 상자를 그 버전의 아이템 표로 실제 계산해서 더해요. 최신 버전(26.3)에서는 마을, 고대 도시, 시련의 방 상자도, 1.16.1에서는 마을 상자도 넣어요. 폐광은 아직 빠져요.</p>
+        </div>
 
         <h2>범위와 방식</h2>
-        <p class="hint">기준점에서 반경 500블록 안을 32칸 간격으로 확인해서, 조건에 맞는 시드를 10개 찾을 때까지 컴퓨터 코어를 최대한 써서 계산해요.</p>
+        <p class="hint" id="rangeHint">기준점에서 반경 500블록 안을 32칸 간격으로 확인해서, 조건에 맞는 시드를 10개 찾을 때까지 컴퓨터 코어를 최대한 써서 계산해요.</p>
         <div class="fields">
-          <input type="hidden" id="radius" value="500"><input type="hidden" id="step" value="32">
+          <div class="field"><label for="radius">찾는 반경 (칸)</label><input id="radius" type="number" min="50" max="5000" step="50" value="500"></div>
+          <div class="field"><label for="target">찾을 개수</label><input id="target" type="number" min="1" max="200" value="10"></div>
+          <input type="hidden" id="step" value="32">
           <div class="field full"><label for="center">거리 기준</label>
             <select id="center"><option value="spawn" selected>실제 스폰 지점 (계산)</option><option value="coord">직접 입력한 좌표</option></select></div>
           <div class="field"><label for="cx">중심 X</label><input id="cx" type="number" value="0" disabled></div>
@@ -51,7 +71,7 @@
           <div class="field"><label for="mode">시드 고르는 방식</label>
             <select id="mode"><option value="small">작은 숫자부터</option><option value="random">무작위</option></select></div>
           <div class="field"><label for="start">시작 숫자</label><input id="start" type="number" min="0" value="0"></div>
-          <input type="hidden" id="target" value="10"><input type="hidden" id="threads" value="4">
+          <input type="hidden" id="threads" value="4">
         </div>
         <label class="check" for="fast"><input id="fast" type="checkbox"> <span><b>빠른 검색</b> <span class="tag">베타</span><br><span class="hint">기후 값으로 바이옴이 절대 안 생기는 시드를 먼저 걸러내요. 조건에 따라 1.2~4배 빨라져요. 시험에서는 놓친 시드가 없었지만, 아주 드물게 놓칠 수 있어요.</span></span></label>
         <div class="actions">
@@ -71,11 +91,19 @@
           <h2>결과 · 행을 누르면 미리보기가 바뀌어요</h2>
           <div class="tablewrap"><table id="results"></table></div>
         </section>
+        <section class="panel" aria-label="저장한 시드">
+          <h2>저장한 시드 <span class="count" id="savedCount"></span></h2>
+          <div class="tablewrap"><table id="savedSeeds"></table></div>
+        </section>
         <section class="panel" aria-label="미리보기">
-          <div class="maphead"><h2 id="pvTitle">미리보기</h2><span><button class="mini" type="button" id="pvOpen">큰 지도로 보기</button> <a id="cbLink" href="https://www.chunkbase.com/apps/seed-map" target="_blank" rel="noopener">Chunkbase에서 열기</a></span></div>
+          <div class="maphead"><h2 id="pvTitle">미리보기</h2><span><button class="mini primarymini" type="button" id="pvOpen">이 자리 큰 지도로 열기</button> <a id="cbLink" href="https://www.chunkbase.com/apps/seed-map" target="_blank" rel="noopener">Chunkbase에서 열기</a></span></div>
           <div class="mapbox">
-            <canvas id="preview" width="240" height="240" aria-label="선택한 시드의 바이옴 미리보기"></canvas>
-            <div class="legend" id="legend"></div>
+            <div class="pvwrap"><canvas id="preview" width="320" height="320" aria-label="선택한 시드의 바이옴 미리보기. 끌어서 옮기고, 휠이나 두 손가락으로 확대"></canvas>
+              <div class="pvtip" id="pvTip" hidden></div>
+              <div class="pvzoom"><button type="button" class="mini" id="pvIn" aria-label="확대">＋</button><button type="button" class="mini" id="pvOut" aria-label="축소">－</button><button type="button" class="mini" id="pvReset" aria-label="처음 범위로">⤢</button></div></div>
+            <div><div class="legend" id="legend"></div>
+              <div class="pvsize"><span class="hint">미리보기 크기</span> <button type="button" class="mini" data-pvs="1">작게</button> <button type="button" class="mini" data-pvs="1.5">보통</button> <button type="button" class="mini" data-pvs="2.2">크게</button></div>
+              <div class="pvbiomes" id="pvBiomes"></div></div>
           </div>
           <ul class="notes">
             <li>가운데 십자가 기준점, 점선 원이 검색 반경, 색 점이 각 조건까지 가장 가까운 지점이에요.</li>

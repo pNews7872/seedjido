@@ -45,6 +45,7 @@ function aliasLookup(aliases, worldSeed, pos) {
   aliases.forEach(res);
   return map;
 }
+function shuffleFU(a, rnd) { for (let i = a.length; i-- !== 0;) { const p = rnd.nextInt(i + 1); const t = a[i]; a[i] = a[p]; a[p] = t; } return a; }
 function shuffle(list, rnd) { for (let i = list.length; i > 1; i--) { const k = rnd.nextInt(i); const t = list[i - 1]; list[i - 1] = list[k]; list[k] = t; } return list; }
 
 // ---------- 방향·회전 ----------
@@ -107,9 +108,12 @@ export function makeAssembler(data) {
     const pos0 = [cx * 16, y0, cz * 16];
     const alias = aliasLookup(opts.aliases, worldSeed, pos0);
     const poolOf = n => { n = n.replace('minecraft:', ''); return getPool(alias[n] || n); };
-    const rot = rnd.nextInt(4);
+    // 시작 조각: 보통은 회전 먼저, 1.16 보루 잔해는 조각을 먼저 뽑음 (월드 대조로 확인)
     const sp = poolOf(opts.startPool);
-    const el0 = sp.list[rnd.nextInt(sp.list.length)];
+    let rot, el0;
+    if (opts.elFirst) { el0 = sp.list[rnd.nextInt(sp.list.length)]; rot = rnd.nextInt(4); }
+    else { rot = rnd.nextInt(4); el0 = sp.list[rnd.nextInt(sp.list.length)]; }
+    for (let q = 0; q < (opts.startSkip || 0); q++) rnd.nextInt(2);   // 1.16 보루 잔해: 시작 조각을 뽑은 뒤 난수를 한 번 더 씀
     let bp1 = [...pos0], v = [0, 0, 0];
     if (opts.startJigsaw) {
       let jp = null;
@@ -149,8 +153,10 @@ export function makeAssembler(data) {
         if (inParent) { if (!own) own = { c: [...pbb], r: [] }; shape = own; } else shape = st.free;
         let kh = null;
         const cands = [];
-        if (st.depth !== opts.maxDepth) cands.push(...shuffle([...pool.list], rnd));
-        cands.push(...shuffle([...fb.list], rnd));
+        // 조각 후보 섞기: 1.16은 fastutil ObjectArrays.shuffle (원소 n개면 난수 n번), 이후 버전은 자바 Collections.shuffle (n-1번)
+        const shufT = opts.fastutil ? shuffleFU : shuffle;
+        if (st.depth !== opts.maxDepth) cands.push(...shufT([...pool.list], rnd));
+        cands.push(...shufT([...fb.list], rnd));
         let placed = false;
         for (const el1 of cands) {
           if (el1.t === 'e') break;

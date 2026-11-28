@@ -1,0 +1,3 @@
+import fs from 'fs'; import zlib from 'zlib'; import {parseNBT} from '/home/claude/seedweb/scan/lib.mjs';
+const b=fs.readFileSync('/tmp/w116/r.-2.-1.mca');for(let i=0;i<1024;i++){const off=(b.readUInt32BE(i*4)>>>8)*4096;if(!off)continue;const len=b.readUInt32BE(off);const r=parseNBT(new Uint8Array(zlib.inflateSync(b.subarray(off+5,off+4+len))));const S=r.Level.Structures&&r.Level.Structures.Starts&&r.Level.Structures.Starts.village;if(S&&S.id!=='INVALID'&&S.ChunkX===-47){
+ S.Children.forEach((c,i)=>{const B=Array.from(c.BB);if(-745>=B[0]-1&&-745<=B[3]+1&&-402>=B[2]-1&&-402<=B[5]+1)console.log(i,String(c.pool_element.location||(c.pool_element.feature&&'f')||'e'),c.rotation,B.join(','),c.junctions.map(j=>j.source_x+","+j.source_z+":"+j.dest_proj).join(" "));});}}

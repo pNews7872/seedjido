@@ -50,6 +50,14 @@ header p { margin: 0; color: var(--muted); max-width: 68ch; }
 @media (max-width: 880px) { .grid { grid-template-columns: 1fr; } }
 .panel { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 18px; display: grid; gap: 14px; min-width: 0; }
 .panel h2 { font-size: 14px; margin: 0; color: var(--muted); font-weight: 600; letter-spacing: 0.02em; }
+.verpick { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--muted); margin-left: auto; margin-right: 12px; }
+.verpick select { font: inherit; padding: 6px 8px; border-radius: 8px; border: 1px solid var(--line); background: var(--card, #fff); color: var(--ink); }
+.srtog { font-size: 13px; font-weight: 500; color: var(--muted); margin-left: 8px; display: inline-flex; gap: 4px; align-items: center; }
+.srbox { display: grid; gap: 6px; } .srbox[hidden] { display: none; }
+.srrow { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 10px; font-size: 13.5px; padding: 4px 0; border-bottom: 1px dashed var(--line); }
+.srrow label { display: inline-flex; gap: 6px; align-items: center; cursor: pointer; }
+.srrow input[type=number] { width: 70px; font: inherit; font-family: var(--font-mono); font-size: 13px; padding: 3px 6px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--ink); }
+.srrow.off span { opacity: .45; }
 .chips { display: flex; flex-wrap: wrap; gap: 6px; max-height: 300px; overflow-y: auto; padding-right: 4px; }
 .chips.short { max-height: none; }
 .grp { flex-basis: 100%; font-size: 12px; color: var(--muted); margin-top: 6px; }
@@ -110,9 +118,15 @@ tr.row.sel td { background: color-mix(in srgb, var(--accent) 14%, transparent); 
 .tag { font-size: 11px; color: var(--mark); border: 1px solid var(--mark); border-radius: 4px; padding: 0 4px; margin-left: 6px; font-weight: 600; }
 .mini { font: inherit; font-size: 12px; padding: 3px 8px; border-radius: 6px; border: 1px solid var(--line); background: transparent; color: var(--ink); cursor: pointer; }
 .empty { color: var(--muted); font-size: 14px; padding: 12px 2px; }
-.mapbox { display: grid; grid-template-columns: minmax(0, 400px) 1fr; gap: 16px; align-items: start; }
+.mapbox { display: grid; grid-template-columns: minmax(0, calc(400px * var(--pvs, 1))) 1fr; gap: 16px; align-items: start; }
 @media (max-width: 640px) { .mapbox { grid-template-columns: 1fr; } }
-#preview { width: 100%; height: auto; border-radius: 8px; border: 1px solid var(--line); image-rendering: pixelated; background: var(--bg); }
+#preview { width: 100%; height: auto; border-radius: 8px; border: 1px solid var(--line); image-rendering: pixelated; background: var(--bg); touch-action: none; cursor: grab; display: block; }
+.pvwrap { position: relative; }
+.pvtip { position: absolute; left: 8px; top: 8px; background: rgba(0,0,0,.72); color: #fff; font-size: 12px; padding: 4px 8px; border-radius: 6px; pointer-events: none; max-width: calc(100% - 16px); }
+.pvzoom { position: absolute; right: 8px; bottom: 8px; display: flex; gap: 4px; }
+.pvzoom .mini { min-width: 30px; background: rgba(255,255,255,.9); }
+.pvsize { margin: 10px 0 6px; } .pvsize .mini[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); }
+.pvbiomes { display: flex; flex-wrap: wrap; gap: 4px 10px; font-size: 12px; } .pvbiomes span { white-space: nowrap; } .pvbiomes i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 4px; vertical-align: -1px; border: 1px solid rgba(0,0,0,.2); }
 .legend { display: grid; gap: 6px; font-size: 13px; }
 .legend div { display: flex; align-items: center; gap: 8px; }
 .legend .sw { width: 14px; height: 14px; border-radius: 3px; border: 1px solid rgba(0,0,0,.25); flex: none; }
@@ -131,7 +145,7 @@ body.mapfull { overflow: hidden; }
 .seg.small { width: auto; }
 .seg.small button { padding: 4px 12px; font-size: 13px; white-space: nowrap; }
 #gl3d, #ov3d { position: absolute; inset: 0; width: 100%; height: 100%; }
-#gl3d { cursor: grab; } #ov3d { pointer-events: none; }
+#gl3d { cursor: grab; touch-action: none; } #ov3d { pointer-events: none; }
 #zcave[aria-pressed=true] { background: #2f6b4f; }
 .v3dnote { position: absolute; left: 10px; bottom: 10px; background: rgba(0,0,0,.6); color: #fff; font-size: 12px; padding: 5px 9px; border-radius: 6px; pointer-events: none; }
 h2.hq { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
@@ -246,8 +260,11 @@ body.mapfull .mapstage { position: fixed; inset: 0; z-index: 60; height: auto; m
   <header>
     <div>
       <h1>시드 지도</h1>
-      <p>자바 에디션 26.3 지형 공식으로 시드를 찾고, 시드 지도를 브라우저에서 직접 계산해 보여줘요.</p>
+      <p><span id="verText">자바 에디션 26.3</span> 지형 공식으로 시드를 찾고, 시드 지도를 브라우저에서 직접 계산해 보여줘요.</p>
     </div>
+    <label class="verpick"><span>버전</span><select id="mcVer" aria-label="마인크래프트 버전">
+      <option value="0">자바 26.3 (최신)</option><option value="1">자바 1.21.11</option><option value="2">자바 1.21.1</option><option value="3">자바 1.20.x</option>
+      <option value="4">자바 1.18.2</option><option value="5">자바 1.16.1 (스피드런)</option><option value="6">자바 1.12.2</option><option value="7">자바 1.8.9</option></select></label>
     <div class="tabs" role="tablist">
       <button role="tab" id="tabMap" aria-selected="true" aria-controls="viewMap" type="button">지도 보기</button>
       <button role="tab" id="tabSearch" aria-selected="false" aria-controls="viewSearch" type="button">시드 찾기</button>
@@ -266,12 +283,29 @@ body.mapfull .mapstage { position: fixed; inset: 0; z-index: 60; height: auto; m
         <h2>꼭 있어야 할 구조물 <span class="count" id="sCount"></span></h2>
         <div class="selbar"><button type="button" class="mini" id="sNone">모두 해제</button></div>
         <div class="chips short" id="schips"></div>
-        <p class="hint">구조물은 생성 위치와 바이옴 조건까지 확인해요. 지형 높이 때문에 실제로는 안 생기는 경우가 드물게 있어요. 네더는 기준점 좌표를 8로 나눈 곳, 엔드는 드래곤을 처음 잡았을 때 생기는 관문의 출구를 기준으로 같은 반경 안을 찾아요. 엔드 유적과 좀벌레 스포너는 스폰에서 1280칸 이상 떨어져서만 생겨서 1500칸까지 찾아요. 슬라임 청크 2×2는 슬라임 청크 4개가 네모로 붙어 있는 곳이에요(슬라임 농장용). <b>느림</b> 표시는 계산이 무거워서 혼자 고르면 오래 걸려요. 상자 아이템은 반경 안 오버월드 구조물(폐광 제외)의 상자 내용물을 실제로 계산해서, 그 아이템이 든 가장 가까운 구조물을 찾아요.</p>
+        <p class="hint">구조물은 생성 위치와 바이옴 조건까지 확인해요. 지형 높이 때문에 실제로는 안 생기는 경우가 드물게 있어요. 네더는 기준점 좌표를 8로 나눈 곳, 엔드는 드래곤을 처음 잡았을 때 생기는 관문의 출구를 기준으로 같은 반경 안을 찾아요. 엔드 유적과 좀벌레 스포너는 스폰에서 1280칸 이상 떨어져서만 생겨서 1500칸까지 찾아요. 슬라임 청크 2×2는 슬라임 청크 4개가 네모로 붙어 있는 곳이에요(슬라임 농장용). <b>느림</b> 표시는 계산이 무거워서 혼자 고르면 오래 걸려요. 상자 아이템은 반경 안 오버월드 구조물(폐광 제외)의 상자 내용물을 실제로 계산해서, 그 아이템이 든 가장 가까운 구조물을 찾아요. 최신 버전(26.3)에서는 마을, 고대 도시, 시련의 방 상자도, 1.16.1에서는 마을 상자도 포함해요.</p>
+
+        <h2>스피드런 조건 <label class="srtog"><input type="checkbox" id="srOn"> 사용</label></h2>
+        <div class="srbox" id="srBox">
+          <p class="hint">체크한 조건만 검사해요. 거리는 조건마다 따로 정해요. 위의 바이옴·구조물 조건과 같이 써도 돼요.</p>
+          <div class="srrow"><label><input type="checkbox" id="srSh" checked> 엔드 유적</label><span>스폰에서 <input type="number" id="srShR" min="1300" max="3000" step="50" value="1700"> 칸 안</span></div>
+          <div class="srrow"><label><input type="checkbox" id="srFo" checked> 네더 요새</label><span>네더 스폰(스폰÷8)에서 <input type="number" id="srFoR" min="16" max="1000" step="10" value="150"> 칸 안</span></div>
+          <div class="srrow" id="srBaRow"><label><input type="checkbox" id="srBa"> 보루 잔해</label><span>그 네더 요새에서 <input type="number" id="srBaR" min="16" max="1000" step="10" value="150"> 칸 안</span></div>
+          <p class="hint" id="srBaHint">보루 잔해는 피글린과 물물교환해서 엔더진주를 얻는 곳이에요. 엔더진주는 상자에서는 엔드 유적 안에서만 나와요.</p>
+          <div class="srrow" id="srRpRow"><label><input type="checkbox" id="srRp"> 폐허가 된 차원문 틀</label><span>상자 흑요석까지 쓰고도 <input type="number" id="srRpN" min="0" max="20" value="0"> 개 이하 모자람</span></div>
+          <div class="srrow" id="srRpWRow"><label><input type="checkbox" id="srRpW"> 물 밑(바다·늪) 차원문은 빼기</label></div>
+          <p class="hint" id="srRpHint">아래 "상자 아이템" 반경 안의 폐허가 된 차원문 중, 틀의 빈칸과 우는 흑요석 자리를 그 차원문 상자의 흑요석으로 채우고도 남는 빈칸이 이 개수 이하인 것을 찾아요. 틀의 모서리 4칸은 없어도 켜져서 세지 않아요. 1.16.1과 26.3은 월드 파일로 확인했고, 1.18~1.21도 같은 방식으로 계산해요. 1.12.2·1.8.9에는 폐허가 된 차원문이 없어요.</p>
+          <div class="srrow" id="srItRow"><b>상자 아이템</b><span>스폰에서 <input type="number" id="srItR" min="50" max="1000" step="50" value="300"> 칸 안 상자들 합계</span></div>
+          <div id="srItems"></div>
+          <p class="hint" id="srItHint">상자 아이템은 폐허가 된 차원문, 난파선, 묻힌 보물, 사막 사원, 정글 사원 같은 오버월드 구조물 상자를 그 버전의 아이템 표로 실제 계산해서 더해요. 최신 버전(26.3)에서는 마을, 고대 도시, 시련의 방 상자도, 1.16.1에서는 마을 상자도 넣어요. 폐광은 아직 빠져요.</p>
+        </div>
 
         <h2>범위와 방식</h2>
-        <p class="hint">기준점에서 반경 500블록 안을 32칸 간격으로 확인해서, 조건에 맞는 시드를 10개 찾을 때까지 컴퓨터 코어를 최대한 써서 계산해요.</p>
+        <p class="hint" id="rangeHint">기준점에서 반경 500블록 안을 32칸 간격으로 확인해서, 조건에 맞는 시드를 10개 찾을 때까지 컴퓨터 코어를 최대한 써서 계산해요.</p>
         <div class="fields">
-          <input type="hidden" id="radius" value="500"><input type="hidden" id="step" value="32">
+          <div class="field"><label for="radius">찾는 반경 (칸)</label><input id="radius" type="number" min="50" max="5000" step="50" value="500"></div>
+          <div class="field"><label for="target">찾을 개수</label><input id="target" type="number" min="1" max="200" value="10"></div>
+          <input type="hidden" id="step" value="32">
           <div class="field full"><label for="center">거리 기준</label>
             <select id="center"><option value="spawn" selected>실제 스폰 지점 (계산)</option><option value="coord">직접 입력한 좌표</option></select></div>
           <div class="field"><label for="cx">중심 X</label><input id="cx" type="number" value="0" disabled></div>
@@ -279,7 +313,7 @@ body.mapfull .mapstage { position: fixed; inset: 0; z-index: 60; height: auto; m
           <div class="field"><label for="mode">시드 고르는 방식</label>
             <select id="mode"><option value="small">작은 숫자부터</option><option value="random">무작위</option></select></div>
           <div class="field"><label for="start">시작 숫자</label><input id="start" type="number" min="0" value="0"></div>
-          <input type="hidden" id="target" value="10"><input type="hidden" id="threads" value="4">
+          <input type="hidden" id="threads" value="4">
         </div>
         <label class="check" for="fast"><input id="fast" type="checkbox"> <span><b>빠른 검색</b> <span class="tag">베타</span><br><span class="hint">기후 값으로 바이옴이 절대 안 생기는 시드를 먼저 걸러내요. 조건에 따라 1.2~4배 빨라져요. 시험에서는 놓친 시드가 없었지만, 아주 드물게 놓칠 수 있어요.</span></span></label>
         <div class="actions">
@@ -299,11 +333,19 @@ body.mapfull .mapstage { position: fixed; inset: 0; z-index: 60; height: auto; m
           <h2>결과 · 행을 누르면 미리보기가 바뀌어요</h2>
           <div class="tablewrap"><table id="results"></table></div>
         </section>
+        <section class="panel" aria-label="저장한 시드">
+          <h2>저장한 시드 <span class="count" id="savedCount"></span></h2>
+          <div class="tablewrap"><table id="savedSeeds"></table></div>
+        </section>
         <section class="panel" aria-label="미리보기">
-          <div class="maphead"><h2 id="pvTitle">미리보기</h2><span><button class="mini" type="button" id="pvOpen">큰 지도로 보기</button> <a id="cbLink" href="https://www.chunkbase.com/apps/seed-map" target="_blank" rel="noopener">Chunkbase에서 열기</a></span></div>
+          <div class="maphead"><h2 id="pvTitle">미리보기</h2><span><button class="mini primarymini" type="button" id="pvOpen">이 자리 큰 지도로 열기</button> <a id="cbLink" href="https://www.chunkbase.com/apps/seed-map" target="_blank" rel="noopener">Chunkbase에서 열기</a></span></div>
           <div class="mapbox">
-            <canvas id="preview" width="240" height="240" aria-label="선택한 시드의 바이옴 미리보기"></canvas>
-            <div class="legend" id="legend"></div>
+            <div class="pvwrap"><canvas id="preview" width="320" height="320" aria-label="선택한 시드의 바이옴 미리보기. 끌어서 옮기고, 휠이나 두 손가락으로 확대"></canvas>
+              <div class="pvtip" id="pvTip" hidden></div>
+              <div class="pvzoom"><button type="button" class="mini" id="pvIn" aria-label="확대">＋</button><button type="button" class="mini" id="pvOut" aria-label="축소">－</button><button type="button" class="mini" id="pvReset" aria-label="처음 범위로">⤢</button></div></div>
+            <div><div class="legend" id="legend"></div>
+              <div class="pvsize"><span class="hint">미리보기 크기</span> <button type="button" class="mini" data-pvs="1">작게</button> <button type="button" class="mini" data-pvs="1.5">보통</button> <button type="button" class="mini" data-pvs="2.2">크게</button></div>
+              <div class="pvbiomes" id="pvBiomes"></div></div>
           </div>
           <ul class="notes">
             <li>가운데 십자가 기준점, 점선 원이 검색 반경, 색 점이 각 조건까지 가장 가까운 지점이에요.</li>
@@ -441,6 +483,8 @@ const BIOMES = [
   {id:183, name:"깊은 어둠", en:"deep_dark", g:"땅속", y:-40, under:true},
   {id:187, name:"유황 동굴", en:"sulfur_caves", g:"땅속", y:0, under:true},
 ];
+// 바이옴 이름도 게임 한국어판 공식 이름으로
+if (typeof KO !== "undefined") for (const b of BIOMES) if (b.en && KO.b[b.en]) b.name = KO.b[b.en];
 const NAME = {}; for (const b of BIOMES) if (b.id >= 0) NAME[b.id] = b.name;
 Object.assign(NAME, { [-2]: "허공", 8: "네더 황무지", 170: "영혼 모래 골짜기", 171: "진홍빛 숲", 172: "뒤틀린 숲", 173: "현무암 삼각주", 9: "디 엔드", 40: "작은 엔드 섬", 41: "엔드 중지대", 42: "엔드 고지대", 43: "엔드 불모지" });
 const colorOf = b => "#" + (b.color || COLORS[b.id] || "888888");
@@ -497,7 +541,7 @@ const SEARCH_NAME = { 12: "폐허가 된 차원문 (네더)", 200: "큰 동굴 �
 // 상자 아이템 조건 (300번부터): 오버월드 구조물 상자 안에 그 아이템이 있는 곳
 const LOOT_SEARCH = [
   { name: "다이아몬드", m: "diamond" }, { name: "마법이 부여된 황금 사과", m: "enchanted_golden_apple" }, { name: "황금 사과", m: "golden_apple" },
-  { name: "다이아몬드 장비", m: "diamond_*" }, { name: "마법이 부여된 책", m: "@book" }, { name: "갑옷 장식 형판", m: "*_armor_trim_smithing_template" },
+  { name: "다이아몬드 장비", m: "diamond_*" }, { name: "마법이 부여된 책", m: "@book" }, { name: "대장장이 형판 (갑옷 장식)", m: "*_armor_trim_smithing_template" },
   { name: "에메랄드", m: "emerald" }, { name: "안장", m: "saddle" }, { name: "이름표", m: "name_tag" }, { name: "흑요석", m: "obsidian" }];
 LOOT_SEARCH.forEach((it, k) => { const id = 300 + k; EXT_ORDER.push(id); EXT_SET.add(id); SLOW_ST.add(id); });
 // 세부 종류 조건 (320번부터): 지하실 있는 이글루, 마을 종류, 버려진 마을
@@ -515,6 +559,7 @@ const SMALL_ST = new Set([17, 100, 20, 15, 22, 200, 201, 202, 203, 204, 210, 211
 const GLOBAL_ST = new Set([27, 101]); // 월드 전체를 한 번에 계산하는 것 (엔드 유적 128개)
 const SNAME = {}; const SBY = {}; for (const s of STRUCTS) { SNAME[s.id] = s.name; SBY[s.id] = s; }
 for (const s of SEARCH_STRUCTS) if (s.loot) { SNAME[s.id] = s.name; SBY[s.id] = s; }
+SNAME[209] = "관문이 이어지는 곳";
 // 구조물 아이콘: 16×16 도트. 각 구조물의 대표 특징(종, 차원문 틀, 열쇠 등)을 단순하게 새로 그림
 const PIX_PAL = {"k": "#17181b", "w": "#f4f4f4", "y": "#f2c230", "Y": "#b07d12", "o": "#e07b28", "O": "#a24d14", "b": "#8a5a2c", "B": "#4e2f15", "g": "#5fae3c", "G": "#2e6a28", "t": "#35d0c0", "T": "#11615f", "p": "#a35ae0", "P": "#4b1c7a", "s": "#9a9a9a", "S": "#5c5c5c", "d": "#3b3f47", "D": "#24272d", "c": "#9fe8ff", "n": "#ecd796", "N": "#c9a55a", "r": "#d63a3a", "R": "#8e1f1f", "m": "#6f8f4c", "i": "#eef6fa", "I": "#b3c9d6", "v": "#63b8a6", "V": "#2c6e64", "e": "#d9d6a4", "E": "#97946a", "l": "#3fd69c", "x": "#0d0d12", "q": "#4fa08b", "Q": "#2b6656", "u": "#4fd3f2", "L": "#5dffb0", "j": "#1d8f5c", "h": "#b86a43", "H": "#7f4428", "z": "#c8b39a", "Z": "#8f8172", "a": "#3a8fd6", "f": "#7a4a2a", "F": "#4a2a16", "1": "#5a2428", "2": "#33151a", "3": "#2b2731", "4": "#45404d", "5": "#b38ab3", "6": "#7d5a82", "7": "#e8e2f0", "8": "#c9a24a", "9": "#3e2a6b", "0": "#d49df2", "!": "#8c5bd1", "@": "#f4f0e0", "#": "#bdb59a", "$": "#6b6b6b", "%": "#2a3a4a", "^": "#c23b3b", "&": "#f0c23a", "*": "#ff9d2e", "(": "#a0a0a8", ")": "#55565c", "-": "#1a1a20", "+": "#2e8b8b", "Ж": "#4f8a3a", "ж": "#2f5a22", "Ч": "#e6e6e0", "ч": "#a8a8a0", "Ш": "#ff6a1a", "ш": "#ffb347", "Щ": "#c2410c", "α": "#cfe3ef", "β": "#8aa1ae", "γ": "#4f6470", "δ": "#c23b3b", "ε": "#7b7b84", "ζ": "#e9d7ff", "η": "#c79bf2", "θ": "#9a5fe0", "ι": "#6a3aa8", "κ": "#3e2170", "λ": "#7a7a7a", "μ": "#5e5e5e", "ν": "#8f8f8f", "ξ": "#4f7d3a", "ο": "#6f9c4a", "π": "#b8b8b8", "ρ": "#8e8e8e", "σ": "#d6d6d6", "τ": "#5a5a5a", "υ": "#fff27a", "φ": "#f6c22a", "χ": "#e48a14", "ψ": "#a85a0c", "ω": "#3a1f0a", "Α": "#3b1519", "Β": "#5a2026", "Γ": "#7a2c31", "Δ": "#2a0e12", "Ε": "#2b2731", "Ζ": "#3a3542", "Η": "#4a4453", "Θ": "#f2c230", "Ι": "#ff7a1a", "Κ": "#14101c", "Λ": "#3b2466", "Μ": "#8a4ad6", "Ν": "#f6d23a", "Ξ": "#b07d12", "Ο": "#efe6cf", "Π": "#cfc3a4", "Ρ": "#a99a78", "Σ": "#9d9cb4", "Τ": "#6f6e8c", "Υ": "#c9c8dc", "Φ": "#4b4a66", "Χ": "#232323", "Ψ": "#3a3a3a", "Ω": "#161616", "ϐ": "#b06ce0", "ϑ": "#e7c6ff", "ϒ": "#2a8f3a", "ϓ": "#5fb043", "ϔ": "#7a5232", "ϕ": "#5a3a22", "ϖ": "#ff6a00", "ϗ": "#ffb03a", "Ϙ": "#c8420a", "ϙ": "#3a3a42", "Ϛ": "#2a2a30", "ϛ": "#4c4c55", "Ϝ": "#4f7c3a", "ϝ": "#3c6a2c", "Ϟ": "#6fa04f", "ϟ": "#26401d", "Ϡ": "#e4e4e4", "ϡ": "#c4c4c4", "Ϣ": "#9a9a9a", "ϣ": "#8b8b8b", "Ϥ": "#6b6b6b", "ϥ": "#a3a3a3", "ȧ": "#353535", "ȁ": "#787878", "ȃ": "#828282", "ȅ": "#888888", "ȇ": "#8c8c8c", "ȉ": "#828298", "ȋ": "#8c8ca2", "ȍ": "#8e8ea4", "ȏ": "#9191c4", "ȑ": "#8f8fb3", "ȓ": "#88889e", "ɐ": "#a77ae0", "ɑ": "#c9a3f5", "ɒ": "#7d4fc4", "ɓ": "#5a3497", "ɔ": "#efbfe6", "ɕ": "#f1edc8", "ɖ": "#ffe24a", "ɗ": "#ffc21c", "ɘ": "#f39c12", "ə": "#c86a0a", "ɚ": "#8a4206", "ɛ": "#2b1606", "ɜ": "#fff7a8", "ɝ": "#5d8f3c", "ɞ": "#4a7a2e", "ɟ": "#6ea84a", "ɠ": "#2f5520", "ɡ": "#1e3514", "ɢ": "#e8e8e8", "ɣ": "#cfcfcf", "ɤ": "#b3b3b3", "ɥ": "#2a2a2a", "ɦ": "#5c5c5c", "ɧ": "#5c5c5c", "ɯ": "#3a2a5a", "ɰ": "#261a3d", "ɱ": "#6a3cc0", "ɨ": "#9c9c9c", "ɩ": "#bababa", "ɪ": "#747474", "ɫ": "#494949", "ɬ": "#6f7f88", "ɭ": "#8c9b8c", "ɮ": "#818181", "ʙ": "#383340", "ʚ": "#2b2731", "ʛ": "#46404d", "ʜ": "#6b6870", "ʝ": "#8d8a91", "ʞ": "#f0c020", "ʟ": "#ff7a1a", "ʠ": "#ffb03a", "ʡ": "#5a4f53", "ʢ": "#3a3236", "ʣ": "#9a8a8e", "ʤ": "#a01818", "ʥ": "#e04848", "ʦ": "#5a1010", "ʧ": "#c98a6a", "ʨ": "#8a5a40", "ʩ": "#f0e8d8", "ʪ": "#fff27a", "ʫ": "#b07d12", "ʬ": "#652828", "ʭ": "#723232", "ʮ": "#854242", "ʯ": "#340e0e", "ʰ": "#511515", "ʱ": "#209ab8", "ʲ": "#60e8e8", "ʳ": "#4bc9c9", "ʴ": "#be3f4a", "ʵ": "#a62530", "ʶ": "#5c141a", "ʷ": "#4e1116", "ʸ": "#cfa0f3", "ʹ": "#fecbe6", "ʺ": "#b38ef3", "ʻ": "#8d6acc", "ʼ": "#fffdd5", "ʽ": "#7a5bb5", "ʾ": "#64479e", "ʿ": "#15101f", "ˀ": "#2a1f3d", "ˁ": "#3d2c5a", "˂": "#7a3ad0", "˃": "#a35ae0", "˄": "#f6d23a", "˅": "#c99a12", "ˆ": "#fff08a", "ˇ": "#efe6cf", "ˈ": "#cfc3a4", "ˉ": "#a99a78", "˒": "#8ccf6a", "˓": "#6fb54d", "˔": "#4f8f35", "˕": "#2d5a1e", "˖": "#c8f0b0", "ˠ": "#a06a44", "ˡ": "#c89466", "ˢ": "#3e7d2a", "ˣ": "#6fb54d", "ˤ": "#f6b73c", "˥": "#061820", "˦": "#29dfeb", "˧": "#0f3a48", "˨": "#e8d64a", "˩": "#a89a22", "˪": "#a39787", "˫": "#7c7064", "ˬ": "#2e2724", "˭": "#7fc6e0", "ˮ": "#5e544d", "˯": "#7a5a3a", "˰": "#5e4430", "˱": "#3a8fd6", "˲": "#2d74b8", "˳": "#e3d6a2", "˴": "#c9b878", "˵": "#3f8f2a", "˶": "#2e6e1e", "˷": "#8b8b8b", "˸": "#6e6e6e", "˹": "#7a2b2b", "˺": "#5a1f1f", "˻": "#6aa84a"};
 const PIX = {"5": ["................", ".......kk.......", "......kYYk......", ".....kyyyyk.....", "....kyyyyyyk....", "....kywyyyyk....", "....kywyyyyk....", "....kyyyyyyk....", "...kyyyyyyyyk...", "...kyyyyyyyyk...", "..kyyyyyyyyyyk..", "..kYYYYYYYYYYk..", "...kkkkkkkkkk...", ".......kYk......", "........k.......", "................"], "13": ["................", "................", "kkkkkkkkkkkkkkkk", "kswswswswswswswk", "kwkkkkkkkkkkkksk", "kskDDDDDDDDDDkwk", "kwkDDTDDDDDDDksk", "kskDDDDDDDTDDkwk", "kwkDDDDDDDDDDksk", "kskkkkkkkkkkkkwk", "kswswswswswswswk", "kkkkkkkkkkkkkkkk", ".k..k..k..k..k..", "kck.kck.kck.kck.", "kuukuuukuuukuuuk", "kkkkkkkkkkkkkkkk"], "25": ["................", "................", "...kkkk.........", "..kooook........", ".kooyyook.......", ".kok..kokkkkkkk.", ".kyk..koooooooyk", ".kok..kokkkkokok", ".koOkkOok..kokok", "..kOooOk...kkkk.", "...kkkk.........", "................", "................", "................", "................", "................"], "27": ["..kkkkkkkkkkk...", "..keLEeLEeLEk...", "kkkEjEEjEEjEkkk.", "keExxxxxxxxxEek.", "kLjxxcxxxxxxjLk.", "kEExxxxxxcxxEEk.", "keExxxxxxxxxEek.", "kLjxxxxxxxxxjLk.", "kEExcxxxxxxxEEk.", "keExxxxxcxxxEek.", "kLjxxxxxxxcxjLk.", "kEExxxxxxxxxEEk.", "kkkEjEEjEEjEkkk.", "..keLEeLEeLEk...", "..kkkkkkkkkkk...", "................"], "9": ["................", "................", "......kkkkkkkkk.", ".....kBBBBBBBBBk", ".....kkkkkkkkkkk", "......kbcbbbcbk.", "......kSSSSSSSk.", "kkkkkkkkkkkkkkkk", "kBBBBBBBBBBBBBBk", "kkkkkkkkkkkkkkkk", "kbcbbcbbcbbcbbck", "kSSSSSSSSSSSSSSk", "kbbbbbbkkbbbbbbk", "kbbbbbbkkbbbbbbk", "kSSSSSSSSSSSSSSk", "kkkkkkkkkkkkkkkk"], "8": ["................", "................", ".......kk.......", "......kwwk......", ".....kvVVvk.....", "....kkkkkkkk....", "...kwvvVVvvwk...", "...kkkkkkkkkk...", "..kwvVvvvvVvwk..", "..kkkkkkkkkkkk..", ".kwvvVvvvvVvvwk.", ".kvVvvvVVvvvVvk.", ".kkkkkkkkkkkkkk.", "................", "................", "................"], "7": [".....B..........", ".....B..........", ".....B....B.....", "..BBBBBBBBBBBB..", ".....B....B.....", ".....B....B.....", "..BBBBBB..B.....", ".k...B....B.....", "kfk..B....B.kk..", "kffkkBkkkkBkffkk", "kfffffffffffffkf", ".kfFfffffffffffk", "..kfffFffffffkfk", "...kfffffFfffkk.", "....kfffffffkfk.", ".....kFFFFFk.k.."], "6": ["................", "................", "....kkk.........", "....ksk.........", "...kssk......kk.", "...kSsk.....kgk.", "...ksSk.....kgk.", "...kssk..kk.kgk.", "...ksskkkssk.kgk", "...kSsksSssk.kGk", "...ksskssSsk.kgk", "..kssssssssskkgk", "..kmssSssmsssskk", ".kmmsssssssmmmsk", ".kkkkkkkkkkkkkkk", "................"], "14": ["................", "................", "..kkkkkkkkkkkk..", ".kbbbbbbbbbbbbk.", ".kbBBBBBBBBBBbk.", ".kbbbbbbbbbbbbk.", ".kSbbbbbbbbbbSk.", ".kkkkkyyyykkkkk.", ".kSbbbyYYybbbSk.", ".kbbbbyyyybbbbk.", ".kbbbbbkkbbbbbk.", ".kbbbbbbbbbbbbk.", ".kBBBBBBBBBBBBk.", ".kSBBBBBBBBBBSk.", ".kkkkkkkkkkkkkk.", "................"], "2": ["................", "................", "...kkkkkkkkkk...", "...ksgssgsSsk...", "...kGsSssssGk...", "...kGssgsssGk...", "...ksssSsgssk...", "kkkkkkkkkkkkkkkk", "kssgsSssssssgssk", "kGsssgsssSssssGk", "kGssssxxxxsSssGk", "kGsSgsxxxxssgsGk", "kGssssxxxxssssGk", "kssgssxxxxSsssgk", "kGssssxxxxssgsGk", "kkkkkkkkkkkkkkkk"], "1": ["................", ".kkk........kkk.", "kknkk......kknkk", "knnnk......knnnk", "koook..kk..koook", "konok.knNk.konok", "koookknnnNkkoook", "knonknnnnNNknonk", "knnnkkkkkkkknnnk", "knonknonnonknonk", "knnnknnkknnknnnk", "knonknkxxknknonk", "knnnknkxxknknnnk", "knNnknkxxknknNnk", "knNNknkxxknknNNk", "kkkkkkkkkkkkkkkk"], "3": ["................", "................", ".kkkkkkkkkkkkkk.", "kBBBBBBBBBBBBBBk", "kkkkkkkkkkkkkkkk", "..kbbbbbbbbbbk..", "..kbkkkbbbkkbk..", "..kbkpkbbbkxbk..", "..kbkkkbbbkxbk..", "..kbbbbbbbkxbk..", "..kkkkkkkkkkkk..", "...kbk....kbk...", "...kbk....kbk...", "qqqkbkqqqqkbkqqq", "QqqQqqqQqqqQqqqQ", "QQQQQQQQQQQQQQQQ"], "4": ["................", "................", ".....kkkkkk.....", "...kkiiiiiikk...", "..kiiIiiiiiIik..", ".kiiiiiiiiiiiik.", ".kiIiiiiIiiiiik.", "kiiiiiiiiiiiIiik", "kiiiIiiiiiiiiiik", "kiiiiiiiikkkkiik", "kiIiiiiikiiiikIk", "kiiiiiiikIccIkik", "kiiiiIiikIccIkik", "kkkkkkkkkkkkkkkk", "................", "................"], "10": [".....kkkkkk.....", "...kkBBBBBBkk...", "..kBBBBBBBBBBk..", "..kkkkkkkkkkkk..", "..kBkbkbbkbkBk..", "..kBnnnnnnnnBk..", "..kkkkkkkkkkkk..", "....kBbBBbBk....", "....kBbBBbBk....", "....kSbBBbSk....", "....kBbBBbBk....", ".kk.kBbBBbBk.kk.", ".kBkkkkkkkkkkBk.", ".kBsSssSssSssBk.", ".kBssSssssSssBk.", ".kkkkkkkkkkkkkk."], "11": ["........ˆ˄......", "........˄˅......", "..ʿˀʿˀʿˀ˂ˁʿˀ....", "..ʿʿʿʿʿʿˁ˂ʿʿ....", "..ʿˀ......ʿˀ....", "..ʿʿ......ʿʿ....", "..˂ˁ......˂ˁ....", "..ˁ˂......ˁ˂....", "..........ʿˀ....", "..........ʿʿ....", "..ʿˀ......ʿˀ....", "..ʿʿ......ʿʿ....", "..˂ˁ......ʿˀ....", "..ˁ˂......ʿʿ....", "..ʿˀʿˀ˂ˁ..ʿˀbb..", "..ʿʿʿʿˁ˂..ʿʿBy.."], "24": ["................", "................", ".kkkkk..........", ".khhHk..........", ".kHhhk...kkkkkk.", ".khhHk...khHhhk.", ".kHhhk...khhhHk.", ".khhHk...kHaahk.", ".kHhhkk..khayhk.", ".khhHhk..khhhHk.", "kkkkkkkkkkkkkkkk", "kzZzzzZzzzzZzzZk", "kZzzZzzzZzzzzZzk", "kzzZzzzZzzZzzzzk", "kkkkkkkkkkkkkkkk", "................"], "26": ["................", "................", "......kkkk......", ".....kwwwIk.....", "....kwwwwwIk....", "...kwwwwwwwIk...", "..kwwwkkkkwwIk..", ".kwwwkxxxxkwwIk.", ".kwwkzxxxxzkwIk.", "kwwwkzxxxxzkwwIk", "kwwwkzxxxxzkwwIk", "kkkkkzxxxxzkkkkk", "....kkkkkkkk....", "....kbSSSSbk....", "....kbbkbbbk....", "....kkkkkkkk...."], "spawn": ["................", "................", ".....kkkkkk.....", "...kkγγγγγγkk...", "..kγγααααααγγk..", ".kγγααααααααγγk.", ".kγααααδδααααγk.", ".kγααααδδααααγk.", ".kγααααεεααααγk.", ".kγααααεεααααγk.", ".kγγααααααααγγk.", "..kγγααααααγγk..", "...kkγγγγγγkk...", ".....kkkkkk.....", "................", "................"], "15": ["................", "kkkkkkkkkkkkkkkk", "kbbbbbbbbbbbbbbk", "kBBBBBBBBBBBBBBk", "kkkkkkkkkkkkkkkk", ".kbBk......kbBk.", ".kbBkxxxxxxkbBk.", ".kbBkxxxxxxkbBk.", ".kbBkxsxxsxkbBk.", ".kbBkbsbbsbkbBk.", ".kbBkxsxxsxkbBk.", ".kbBkbsbbsbkbBk.", ".kbBkxsxxsxkbBk.", "kbBkbbsbbsbbkbBk", "kbBkxxsxxsxxkbBk", "kkkkkkkkkkkkkkkk"], "17": [".......k........", "......kʸk.......", ".....kʸʹʺk......", "....kʸʸʹʻʸk.....", "...kʸʸʸʹʻʻʸk....", "...kʸʹʼʼʺʻʸk....", ".kkkʽʺʺʸʽʻʽk.kk.", "kʹʸkkʽʻʸʽʽʾkkʸʹk", "kʸʹʸkʽʽʺʽʽʾkʸʹʸk", "kʸʼʸʸʾʽʻʺʽkʸʸʼʸk", "kʸʻʹʽʾʽʽʺʾʻʻʸʻʸk", ".kʻʽʸʽʾʽʻʾʽʸʽʻk.", ".kʸʽʽʽʽʾʻʾʻʽʽʻk.", "..kʻʽʾʽʾʸʻʾʽʻk..", "..kʽʾʾʾʻʸʾʾʾʽk..", "...kkkkkkkkkk..."], "18": ["................", "kkkkkk..........", "k1k1k1k.........", "k11111k.........", "k1kk11k.........", "k11111k.........", "kkkkkkkkkkkkkkkk", "k11211121112111k", "k21112111211121k", "kkkkkkkkkkkkkkkk", ".k1k..k1k..k1k..", ".k1kkkk1kkkk1k..", ".k1k22k1k22k1k..", ".k2k..k2k..k2k..", ".k1k..k1k..k1k..", ".kkk..kkk..kkk.."], "19": ["kʝʜʝʝʜk.........", "kʜʜʜʜʜk.........", "kʙʛʜʛʜk.........", "kʙʙʜʚʜkkkkkkkkkk", "kʙʙʚʙʙʟʚʟʟʚʟʟʚʟʜ", "kʙʙʙʛʙʟʟʚʟʟʚʟʟʚʜ", "kʛʙʙʙʛʜʜʙʜʛʙʙʜʜʙ", "kʛʙʙʚʛʜkkkkkkkkk", "kʙʛʚʙʛʚk-ʬʭʭʭʬ-k", "kʙʙʙʚʙʙkʬʭʮʱʮʭʯk", "kʚʙʛʙʙʛkʬʭʱʲʱʭʯk", "kʚʚʙʛʙʙkʬʱʲʲʳʱʯk", "kʛʙʙʛʛʙkʬʭʮʳʮʭʯk", "kʛʛʙʚʙʙkʯʰʭʭʭʰʯk", "kʚʙʛʙʛʙk-ʯʯʯʯʯ-k", "kʙʙʛʚʙʚkkkkkkkkk"], "20": ["......kkkkkkk...", ".....kˇˇˇˇˇˇˇk..", "....kˇˉˉˉˉˉˉˉˇk.", "...kˇˉkkkkkkkˉˇk", "...kkkkkkk..kˉˇk", "..kˇˇˇˇˇˇˇk.kˉˇk", ".kˇˈˈˈˈˈˈˈˇkkˉˇk", "kˇˈkkkkkkkˈˇkˉˇk", "kˇˈkˇˉkk.kˈˇkˉˇk", "kˇˈkkˇˉˉkkˈˇkˇk.", "kˇˈk.kˇˇkkˈˇkk..", "kˇˈk..kk.kˈˇk...", "kˇˈkk...kkˈˇk...", ".kˇˈˈk.kˈˈˇk....", "..kˇˇk.kˇˇk.....", "...kk...kk......"], "21": ["....kkkkkkkk....", "...k55555555k...", "..k5555555555k..", "..kkkkkkkkkkkk..", ".....k5665k.....", ".....k6xx6k.....", "...kkk5665kkk...", "..k5555555555k..", "..kkkkk66kkkkk..", ".....k5665k.....", ".....k5xx5k.....", ".....k5665k.....", ".....k6556k.....", ".....k5xx5k.....", ".....k5665k.....", ".....kkkkkk....."], "121": ["................", "................", "....ȧȧȧȧȧȧȧȧ....", "..ȧȧȅȏȧȧȧȧȏȅȧȧ..", ".ȧȁȃȅȏȧ..ȧȏȅȃȁȧ.", ".ȧȉȋȍȏȧ..ȧȏȍȋȉȧ.", ".ȧȁȅȇȏȧ..ȧȏȇȅȁȧ.", ".ȧȉȓȍȑȧ..ȧȑȍȓȉȧ.", ".ȧȁȃȇȑȧ..ȧȑȇȃȁȧ.", "..ȧȉȋȋȧ..ȧȋȋȉȧ..", "..ȧȁȃȋȧ..ȧȋȃȁȧ..", "..ȧȉȓȃȧ..ȧȃȓȉȧ..", "...ȧȁȧ....ȧȁȧ...", "...ȧȧ......ȧȧ...", "................", "................"], "22": [".......ϐϑ.......", ".......ϐϑ.......", "......kϐϑk......", "....kkΧΨΧΩkk....", "...kΨΧΩΧΨΧΩΨk...", "...kΧΩΨΧΩΨΧΩk...", "....kkk--kkk....", "......k-+k......", "......k+-k......", "....kkk--kkk....", "...kΩΧΨΩΧΨΩΧk...", "...kΨΩΧΨΩΧΨΩk...", "....kkΧΨΩΧkk....", "......kϐϑk......", ".......ϐϑ.......", ".......ϐϑ......."], "100": ["kkkkkkkkkkkkk...", "k$$$$$$$$$$$k...", "k$-)-)-)-)-$k...", "k$-)-)-)-)-$k...", "k$-)-)-)-)-$k...", "k$$$$$$$$$$$k...", "k$-)-)-)-)-$k...", "k$-)-)-kkkkkkkkk", "k$-)-)-k%%%%%%%k", "k$$$$$$k%^%%%^%k", "k$-)-)-k%%^%^%%k", "k$$$$$$k%%%%%%%k", "kkkkkkkk%^^%^^%k", ".......k%%%%%%%k", ".......k-%-%-%-k", ".......kkkkkkkkk"], "101": ["kkkkkkkkkkkkk...", "k$$$$$$$$$$$k...", "k$-)-)-)-)-$k...", "k$-)-)-)-)-$k...", "k$-)-)-)-)-$k...", "k$$$$$$$$$$$k...", "k$-)-ɫɫɫɫɫɫɫk...", "kɬ-ɬɫɩɩɭɩɬɨɮɫ.ɬ.", "kɬɬɫɧɬɮɧɧɧɧɧɫɬ..", "kɫɫɩɧɩɧɩɩɨɨɭɨɫ..", "ɫɨɧɭɧɨɧɩɭɬɬɬɮɫ.ɬ", "kɬɧɮɧɨɧɬɮɧɧɧɧɫɬ.", "kɪɫɪɫɭɧɨɧɮɭɮɮɮɫ.", ".ɫɫɫɫɪɫɪɧɫkɮɫkɫ.", ".....ɫɫɪɫkkɮkkɫ.", ".......ɫɫɫɫɫɫɫ.."], "102": ["kkkkkkkkkkkkk...", "k$$$$$$$$$$$k...", "k$-)-)-)-)-$k...", "k$-)-)-)-)-$k...", "k$-)-)-)-)-$k...", "k$$$$$$$$$$$k...", "k$-)-)kkkkkkkkkk", "k$-)-)kɖɜɖɖɗɖɜɖk", "k$-)-)kɗɖɗɖɖɗɖɗk", "k$$$$$kɖɗɖɗɗɖɗɖk", "k$-)-)kɗɛɜɗɗɛɜɗk", "k$$$$$kɘɗɘɗɗɘɗɘk", "kkkkkkkɘəɘɛɛɘəɘk", "......kəɘəɘɘəɘək", "......kɚəɚəəɚəɚk", "......kkkkkkkkkk"], "12": ["........ˆ˄......", "........˄˅......", "..ʿˀʿˀʿˀ˂ˁʿˀ....", "..ʿʿʿʿʿʿˁ˂ʿʿ....", "..ʿˀ......ʿˀ....", "..ʿʿ......ʿʿ....", "..˂ˁ......˂ˁ....", "..ˁ˂......ˁ˂....", "..........ʿˀ....", "..........ʿʿ....", "..ʿˀ......ʿˀ....", "..ʿʿ......ʿʿ....", "..˂ˁ......ʿˀ....", "..ˁ˂......ʿʿ....", "..ʿˀʿˀ˂ˁ..ʿˀbb..", "..ʿʿʿʿˁ˂..ʿʿBy.."], "200": ["................", "................", "................", "................", ".....kkkkkk.....", "...kkϓϒϓϒϓϒkk...", "..kϓϒϔϔϔϔϔϔϓϒk..", ".kϒϔϔϣϣϤϣϣϣϔϔϓk.", "kϓϔϤϣϣϣϣϤϣϣϣϣϔϒk", "kϔϣϣϤϣϣϣϣϤϣϣϣϣϔk", "ϒϣϣϣϣϤϣxxϣϤϣϣϣϣϓ", "ϔϤϣϣϣϣϤxxϣϣϤϣϣϣϔ", "ϣϣϤϣϣϣxxxxϣϣϤϣϣϣ", "ϣϣϣϤϣϣxxxxϣϣϣϤϣϣ", "ϣϣϣϣϤϣxxxxϣϣϣϣϤϣ", "kkkkkkkkkkkkkkkk"], "201_1": ["kkkkkkkkkkkkk...", "kλλξλλολοξμλk...", "kνξξλλμξλλξλk...", "kμνλμλλμμλοοk...", "kομομλλμμομμk...", "kμνλξοξνομνμk...", "kμνλξλkkkkkkkkkk", "kμονοξkɠɠɡɠɠɠɡɠk", "kλμμνοkɠɞɠɠɞɠɠɞk", "kοξμλμkɝɟɝɝɝɞɟɝk", "kλολμλkɝɝɝɟɝɝɝɝk", "kλνμλλkɝkkɝɝkkɝk", "kkkkkkkɝɝɝɞɞɝɝɝk", "......kɝɝɞɠɠɞɝɝk", "......kɞɝɝɝɝɝɝɞk", "......kkkkkkkkkk"], "201_0": ["kkkkkkkkkkkkk...", "kλλξλλολοξμλk...", "kνξξλλμξλλξλk...", "kμνλμλλμμλοοk...", "kομομλλμμομμk...", "kμνλξοξνομνμk...", "kμνλξλkkkkkkkkkk", "kμονοξkɣɢɢɣɢɢɢɣk", "kλμμνοkɢɢɣɢɢɣɢɢk", "kοξμλμkɢɢɢɢɢɢɢɢk", "kλολμλkɣɢɢɢɢɢɢɣk", "kλνμλλkɢɥɥɢɢɥɥɢk", "kkkkkkkɢɢɢɦɦɢɢɢk", "......kɢɥɥɥɥɥɥɢk", "......kɣɢɤɢɢɤɢɣk", "......kkkkkkkkkk"], "201_3": ["kkkkkkkkkkkkk...", "kλλξλλολοξμλk...", "kνξξλλμξλλξλk...", "kμνλμλλμμλοοk...", "kομομλλμμομμk...", "kμνλξοξνομνμk...", "kμνλξλξλομμλk...", "kμονοξνkkkkkkkkk", "kλμμνονk-------k", "kοξμλμλk-^---^-k", "kλολμλμk--^-^--k", "kλνμλλμk-------k", "kkkkkkkk-^^-^^-k", ".......k-------k", ".......k)-)-)-)k", ".......kkkkkkkkk"], "201": ["kkkkkkkkkkkkk...", "kλλξλλολοξμλk...", "kνξξλλμξλλξλk...", "kμνλμλλμμλοοk...", "kομομλλμμομμk...", "kμνλξοξνομνμk...", "kμνλξλkkkkkkkkkk", "kμονοξkɠɠɡɠɠɠɡɠk", "kλμμνοkɠɞɠɠɞɠɠɞk", "kοξμλμkɝɟɝɝɝɞɟɝk", "kλολμλkɝɝɝɟɝɝɝɝk", "kλνμλλkɝkkɝɝkkɝk", "kkkkkkkɝɝɝɞɞɝɝɝk", "......kɝɝɞɠɠɞɝɝk", "......kɞɝɝɝɝɝɝɞk", "......kkkkkkkkkk"], "202": [".kkkkkkkkkkkkkk.", "kϛϙϛϛϙϙϙϙϙϛϚϙϙϙk", "kϛϚϙϙϙϚϚϙϙϛϛϚϚϙk", "kϚϙϙϙϙϙϙϙϙϙϙϙϛϚk", "kϛϙϙϙϙxxxxϚϙϛϚϚk", "kϛϙϙxxxxxxxxϙϙϛk", "kϙϚxxxxxxxxxxϚϛk", "kϛϙxxxxxxxxxxϛϙk", "kϙϙϖϗϖϖϗϖϖϗϖϖϛϙk", "kϙϚϖϖϖϖϖϖϖϖϖϖϙϚk", "kϙϙϖϖϘϖϖϘϖϖϘϖϚϙk", "kϙϚϚϘϖϖϘϖϖϘϖϙϙϚk", "kϚϙϛϙϙϛϙϙϛϙϚϙϚϙk", "kϙϙϚϙϙϚϚϙϙϚϛϛϙϙk", "kϛϙϙϙϙϙϚϙϚϚϛϚϛϙk", ".kkkkkkkkkkkkkk."], "203": [".kkkkkkkkkkkkkk.", "kϓϒϓϓϓϓϓϓϓϓϓϒϒϓk", "kϓϒϒϒϒϓϓϒϓϓϓϒϒϓk", "kϓϒϒϓϓϒϓϒϒϓϓϒϓϓk", "kϓϓϒϓϒϣϣϣϣϓϒϒϓϓk", "kϓϒϒϣϣϖϖϖϖϣϣϓϓϓk", "kϒϒϒϣϖϖϖϘϗϖϣϓϓϓk", "kϓϓϣϖϖϘϗϖϖϖϘϣϒϓk", "kϓϓϣϘϗϖϖϖϘϖϖϣϓϓk", "kϒϓϣϖϖϖϘϖϖϗϖϣϓϓk", "kϒϓϓϣϘϖϖϗϖϘϣϒϓϒk", "kϒϓϒϣϣϗϖϘϖϣϣϓϓϓk", "kϓϓϓϓϓϣϣϣϣϓϒϓϒϓk", "kϒϓϒϓϓϒϒϓϓϓϓϓϓϓk", "kϓϓϓϓϓϓϓϓϓϓϓϓϓϓk", ".kkkkkkkkkkkkkk."], "19_0": ["kʜkʝʜkʜk........", "kʜʜʜʙʜʜk........", "kʚʙʙʙʛʙk........", "kʙʛʛʙʙʙk........", "kʙʛʟʙʙʙk.kk.k..k", "kʙʚʙʚʛʙʝkʝʜkʜkkʝ", "kʛʛʛʙʛʙʜʜʟʜʜʜʜʜʜ", "kʚʙʙʙʛʚkkkkkkkkk", "kʚʛʚʛʙʙk-ʴʵ-ʵʶ-k", "kʙʚʙʙʛʚk-ʵʵ-ʶʷ-k", "kʙʚʙʚʙʙk-ʶʷʵʶ-ʵk", "kʚʟʙʙʙʙkʴʵʶʶʷ-ʴk", "kʙʚʚʙʙʚkʷʶʶʴʵʶʶk", "kʛʙʚʙʛʙk-ʵʷʶʶ--k", "kʙʚʛʛʙʙk-ʶʷ-ʵʶ-k", "kʙʙʙʛʙʙkkkkkkkkk"], "19_1": ["kʝʜʜʜʝk..kʝkʜʜʜk", "kʜʜʜʜʜk..kʜʙʚʜʜk", "kʜʜʙʜʜk..kʜʚʙʜʜk", "kʙʜʚʜʜk..kʜʙʚʜʛk", "kʚʙʙʚʚk..kʙʙʚʚʙk", "kʙʙʚʚʚk.kkʙʙʛʚʙk", "ʝʛʙʛkʙʜkʜʝʙʙʚkʙʜ", "ʜʙʙʙʙʚʙkkkkkkkkk", "ʜʚʚʙʛʙʙkʨʧʧʧʧʧʨk", "ʜʚʙʙʚʙʛkʧkʧʧʧkʧk", "ʙʙʙʙʙʙʙkʧʧʧʧʧʧʧk", "ʙʙʚʛʙʛʙkʩʨʧʧʧʨʩk", "ʛʙʛʙʙʙʚkʩʨkʨkʨʩk", "ʙʚʙʙʙʛʙkʧʨʨʨʨʨʧk", "ʛʚʛʙʙʚʚkʨʧʧʧʧʧʨk", "ʚʙʙʛʙʛʛkkkkkkkkk"], "19_2": ["kʝʜʝʝʜk.........", "kʜʜʜʜʜk.........", "kʙʛʜʛʜk.........", "kʙʙʜʚʜkkkkkkkkkk", "kʙʙʚʙʙʟʚʟʟʚʟʟʚʟʜ", "kʙʙʙʛʙʟʟʚʟʟʚʟʟʚʜ", "kʛʙʙʙʛʜʜʙʜʛʙʙʜʜʙ", "kʛʙʙʚʛʜkkkkkkkkk", "kʙʛʚʙʛʚk-ʬʭʭʭʬ-k", "kʙʙʙʚʙʙkʬʭʮʱʮʭʯk", "kʚʙʛʙʙʛkʬʭʱʲʱʭʯk", "kʚʚʙʛʙʙkʬʱʲʲʳʱʯk", "kʛʙʙʛʛʙkʬʭʮʳʮʭʯk", "kʛʛʙʚʙʙkʯʰʭʭʭʰʯk", "kʚʙʛʙʛʙk-ʯʯʯʯʯ-k", "kʙʙʛʚʙʚkkkkkkkkk"], "19_3": ["........kʜʜʝʝkʜʜ", "........kʜʜʜʟʜʜʛ", ".kk.....kʜʜʚʟʜʙʚ", "kʞʞk.kk.kʜʙʚʠʜʛʛ", "ʜkʜʝkʜʝkʝʚʙʙʟʙʙʙ", "ʙʜʚʜʚʜʜʙʙʙʚʙʟʙʙʚ", "kʙkkkʙkkkʙʙʙʠʛʙʚ", "kʛk.kʛkkkkkkkkkk", "kʙk.kʙkkʪʪʪʪʪʪʞk", "kʛk.kʛkkʪʞʞʞʞʞʫk", "kʙk.kʙkkʪʞʪʪʞʞʫk", "kʛk.kʛkkʪʞʪʞʞʞʫk", "kʙk.kʙkkʪʞʞʞʞʞʫk", "kʛk.kʛkkʪʞʞʞʞʫʫk", "kʙk.kʙkkʞʫʫʫʫʫʫk", "kʛk.kʛkkkkkkkkkk"], "200_big": ["................", "................", "....kkkkkkkk....", "...kϒϓϒϓϒϓϒϓk...", ".kkϓϔϔϔϔϔϔϔϔϒkk.", "kϓϒϔϣϤϣϣϣϣϤϣϔϓϒk", "ϒϔϔxxxxxxxxxxϔϔϓ", "ϔϣϤxxxxxxxxxxϣϣϔ", "ϣϣxxxxxxxxxxxxϣϣ", "ϣϣxxxxxxxxxxxxϤϣ", "ϤϣxxxxxxxxxxxxϣϤ", "ϣϤxxxxxxxxxxxxϣϣ", "ϣϣxxxxxxxxxxxxϣϣ", "ϣϣxxxxxxxxxxxxϣϣ", "ϣϣxxxxxxxxxxxxϤϣ", "kkkkkkkkkkkkkkkk"], "204": ["................", "................", "kkkkkkkkkkkkkkkk", "ϓϒϓϒxxxxxxxxϓϒϓϒ", "ϔϔϔϔϔxxxxxxϔϔϔϔϔ", "ϔϔϔϔϔxxxxxxϔϔϔϔϔ", "ϣϣϤϣϣϣxxxxxϣϣϣϣϣ", "ϤϣϣϣϣϣxxxxϣϣϣϣϤϣ", "ϣϣϣϣϣϤxxxxϣϣϤϣϣϣ", "ϣϣϣϤϣϣϣxxxϤϣϣϣϣϣ", "ϣϤϣϣϣϣϣxxxϣϣϣϣϣϤ", "ϣϣϣϣϣϣϤxxϣϣϣϣϤϣϣ", "ϣϣϣϣϤϣϣxxϣϣϤϣϣϣϣ", "ϣϣϤϣϣϣϣaaϤϣϣϣϣϣϣ", "ϤϣϣϣϣϣϣϤϣϣϣϣϣϣϤϣ", "kkkkkkkkkkkkkkkk"], "205": ["................", ".kkkkkkkkkkkkkk.", "k˖˒˒˒˒˒˒˒˒˒˒˒˒˓k", "k˒˒˒˒˒˒˒˒˒˒˒˒˒˓k", "k˒˒˔˔˔˔˔˔˔˔˔˒˒˓k", "k˒˒˔˕˕˔˔˔˔˕˕˒˒˓k", "k˒˒˔˕˖˔˔˔˔˕˖˒˒˓k", "k˒˒˔˔˔˔˔˔˔˔˔˒˒˓k", "k˒˒˔˔˔˔˔˔˔˔˔˒˒˓k", "k˒˒˔˔˔˔˔˕˔˔˔˒˒˓k", "k˒˒˔˔˔˔˔˔˔˔˔˒˒˓k", "k˒˒˔˔˔˔˔˔˔˔˔˒˒˓k", "k˒˒˒˒˒˒˒˒˒˒˒˒˒˓k", "k˓˓˓˓˓˓˓˓˓˓˓˓˓˔k", ".kkkkkkkkkkkkkk.", "................"], "200_0_0": ["................", "................", "................", "................", ".....kkkkkk.....", "...kkϓϒϓϒϓϒkk...", "..kϓϒϔϔϔϔϔϔϓϒk..", ".kϒϔϔϣϣϤϣϣϣϔϔϓk.", "kϓϔϤϣϣϣϣϤϣϣϣϣϔϒk", "kϔϣϣϤϣϣϣϣϤϣϣϣϣϔk", "ϒϣϣϣϣϤϣxxϣϤϣϣϣϣϓ", "ϔϤϣϣϣϣϤxxϣϣϤϣϣϣϔ", "ϣϣϤϣϣϣxxxxϣϣϤϣϣϣ", "ϣϣϣϤϣϣxxxxϣϣϣϤϣϣ", "ϣϣϣϣϤϣxxxxϣϣϣϣϤϣ", "kkkkkkkkkkkkkkkk"], "200_0_1": ["................", "................", "................", "................", ".....kkkkkk.....", "...kkϓϒϓϒϓϒkk...", "..kϓϒϔϔϔϔϔϔϓϒk..", ".kϒϔϔϣϣϤϣϣϣϔϔϓk.", "kϓϔϤϣϣϣϣϤϣϣϣϣϔϒk", "kϔϣϣϤϣϣϣϣϤϣϣϣϣϔk", "ϒϣϣϣϣϤϣxˠϣϤϣϣϣϣϓ", "ϔϤϣϣϣϣϤxxϣϣϤϣϣϣϔ", "ϣϣϤϣϣϣˠxxxϣϣϤϣϣϣ", "ϣϣϣϤϣϣxxxxϣϣϣϤϣϣ", "ϣϣϣϣϤϣxˠxxϣϣϣϣϤϣ", "kkkkkkkkkkkkkkkk"], "200_0_2": ["................", "................", "................", "................", ".....kkkkkk.....", "...kkϓϒϓϒϓϒkk...", "..kϓϒϔϔϔϔϔϔϓϒk..", ".kϒϔϔϣϣϤϣϣϣϔϔϓk.", "kϓϔϤϣϣϣϣϤϣϣϣϣϔϒk", "kϔϣϣϤϣϣϣϣϤϣϣϣϣϔk", "ϒϣϣϣϣϤϣxˢϣϤϣϣϣϣϓ", "ϔϤϣϣϣϣϤxxϣϣϤϣϣϣϔ", "ϣϣϤϣϣϣˢxxxϣϣϤϣϣϣ", "ϣϣϣϤϣϣxxxxϣϣϣϤϣϣ", "ϣϣϣϣϤϣˣˣˣˣϣϣϣϣϤϣ", "kkkkkkkkkkkkkkkk"], "200_0_3": ["................", "................", "................", "................", ".....kkkkkk.....", "...kkϓϒϓϒϓϒkk...", "..kϓϒϔϔϔϔϔϔϓϒk..", ".kϒϔϔϣϣϤϣϣϣϔϔϓk.", "kϓϔϤϣϣϣϣϤϣϣϣϣϔϒk", "kϔϣϣϤϣϣϣϣϤϣϣϣϣϔk", "ϒϣϣϣϣϤϣ˥˥ϣϤϣϣϣϣϓ", "ϔϤϣϣϣϣϤ˥˥ϣϣϤϣϣϣϔ", "ϣϣϤϣϣϣ˥˥˥˥ϣϣϤϣϣϣ", "ϣϣϣϤϣϣ˥˥˥˥ϣϣϣϤϣϣ", "ϣϣϣϣϤϣ˦˧˦˧ϣϣϣϣϤϣ", "kkkkkkkkkkkkkkkk"], "200_0_4": ["................", "................", "................", "................", ".....kkkkkk.....", "...kkϓϒϓϒϓϒkk...", "..kϓϒϔϔϔϔϔϔϓϒk..", ".kϒϔϔϣϣϤϣϣϣϔϔϓk.", "kϓϔϤϣϣϣϣϤϣϣϣϣϔϒk", "kϔϣϣϤϣϣϣϣϤϣϣϣϣϔk", "ϒϣϣϣϣϤϣxxϣϤϣϣϣϣϓ", "ϔϤϣϣϣϣϤxxϣϣϤϣϣϣϔ", "ϣϣϤϣϣϣxxxxϣϣϤϣϣϣ", "ϣϣϣϤϣϣx˨x˨ϣϣϣϤϣϣ", "ϣϣϣϣϤϣ˨˩˨˩ϣϣϣϣϤϣ", "kkkkkkkkkkkkkkkk"], "200_1_0": ["................", "................", "................", "................", ".....kkkkkk.....", "...kkϓϒϓϒϓϒkk...", "..kϓϒϔϔϔϔϔϔϓϒk..", ".kϒϔϔϣϣϤϣϣϣϔϔϓk.", "kϓϔϤϣϣxxxxϣϣϣϔϒk", "kϔϣϣϤxxxxxxϣϣϣϔk", "ϒϣϣϣxxxxxxxxϣϣϣϓ", "ϔϤϣϣxxxxxxxxϣϣϣϔ", "ϣϣϤϣxxxxxxxxϤϣϣϣ", "ϣϣϣϤxxxxxxxxϣϤϣϣ", "ϣϣϣϣxxxxxxxxϣϣϤϣ", "kkkkkkkkkkkkkkkk"], "200_1_1": ["................", "................", "................", "................", ".....kkkkkk.....", "...kkϓϒϓϒϓϒkk...", "..kϓϒϔϔϔϔϔϔϓϒk..", ".kϒϔϔϣϣϤϣϣϣϔϔϓk.", "kϓϔϤϣϣˠxˠxϣϣϣϔϒk", "kϔϣϣϤxxxˡxˠϣϣϣϔk", "ϒϣϣϣˠxxxxxxxϣϣϣϓ", "ϔϤϣϣˡxxxxxxxϣϣϣϔ", "ϣϣϤϣxxxxxxxxϤϣϣϣ", "ϣϣϣϤxˡxxˡxxˡϣϤϣϣ", "ϣϣϣϣxˠxxˠxxˠϣϣϤϣ", "kkkkkkkkkkkkkkkk"], "200_1_2": ["................", "................", "................", "................", ".....kkkkkk.....", "...kkϓϒϓϒϓϒkk...", "..kϓϒϔϔϔϔϔϔϓϒk..", ".kϒϔϔϣϣϤϣϣϣϔϔϓk.", "kϓϔϤϣϣˢxˢxϣϣϣϔϒk", "kϔϣϣϤxˢxˢxˢϣϣϣϔk", "ϒϣϣϣˢxˢxˤxˢxϣϣϣϓ", "ϔϤϣϣˢxxxxxˢxϣϣϣϔ", "ϣϣϤϣˤxxxxxxxϤϣϣϣ", "ϣϣϣϤxxxxxxxxϣϤϣϣ", "ϣϣϣϣˣˣˣˣˣˣˣˣϣϣϤϣ", "kkkkkkkkkkkkkkkk"], "200_1_3": ["................", "................", "................", "................", ".....kkkkkk.....", "...kkϓϒϓϒϓϒkk...", "..kϓϒϔϔϔϔϔϔϓϒk..", ".kϒϔϔϣϣϤϣϣϣϔϔϓk.", "kϓϔϤϣϣ˥˥˦˥ϣϣϣϔϒk", "kϔϣϣϤ˥˥˥˥˥˥ϣϣϣϔk", "ϒϣϣϣ˥˥˥˥˥˥˥˥ϣϣϣϓ", "ϔϤϣϣ˥˥˥˥˥˥˥˥ϣϣϣϔ", "ϣϣϤϣ˥˥˥˥˥˥˥˥Ϥϣϣϣ", "ϣϣϣϤ˥˧˥˥˧˥˥˧ϣϤϣϣ", "ϣϣϣϣ˦˧˦˧˦˧˦˧ϣϣϤϣ", "kkkkkkkkkkkkkkkk"], "200_1_4": ["................", "................", "................", "................", ".....kkkkkk.....", "...kkϓϒϓϒϓϒkk...", "..kϓϒϔϔϔϔϔϔϓϒk..", ".kϒϔϔϣϣϤϣϣϣϔϔϓk.", "kϓϔϤϣϣx˩xxϣϣϣϔϒk", "kϔϣϣϤxxxxx˩ϣϣϣϔk", "ϒϣϣϣ˩xxxxxxxϣϣϣϓ", "ϔϤϣϣxxxxxxxxϣϣϣϔ", "ϣϣϤϣxxxxxxxxϤϣϣϣ", "ϣϣϣϤx˨x˨x˨x˨ϣϤϣϣ", "ϣϣϣϣ˨˩˨˩˨˩˨˩ϣϣϤϣ", "kkkkkkkkkkkkkkkk"], "200_2_0": ["................", "................", "....kkkkkkkk....", "...kϒϓϒϓϒϓϒϓk...", ".kkϓϔϔϔϔϔϔϔϔϒkk.", "kϓϒϔϣϤϣϣϣϣϤϣϔϓϒk", "ϒϔϔxxxxxxxxxxϔϔϓ", "ϔϣϤxxxxxxxxxxϣϣϔ", "ϣϣxxxxxxxxxxxxϣϣ", "ϣϣxxxxxxxxxxxxϤϣ", "ϤϣxxxxxxxxxxxxϣϤ", "ϣϤxxxxxxxxxxxxϣϣ", "ϣϣxxxxxxxxxxxxϣϣ", "ϣϣxxxxxxxxxxxxϣϣ", "ϣϣxxxxxxxxxxxxϤϣ", "kkkkkkkkkkkkkkkk"], "200_2_1": ["................", "................", "....kkkkkkkk....", "...kϒϓϒϓϒϓϒϓk...", ".kkϓϔϔϔϔϔϔϔϔϒkk.", "kϓϒϔϣϤϣϣϣϣϤϣϔϓϒk", "ϒϔϔxˠxˠxˠxˠxˠϔϔϓ", "ϔϣϤxxxˡxxxˡxxϣϣϔ", "ϣϣˠxxxxxxxxxxxϣϣ", "ϣϣˡxxxxxxxxxxxϤϣ", "ϤϣxxxxxxxxxxxxϣϤ", "ϣϤxxxxxxxxxxxxϣϣ", "ϣϣxxxxxxxxxxxxϣϣ", "ϣϣxˡxxˡxxˡxxˡxϣϣ", "ϣϣxˠxxˠxxˠxxˠxϤϣ", "kkkkkkkkkkkkkkkk"], "200_2_2": ["................", "................", "....kkkkkkkk....", "...kϒϓϒϓϒϓϒϓk...", ".kkϓϔϔϔϔϔϔϔϔϒkk.", "kϓϒϔϣϤϣϣϣϣϤϣϔϓϒk", "ϒϔϔxˢxˢxˢxˢxˢϔϔϓ", "ϔϣϤxˢxˢxˢxˢxˢϣϣϔ", "ϣϣˢxˢxˤxˢxˤxˢxϣϣ", "ϣϣˢxxxxxxxxxxxϤϣ", "ϤϣˤxxxxxxxxxxxϣϤ", "ϣϤxxxxxxxxxxxxϣϣ", "ϣϣxxxxxxxxxxxxϣϣ", "ϣϣxxxxxxxxxxxxϣϣ", "ϣϣˣˣˣˣˣˣˣˣˣˣˣˣϤϣ", "kkkkkkkkkkkkkkkk"], "200_2_3": ["................", "................", "....kkkkkkkk....", "...kϒϓϒϓϒϓϒϓk...", ".kkϓϔϔϔϔϔϔϔϔϒkk.", "kϓϒϔϣϤϣϣϣϣϤϣϔϓϒk", "ϒϔϔ˥˥˥˥˥˦˥˥˥˥ϔϔϓ", "ϔϣϤ˥˥˥˥˥˥˥˥˥˥ϣϣϔ", "ϣϣ˥˥˥˥˥˥˥˥˥˥˥˥ϣϣ", "ϣϣ˥˥˥˥˥˥˥˥˥˥˥˥Ϥϣ", "Ϥϣ˥˥˥˥˥˥˥˥˥˥˥˥ϣϤ", "ϣϤ˥˥˥˥˥˥˥˥˥˥˥˥ϣϣ", "ϣϣ˥˥˥˥˥˥˥˥˥˥˥˥ϣϣ", "ϣϣ˥˧˥˥˧˥˥˧˥˥˧˥ϣϣ", "ϣϣ˦˧˦˧˦˧˦˧˦˧˦˧Ϥϣ", "kkkkkkkkkkkkkkkk"], "200_2_4": ["................", "................", "....kkkkkkkk....", "...kϒϓϒϓϒϓϒϓk...", ".kkϓϔϔϔϔϔϔϔϔϒkk.", "kϓϒϔϣϤϣϣϣϣϤϣϔϓϒk", "ϒϔϔxx˩xx˩xx˩xϔϔϓ", "ϔϣϤxxxxxxxxxxϣϣϔ", "ϣϣ˩xxxxxxxxxxxϣϣ", "ϣϣxxxxxxxxxxxxϤϣ", "ϤϣxxxxxxxxxxxxϣϤ", "ϣϤxxxxxxxxxxxxϣϣ", "ϣϣxxxxxxxxxxxxϣϣ", "ϣϣx˨x˨x˨x˨x˨x˨ϣϣ", "ϣϣ˨˩˨˩˨˩˨˩˨˩˨˩Ϥϣ", "kkkkkkkkkkkkkkkk"], "206": ["................", "................", ".....kkkkkk.....", "...kkγγγγγγkk...", "..kγγααααααγγk..", ".kγγααααααααγγk.", ".kγααααδδααααγk.", ".kγααααδδααααγk.", ".kγααααεεααααγk.", ".kγααααεεααααγk.", ".kγγααααααααγγk.", "..kγγααααααγγk..", "...kkγγγγγγkk...", ".....kkkkkk.....", "................", "................"], "20_g": ["......kkkkkkk...", ".....kˇˇˇˇˇˇˇk..", "....kˇˉˉˉˉˉˉˉˇk.", "...kˇˉkkkkkkkˉˇk", "...kkkkkkk..kˉˇk", "..kˇˇˇˇˇˇˇk.kˉˇk", ".kˇˈˈˈˈˈˈˈˇkkˉˇk", "kˇˈkkkkkkkˈˇkˉˇk", "kˇˈkˇˉkkkkkkkkkk", "kˇˈkkˇˉˉk˪˪˪˪˪˪k", "kˇˈk.kˇˇkˬˬ˪˪ˬˬk", "kˇˈk..kkk˭˪˪˪˪˭k", "kˇˈkk...k˪˪˪˪˪˪k", ".kˇˈˈk.kk˫˪ˮˮ˪˫k", "..kˇˇk.kkˮ˫˫˫˫ˮk", "...kk...kkkkkkkk"], "rp_1_0_0": ["................", "................", "......ˆ˄ˆ˄......", "......˄˅˄˅......", "....ʿˀ˂ˁʿˀ......", "....ʿʿˁ˂ʿʿ......", "....ʿˀ..........", "....ʿʿ..........", "....ʿˀ..........", "....ʿʿ..........", "....ʿˀ....ʿˀ....", "....ʿʿ....ʿʿ....", "....˂ˁʿˀʿˀʿˀ....", "....ˁ˂ʿʿʿʿʿʿ....", "..............bb", "..............By"], "rp_1_0_1": ["kkkkkkkkkkkkkkkk", "k˯˯˰˯˯˯˯˯˯˰˯˯˯˯k", "k˯˯˯˯˯ˆ˄ˆ˄˯˯˯˰˯k", "k˯˰˯˯˯˄˅˄˅˯˯˯˯˯k", "k˯˯˯ʿˀ˂ˁʿˀ˯˯˰˯˯k", "k˰˯˯ʿʿˁ˂ʿʿ˯˯˯˯˯k", "k˯˯˯ʿˀ˯˯˯˯˯˰˯˯˯k", "k˯˯˯ʿʿ˯˰˯˯˯˯˯˯˰k", "k˯˯˰ʿˀ˯˯˯˯˰˯˯˯˯k", "k˯˯˯ʿʿ˰˯˯˯˯˯˯˰˯k", "k˯˰˯ʿˀ˯˯˯˰ʿˀ˯˯˯k", "k˯˯˯ʿʿ˯˯˯˯ʿʿ˰˯˯k", "k˰˯˯˂ˁʿˀʿˀʿˀ˯˯˯k", "k˯˯˯ˁ˂ʿʿʿʿʿʿ˯˯˯k", "k˯˯˯˯˯˯˰˯˯˯˯˯˯˰k", "kkkkkkkkkkkkkkkk"], "rp_1_1_0": ["................", "................", "......ˆ˄ˆ˄......", "......˄˅˄˅......", "....ʿˀ˂ˁʿˀ......", "....ʿʿˁ˂ʿʿ......", "....ʿˀ..........", "....ʿʿ..........", "....ʿˀ..........", "....ʿʿ..........", "....ʿˀ....ʿˀ....", "....ʿʿ....ʿʿ....", "....˂ˁʿˀʿˀʿˀ....", "....ˁ˂ʿʿʿʿʿʿ....", "˳˴˳˳˴˳˳˴˳˳˴˳˳˴bb", "˴˳˳˴˳˳˴˳˳˴˳˳˴˳By"], "rp_1_2_0": ["................", "................", "......ˆ˄ˆ˄......", "......˄˅˄˅......", "....ʿˀ˂ˁʿˀ......", "....ʿʿˁ˂ʿʿ......", "....ʿˀ..........", "....ʿʿ..........", "....ʿˀ..........", "....ʿʿ..........", "....ʿˀ....ʿˀ....", "....ʿʿ....ʿʿ....", "....˂ˁʿˀʿˀʿˀ....", "....ˁ˂ʿʿʿʿʿʿ....", "..............bb", "..............By"], "rp_1_3_0": ["................", "................", "......ˆ˄ˆ˄......", "......˄˅˄˅......", "....ʿˀ˂ˁʿˀ......", "....ʿʿˁ˂ʿʿ......", "....ʿˀ..........", "....ʿʿ..........", "....ʿˀ..........", "....ʿʿ..........", "....ʿˀ....ʿˀ....", "....ʿʿ....ʿʿ....", "....˂ˁʿˀʿˀʿˀ....", "....ˁ˂ʿʿʿʿʿʿ....", "..............bb", "..............By"], "rp_1_4_0": ["................", "................", "......ˆ˄ˆ˄......", "......˄˅˄˅......", "....ʿˀ˂ˁʿˀ......", "....ʿʿˁ˂ʿʿ......", "....ʿˀ..........", "....ʿʿ..........", "....ʿˀ..........", "....ʿʿ..........", "....ʿˀ....ʿˀ....", "....ʿʿ....ʿʿ....", "....˂ˁʿˀʿˀʿˀ....", "....ˁ˂ʿʿʿʿʿʿ....", "˷˸˷˷˸˷˷˸˷˷˸˷˷˸bb", "˸˷˷˸˷˷˸˷˷˸˷˷˸˷By"], "rp_1_4_1": ["kkkkkkkkkkkkkkkk", "k˯˯˰˯˯˯˯˯˯˰˯˯˯˯k", "k˯˯˯˯˯ˆ˄ˆ˄˯˯˯˰˯k", "k˯˰˯˯˯˄˅˄˅˯˯˯˯˯k", "k˯˯˯ʿˀ˂ˁʿˀ˯˯˰˯˯k", "k˰˯˯ʿʿˁ˂ʿʿ˯˯˯˯˯k", "k˯˯˯ʿˀ˯˯˯˯˯˰˯˯˯k", "k˯˯˯ʿʿ˯˰˯˯˯˯˯˯˰k", "k˯˯˰ʿˀ˯˯˯˯˰˯˯˯˯k", "k˯˯˯ʿʿ˰˯˯˯˯˯˯˰˯k", "k˯˰˯ʿˀ˯˯˯˰ʿˀ˯˯˯k", "k˯˯˯ʿʿ˯˯˯˯ʿʿ˰˯˯k", "k˰˯˯˂ˁʿˀʿˀʿˀ˯˯˯k", "k˯˯˯ˁ˂ʿʿʿʿʿʿ˯˯˯k", "k˯˯˯˯˯˯˰˯˯˯˯˯˯˰k", "kkkkkkkkkkkkkkkk"], "rp_1_5_0": ["kkkkkkkkkkkkkkkk", "k˱˱˲˱˱˱˱˱˱˲˱˱˱˱k", "k˱˱˱˱˱ˆ˄ˆ˄˱˱˱˲˱k", "k˱˲˱˱˱˄˅˄˅˱˱˱˱˱k", "k˱˱˱ʿˀ˂ˁʿˀ˱˱˲˱˱k", "k˲˱˱ʿʿˁ˂ʿʿ˱˱˱˱˱k", "k˱˱˱ʿˀ˱˱˱˱˱˲˱˱˱k", "k˱˱˱ʿʿ˱˲˱˱˱˱˱˱˲k", "k˱˱˲ʿˀ˱˱˱˱˲˱˱˱˱k", "k˱˱˱ʿʿ˲˱˱˱˱˱˱˲˱k", "k˱˲˱ʿˀ˱˱˱˲ʿˀ˱˱˱k", "k˱˱˱ʿʿ˱˱˱˱ʿʿ˲˱˱k", "k˲˱˱˂ˁʿˀʿˀʿˀ˱˱˱k", "k˱˱˱ˁ˂ʿʿʿʿʿʿ˱˱˱k", "k˱˱˱˱˱˱˲˱˱˱˱˱˱˲k", "kkkkkkkkkkkkkkkk"], "rp_1_6_0": ["................", "................", "......ˆ˄ˆ˄......", "......˄˅˄˅......", "....ʿˀ˂ˁʿˀ......", "....ʿʿˁ˂ʿʿ......", "....ʿˀ..........", "....ʿʿ..........", "....ʿˀ..........", "....ʿʿ..........", "....ʿˀ....ʿˀ....", "....ʿʿ....ʿʿ....", "....˂ˁʿˀʿˀʿˀ....", "....ˁ˂ʿʿʿʿʿʿ....", "˹˺˹˹˺˹˹˺˹˹˺˹˹˺bb", "˺˹˹˺˹˹˺˹˹˺˹˹˺˹By"], "rp_2_0_0": ["................", "................", "................", "......ˆ.........", "................", ".....ʿˀˁʿ.......", ".....ˀ..ˁ.......", ".....ʿ..........", ".....ˁ..........", ".....ˀ..........", "................", ".........ˀ......", ".......ˆ.ˁ......", "................", "..............bb", "..............By"], "rp_2_0_1": ["kkkkkkkkkkkkkkkk", "k˯˯˰˯˯˯˯˯˯˰˯˯˯˯k", "k˯˯˯˯˯˰˯˯˯˯˯˯˰˯k", "k˯˰˯˯˯ˆ˯˯˰˯˯˯˯˯k", "k˯˯˯˯˰˯˯˯˯˯˯˰˯˯k", "k˰˯˯˯ʿˀˁʿ˯˯˯˯˯˯k", "k˯˯˯˰ˀ˯˯ˁ˯˯˰˯˯˯k", "k˯˯˯˯ʿ˯˰˯˯˯˯˯˯˰k", "k˯˯˰˯ˁ˯˯˯˯˰˯˯˯˯k", "k˯˯˯˯ˀ˰˯˯˯˯˯˯˰˯k", "k˯˰˯˯˯˯˯˯˰˯˯˯˯˯k", "k˯˯˯˯˰˯˯˯ˀ˯˯˰˯˯k", "k˰˯˯˯˯˯ˆ˰ˁ˯˯˯˯˯k", "k˯˯˯˰˯˯˯˯˯˯˰˯˯˯k", "k˯˯˯˯˯˯˰˯˯˯˯˯˯˰k", "kkkkkkkkkkkkkkkk"], "rp_2_1_0": ["................", "................", "................", "......ˆ.........", "................", ".....ʿˀˁʿ.......", ".....ˀ..ˁ.......", ".....ʿ..........", ".....ˁ..........", ".....ˀ..........", "................", ".........ˀ......", ".......ˆ.ˁ......", "................", "˳˴˳˳˴˳˳˴˳˳˴˳˳˴bb", "˴˳˳˴˳˳˴˳˳˴˳˳˴˳By"], "rp_2_2_0": ["................", "................", "................", "......ˆ.........", "......˵.........", ".....ʿˀˁʿ.......", ".....ˀ.˵ˁ.......", ".....ʿ.˶˵.......", ".....ˁ..˶.......", ".....ˀ..........", ".....˵..........", ".....˶...ˀ......", ".......ˆ.ˁ......", "................", "..............bb", "..............By"], "rp_2_3_0": ["................", "................", "................", "......ˆ.........", "......˵.........", ".....ʿˀˁʿ.......", ".....ˀ.˵ˁ.......", ".....ʿ.˶˵.......", ".....ˁ..˶.......", ".....ˀ..........", ".....˵..........", ".....˶...ˀ......", ".......ˆ.ˁ......", "................", "..............bb", "..............By"], "rp_2_4_0": ["................", "................", "................", "......ˆ.........", "................", ".....ʿˀˁʿ.......", ".....ˀ..ˁ.......", ".....ʿ..........", ".....ˁ..........", ".....ˀ..........", "................", ".........ˀ......", ".......ˆ.ˁ......", "................", "˷˸˷˷˸˷˷˸˷˷˸˷˷˸bb", "˸˷˷˸˷˷˸˷˷˸˷˷˸˷By"], "rp_2_4_1": ["kkkkkkkkkkkkkkkk", "k˯˯˰˯˯˯˯˯˯˰˯˯˯˯k", "k˯˯˯˯˯˰˯˯˯˯˯˯˰˯k", "k˯˰˯˯˯ˆ˯˯˰˯˯˯˯˯k", "k˯˯˯˯˰˯˯˯˯˯˯˰˯˯k", "k˰˯˯˯ʿˀˁʿ˯˯˯˯˯˯k", "k˯˯˯˰ˀ˯˯ˁ˯˯˰˯˯˯k", "k˯˯˯˯ʿ˯˰˯˯˯˯˯˯˰k", "k˯˯˰˯ˁ˯˯˯˯˰˯˯˯˯k", "k˯˯˯˯ˀ˰˯˯˯˯˯˯˰˯k", "k˯˰˯˯˯˯˯˯˰˯˯˯˯˯k", "k˯˯˯˯˰˯˯˯ˀ˯˯˰˯˯k", "k˰˯˯˯˯˯ˆ˰ˁ˯˯˯˯˯k", "k˯˯˯˰˯˯˯˯˯˯˰˯˯˯k", "k˯˯˯˯˯˯˰˯˯˯˯˯˯˰k", "kkkkkkkkkkkkkkkk"], "rp_2_5_0": ["kkkkkkkkkkkkkkkk", "k˱˱˲˱˱˱˱˱˱˲˱˱˱˱k", "k˱˱˱˱˱˲˱˱˱˱˱˱˲˱k", "k˱˲˱˱˱ˆ˱˱˲˱˱˱˱˱k", "k˱˱˱˱˲˱˱˱˱˱˱˲˱˱k", "k˲˱˱˱ʿˀˁʿ˱˱˱˱˱˱k", "k˱˱˱˲ˀ˱˱ˁ˱˱˲˱˱˱k", "k˱˱˱˱ʿ˱˲˱˱˱˱˱˱˲k", "k˱˱˲˱ˁ˱˱˱˱˲˱˱˱˱k", "k˱˱˱˱ˀ˲˱˱˱˱˱˱˲˱k", "k˱˲˱˱˱˱˱˱˲˱˱˱˱˱k", "k˱˱˱˱˲˱˱˱ˀ˱˱˲˱˱k", "k˲˱˱˱˱˱ˆ˲ˁ˱˱˱˱˱k", "k˱˱˱˲˱˱˱˱˱˱˲˱˱˱k", "k˱˱˱˱˱˱˲˱˱˱˱˱˱˲k", "kkkkkkkkkkkkkkkk"], "rp_2_6_0": ["................", "................", "................", "......ˆ.........", "................", ".....ʿˀˁʿ.......", ".....ˀ..ˁ.......", ".....ʿ..........", ".....ˁ..........", ".....ˀ..........", "................", ".........ˀ......", ".......ˆ.ˁ......", "................", "˹˺˹˹˺˹˹˺˹˹˺˹˹˺bb", "˺˹˹˺˹˹˺˹˹˺˹˹˺˹By"], "rp_3_0_0": ["................", "................", "........ʿˀʿˀ....", "........ʿʿʿʿ....", "..........ʿˀ....", "..........ʿʿ....", "..........ʿˀ....", "..........ʿʿ....", "..........˂ˁ....", "..........ˁ˂....", "....ʿˀʿˀʿˀʿˀ....", "....ʿʿʿʿʿʿʿʿ....", "....˂ˁ..........", "....ˁ˂..........", "..............bb", "..............By"], "rp_3_0_1": ["kkkkkkkkkkkkkkkk", "k˯˯˰˯˯˯˯˯˯˰˯˯˯˯k", "k˯˯˯˯˯˰˯ʿˀʿˀ˯˰˯k", "k˯˰˯˯˯˯˯ʿʿʿʿ˯˯˯k", "k˯˯˯˯˰˯˯˯˯ʿˀ˰˯˯k", "k˰˯˯˯˯˯˯˰˯ʿʿ˯˯˯k", "k˯˯˯˰˯˯˯˯˯ʿˀ˯˯˯k", "k˯˯˯˯˯˯˰˯˯ʿʿ˯˯˰k", "k˯˯˰˯˯˯˯˯˯˂ˁ˯˯˯k", "k˯˯˯˯˯˰˯˯˯ˁ˂˯˰˯k", "k˯˰˯ʿˀʿˀʿˀʿˀ˯˯˯k", "k˯˯˯ʿʿʿʿʿʿʿʿ˰˯˯k", "k˰˯˯˂ˁ˯˯˰˯˯˯˯˯˯k", "k˯˯˯ˁ˂˯˯˯˯˯˰˯˯˯k", "k˯˯˯˯˯˯˰˯˯˯˯˯˯˰k", "kkkkkkkkkkkkkkkk"], "rp_3_1_0": ["................", "................", "........ʿˀʿˀ....", "........ʿʿʿʿ....", "..........ʿˀ....", "..........ʿʿ....", "..........ʿˀ....", "..........ʿʿ....", "..........˂ˁ....", "..........ˁ˂....", "....ʿˀʿˀʿˀʿˀ....", "....ʿʿʿʿʿʿʿʿ....", "....˂ˁ..........", "....ˁ˂..........", "˳˴˳˳˴˳˳˴˳˳˴˳˳˴bb", "˴˳˳˴˳˳˴˳˳˴˳˳˴˳By"], "rp_3_2_0": ["................", "................", "........ʿˀʿˀ....", "........ʿʿʿʿ....", "........˶.ʿˀ....", "..........ʿʿ....", "..........ʿˀ....", "..........ʿʿ....", "..........˂ˁ....", "..........ˁ˂....", "....ʿˀʿˀʿˀʿˀ....", "....ʿʿʿʿʿʿʿʿ....", "....˂ˁ..........", "....ˁ˂..........", "..............bb", "..............By"], "rp_3_3_0": ["................", "................", "........ʿˀʿˀ....", "........ʿʿʿʿ....", "........˶.ʿˀ....", "..........ʿʿ....", "..........ʿˀ....", "..........ʿʿ....", "..........˂ˁ....", "..........ˁ˂....", "....ʿˀʿˀʿˀʿˀ....", "....ʿʿʿʿʿʿʿʿ....", "....˂ˁ..........", "....ˁ˂..........", "..............bb", "..............By"], "rp_3_4_0": ["................", "................", "........ʿˀʿˀ....", "........ʿʿʿʿ....", "..........ʿˀ....", "..........ʿʿ....", "..........ʿˀ....", "..........ʿʿ....", "..........˂ˁ....", "..........ˁ˂....", "....ʿˀʿˀʿˀʿˀ....", "....ʿʿʿʿʿʿʿʿ....", "....˂ˁ..........", "....ˁ˂..........", "˷˸˷˷˸˷˷˸˷˷˸˷˷˸bb", "˸˷˷˸˷˷˸˷˷˸˷˷˸˷By"], "rp_3_4_1": ["kkkkkkkkkkkkkkkk", "k˯˯˰˯˯˯˯˯˯˰˯˯˯˯k", "k˯˯˯˯˯˰˯ʿˀʿˀ˯˰˯k", "k˯˰˯˯˯˯˯ʿʿʿʿ˯˯˯k", "k˯˯˯˯˰˯˯˯˯ʿˀ˰˯˯k", "k˰˯˯˯˯˯˯˰˯ʿʿ˯˯˯k", "k˯˯˯˰˯˯˯˯˯ʿˀ˯˯˯k", "k˯˯˯˯˯˯˰˯˯ʿʿ˯˯˰k", "k˯˯˰˯˯˯˯˯˯˂ˁ˯˯˯k", "k˯˯˯˯˯˰˯˯˯ˁ˂˯˰˯k", "k˯˰˯ʿˀʿˀʿˀʿˀ˯˯˯k", "k˯˯˯ʿʿʿʿʿʿʿʿ˰˯˯k", "k˰˯˯˂ˁ˯˯˰˯˯˯˯˯˯k", "k˯˯˯ˁ˂˯˯˯˯˯˰˯˯˯k", "k˯˯˯˯˯˯˰˯˯˯˯˯˯˰k", "kkkkkkkkkkkkkkkk"], "rp_3_5_0": ["kkkkkkkkkkkkkkkk", "k˱˱˲˱˱˱˱˱˱˲˱˱˱˱k", "k˱˱˱˱˱˲˱ʿˀʿˀ˱˲˱k", "k˱˲˱˱˱˱˱ʿʿʿʿ˱˱˱k", "k˱˱˱˱˲˱˱˱˱ʿˀ˲˱˱k", "k˲˱˱˱˱˱˱˲˱ʿʿ˱˱˱k", "k˱˱˱˲˱˱˱˱˱ʿˀ˱˱˱k", "k˱˱˱˱˱˱˲˱˱ʿʿ˱˱˲k", "k˱˱˲˱˱˱˱˱˱˂ˁ˱˱˱k", "k˱˱˱˱˱˲˱˱˱ˁ˂˱˲˱k", "k˱˲˱ʿˀʿˀʿˀʿˀ˱˱˱k", "k˱˱˱ʿʿʿʿʿʿʿʿ˲˱˱k", "k˲˱˱˂ˁ˱˱˲˱˱˱˱˱˱k", "k˱˱˱ˁ˂˱˱˱˱˱˲˱˱˱k", "k˱˱˱˱˱˱˲˱˱˱˱˱˱˲k", "kkkkkkkkkkkkkkkk"], "rp_3_6_0": ["................", "................", "........ʿˀʿˀ....", "........ʿʿʿʿ....", "..........ʿˀ....", "..........ʿʿ....", "..........ʿˀ....", "..........ʿʿ....", "..........˂ˁ....", "..........ˁ˂....", "....ʿˀʿˀʿˀʿˀ....", "....ʿʿʿʿʿʿʿʿ....", "....˂ˁ..........", "....ˁ˂..........", "˹˺˹˹˺˹˹˺˹˹˺˹˹˺bb", "˺˹˹˺˹˹˺˹˹˺˹˹˺˹By"], "rp_4_0_0": ["................", "................", "..˂ˁ............", "..ˁ˂............", "..ʿˀ....ʿˀ......", "..ʿʿ....ʿʿ......", "..ʿˀ....ʿˀ......", "..ʿʿ....ʿʿ......", "..ʿˀʿˀʿˀ˂ˁ......", "..ʿʿʿʿʿʿˁ˂......", "......ʿˀ....ˆ˄..", "......ʿʿ....˄˅..", "..........ʿˀ....", "..........ʿʿ....", "..............bb", "..............By"], "rp_4_0_1": ["kkkkkkkkkkkkkkkk", "k˯˯˰˯˯˯˯˯˯˰˯˯˯˯k", "k˯˂ˁ˯˯˰˯˯˯˯˯˯˰˯k", "k˯ˁ˂˯˯˯˯˯˰˯˯˯˯˯k", "k˯ʿˀ˯˰˯˯ʿˀ˯˯˰˯˯k", "k˰ʿʿ˯˯˯˯ʿʿ˯˯˯˯˯k", "k˯ʿˀ˰˯˯˯ʿˀ˯˰˯˯˯k", "k˯ʿʿ˯˯˯˰ʿʿ˯˯˯˯˰k", "k˯ʿˀʿˀʿˀ˂ˁ˰˯˯˯˯k", "k˯ʿʿʿʿʿʿˁ˂˯˯˯˰˯k", "k˯˰˯˯˯ʿˀ˯˰˯˯ˆ˄˯k", "k˯˯˯˯˰ʿʿ˯˯˯˯˄˅˯k", "k˰˯˯˯˯˯˯˰˯ʿˀ˯˯˯k", "k˯˯˯˰˯˯˯˯˯ʿʿ˯˯˯k", "k˯˯˯˯˯˯˰˯˯˯˯˯˯˰k", "kkkkkkkkkkkkkkkk"], "rp_4_1_0": ["................", "................", "..˂ˁ............", "..ˁ˂............", "..ʿˀ....ʿˀ......", "..ʿʿ....ʿʿ......", "..ʿˀ....ʿˀ......", "..ʿʿ....ʿʿ......", "..ʿˀʿˀʿˀ˂ˁ......", "..ʿʿʿʿʿʿˁ˂......", "......ʿˀ....ˆ˄..", "......ʿʿ....˄˅..", "..........ʿˀ....", "..........ʿʿ....", "˳˴˳˳˴˳˳˴˳˳˴˳˳˴bb", "˴˳˳˴˳˳˴˳˳˴˳˳˴˳By"], "rp_4_2_0": ["................", "................", "..˂ˁ............", "..ˁ˂............", "..ʿˀ....ʿˀ......", "..ʿʿ....ʿʿ......", "..ʿˀ....ʿˀ......", "..ʿʿ....ʿʿ......", "..ʿˀʿˀʿˀ˂ˁ......", "..ʿʿʿʿʿʿˁ˂......", "......ʿˀ....ˆ˄..", "......ʿʿ....˄˅..", "..........ʿˀ....", "..........ʿʿ....", "..............bb", "..............By"], "rp_4_3_0": ["................", "................", "..˂ˁ............", "..ˁ˂............", "..ʿˀ....ʿˀ......", "..ʿʿ....ʿʿ......", "..ʿˀ....ʿˀ......", "..ʿʿ....ʿʿ......", "..ʿˀʿˀʿˀ˂ˁ......", "..ʿʿʿʿʿʿˁ˂......", "......ʿˀ....ˆ˄..", "......ʿʿ....˄˅..", "..........ʿˀ....", "..........ʿʿ....", "..............bb", "..............By"], "rp_4_4_0": ["................", "................", "..˂ˁ............", "..ˁ˂............", "..ʿˀ....ʿˀ......", "..ʿʿ....ʿʿ......", "..ʿˀ....ʿˀ......", "..ʿʿ....ʿʿ......", "..ʿˀʿˀʿˀ˂ˁ......", "..ʿʿʿʿʿʿˁ˂......", "......ʿˀ....ˆ˄..", "......ʿʿ....˄˅..", "..........ʿˀ....", "..........ʿʿ....", "˷˸˷˷˸˷˷˸˷˷˸˷˷˸bb", "˸˷˷˸˷˷˸˷˷˸˷˷˸˷By"], "rp_4_4_1": ["kkkkkkkkkkkkkkkk", "k˯˯˰˯˯˯˯˯˯˰˯˯˯˯k", "k˯˂ˁ˯˯˰˯˯˯˯˯˯˰˯k", "k˯ˁ˂˯˯˯˯˯˰˯˯˯˯˯k", "k˯ʿˀ˯˰˯˯ʿˀ˯˯˰˯˯k", "k˰ʿʿ˯˯˯˯ʿʿ˯˯˯˯˯k", "k˯ʿˀ˰˯˯˯ʿˀ˯˰˯˯˯k", "k˯ʿʿ˯˯˯˰ʿʿ˯˯˯˯˰k", "k˯ʿˀʿˀʿˀ˂ˁ˰˯˯˯˯k", "k˯ʿʿʿʿʿʿˁ˂˯˯˯˰˯k", "k˯˰˯˯˯ʿˀ˯˰˯˯ˆ˄˯k", "k˯˯˯˯˰ʿʿ˯˯˯˯˄˅˯k", "k˰˯˯˯˯˯˯˰˯ʿˀ˯˯˯k", "k˯˯˯˰˯˯˯˯˯ʿʿ˯˯˯k", "k˯˯˯˯˯˯˰˯˯˯˯˯˯˰k", "kkkkkkkkkkkkkkkk"], "rp_4_5_0": ["kkkkkkkkkkkkkkkk", "k˱˱˲˱˱˱˱˱˱˲˱˱˱˱k", "k˱˂ˁ˱˱˲˱˱˱˱˱˱˲˱k", "k˱ˁ˂˱˱˱˱˱˲˱˱˱˱˱k", "k˱ʿˀ˱˲˱˱ʿˀ˱˱˲˱˱k", "k˲ʿʿ˱˱˱˱ʿʿ˱˱˱˱˱k", "k˱ʿˀ˲˱˱˱ʿˀ˱˲˱˱˱k", "k˱ʿʿ˱˱˱˲ʿʿ˱˱˱˱˲k", "k˱ʿˀʿˀʿˀ˂ˁ˲˱˱˱˱k", "k˱ʿʿʿʿʿʿˁ˂˱˱˱˲˱k", "k˱˲˱˱˱ʿˀ˱˲˱˱ˆ˄˱k", "k˱˱˱˱˲ʿʿ˱˱˱˱˄˅˱k", "k˲˱˱˱˱˱˱˲˱ʿˀ˱˱˱k", "k˱˱˱˲˱˱˱˱˱ʿʿ˱˱˱k", "k˱˱˱˱˱˱˲˱˱˱˱˱˱˲k", "kkkkkkkkkkkkkkkk"], "rp_4_6_0": ["................", "................", "..˂ˁ............", "..ˁ˂............", "..ʿˀ....ʿˀ......", "..ʿʿ....ʿʿ......", "..ʿˀ....ʿˀ......", "..ʿʿ....ʿʿ......", "..ʿˀʿˀʿˀ˂ˁ......", "..ʿʿʿʿʿʿˁ˂......", "......ʿˀ....ˆ˄..", "......ʿʿ....˄˅..", "..........ʿˀ....", "..........ʿʿ....", "˹˺˹˹˺˹˹˺˹˹˺˹˹˺bb", "˺˹˹˺˹˹˺˹˹˺˹˹˺˹By"], "rp_5_0_0": ["˂ˁ..............", "ˁ˂..............", "ʿˀ..............", "ʿʿ..............", "ʿˀ..............", "ʿʿ..............", "ʿˀ..............", "ʿʿ..............", "ʿˀ..............", "ʿʿ..............", "˂ˁ....ʿˀʿˀ˂ˁʿˀ..", "ˁ˂....ʿʿʿʿˁ˂ʿʿ..", "............ˆ˄ˆ˄", "............˄˅˄˅", "......ˆ˄......bb", "......˄˅......By"], "rp_5_0_1": ["˂ˁkkkkkkkkkkkkkk", "ˁ˂˯˰˯˯˯˯˯˯˰˯˯˯˯k", "ʿˀ˯˯˯˯˰˯˯˯˯˯˯˰˯k", "ʿʿ˰˯˯˯˯˯˯˰˯˯˯˯˯k", "ʿˀ˯˯˯˰˯˯˯˯˯˯˰˯˯k", "ʿʿ˯˯˯˯˯˯˰˯˯˯˯˯˯k", "ʿˀ˯˯˰˯˯˯˯˯˯˰˯˯˯k", "ʿʿ˯˯˯˯˯˰˯˯˯˯˯˯˰k", "ʿˀ˯˰˯˯˯˯˯˯˰˯˯˯˯k", "ʿʿ˯˯˯˯˰˯˯˯˯˯˯˰˯k", "˂ˁ˰˯˯˯ʿˀʿˀ˂ˁʿˀ˯k", "ˁ˂˯˯˯˰ʿʿʿʿˁ˂ʿʿ˯k", "k˰˯˯˯˯˯˯˰˯˯˯ˆ˄ˆ˄", "k˯˯˯˰˯˯˯˯˯˯˰˄˅˄˅", "k˯˯˯˯˯ˆ˄˯˯˯˯˯˯˰k", "kkkkkk˄˅kkkkkkkk"], "rp_5_1_0": ["˂ˁ..............", "ˁ˂..............", "ʿˀ..............", "ʿʿ..............", "ʿˀ..............", "ʿʿ..............", "ʿˀ..............", "ʿʿ..............", "ʿˀ..............", "ʿʿ..............", "˂ˁ....ʿˀʿˀ˂ˁʿˀ..", "ˁ˂....ʿʿʿʿˁ˂ʿʿ..", "............ˆ˄ˆ˄", "............˄˅˄˅", "˳˴˳˳˴˳ˆ˄˳˳˴˳˳˴bb", "˴˳˳˴˳˳˄˅˳˴˳˳˴˳By"], "rp_5_2_0": ["˂ˁ..............", "ˁ˂..............", "ʿˀ..............", "ʿʿ..............", "ʿˀ..............", "ʿʿ..............", "ʿˀ..............", "ʿʿ..............", "ʿˀ..............", "ʿʿ..............", "˂ˁ....ʿˀʿˀ˂ˁʿˀ..", "ˁ˂....ʿʿʿʿˁ˂ʿʿ..", "............ˆ˄ˆ˄", "............˄˅˄˅", "......ˆ˄......bb", "......˄˅......By"], "rp_5_3_0": ["˂ˁ..............", "ˁ˂..............", "ʿˀ..............", "ʿʿ..............", "ʿˀ..............", "ʿʿ..............", "ʿˀ..............", "ʿʿ..............", "ʿˀ..............", "ʿʿ..............", "˂ˁ....ʿˀʿˀ˂ˁʿˀ..", "ˁ˂....ʿʿʿʿˁ˂ʿʿ..", "............ˆ˄ˆ˄", "............˄˅˄˅", "......ˆ˄......bb", "......˄˅......By"], "rp_5_4_0": ["˂ˁ..............", "ˁ˂..............", "ʿˀ..............", "ʿʿ..............", "ʿˀ..............", "ʿʿ..............", "ʿˀ..............", "ʿʿ..............", "ʿˀ..............", "ʿʿ..............", "˂ˁ....ʿˀʿˀ˂ˁʿˀ..", "ˁ˂....ʿʿʿʿˁ˂ʿʿ..", "............ˆ˄ˆ˄", "............˄˅˄˅", "˷˸˷˷˸˷ˆ˄˷˷˸˷˷˸bb", "˸˷˷˸˷˷˄˅˷˸˷˷˸˷By"], "rp_5_4_1": ["˂ˁkkkkkkkkkkkkkk", "ˁ˂˯˰˯˯˯˯˯˯˰˯˯˯˯k", "ʿˀ˯˯˯˯˰˯˯˯˯˯˯˰˯k", "ʿʿ˰˯˯˯˯˯˯˰˯˯˯˯˯k", "ʿˀ˯˯˯˰˯˯˯˯˯˯˰˯˯k", "ʿʿ˯˯˯˯˯˯˰˯˯˯˯˯˯k", "ʿˀ˯˯˰˯˯˯˯˯˯˰˯˯˯k", "ʿʿ˯˯˯˯˯˰˯˯˯˯˯˯˰k", "ʿˀ˯˰˯˯˯˯˯˯˰˯˯˯˯k", "ʿʿ˯˯˯˯˰˯˯˯˯˯˯˰˯k", "˂ˁ˰˯˯˯ʿˀʿˀ˂ˁʿˀ˯k", "ˁ˂˯˯˯˰ʿʿʿʿˁ˂ʿʿ˯k", "k˰˯˯˯˯˯˯˰˯˯˯ˆ˄ˆ˄", "k˯˯˯˰˯˯˯˯˯˯˰˄˅˄˅", "k˯˯˯˯˯ˆ˄˯˯˯˯˯˯˰k", "kkkkkk˄˅kkkkkkkk"], "rp_5_5_0": ["˂ˁkkkkkkkkkkkkkk", "ˁ˂˱˲˱˱˱˱˱˱˲˱˱˱˱k", "ʿˀ˱˱˱˱˲˱˱˱˱˱˱˲˱k", "ʿʿ˲˱˱˱˱˱˱˲˱˱˱˱˱k", "ʿˀ˱˱˱˲˱˱˱˱˱˱˲˱˱k", "ʿʿ˱˱˱˱˱˱˲˱˱˱˱˱˱k", "ʿˀ˱˱˲˱˱˱˱˱˱˲˱˱˱k", "ʿʿ˱˱˱˱˱˲˱˱˱˱˱˱˲k", "ʿˀ˱˲˱˱˱˱˱˱˲˱˱˱˱k", "ʿʿ˱˱˱˱˲˱˱˱˱˱˱˲˱k", "˂ˁ˲˱˱˱ʿˀʿˀ˂ˁʿˀ˱k", "ˁ˂˱˱˱˲ʿʿʿʿˁ˂ʿʿ˱k", "k˲˱˱˱˱˱˱˲˱˱˱ˆ˄ˆ˄", "k˱˱˱˲˱˱˱˱˱˱˲˄˅˄˅", "k˱˱˱˱˱ˆ˄˱˱˱˱˱˱˲k", "kkkkkk˄˅kkkkkkkk"], "rp_5_6_0": ["˂ˁ..............", "ˁ˂..............", "ʿˀ..............", "ʿʿ..............", "ʿˀ..............", "ʿʿ..............", "ʿˀ..............", "ʿʿ..............", "ʿˀ..............", "ʿʿ..............", "˂ˁ....ʿˀʿˀ˂ˁʿˀ..", "ˁ˂....ʿʿʿʿˁ˂ʿʿ..", "............ˆ˄ˆ˄", "............˄˅˄˅", "˹˺˹˹˺˹ˆ˄˹˹˺˹˹˺bb", "˺˹˹˺˹˹˄˅˹˺˹˹˺˹By"], "rp_6_0_0": ["................", "................", ".......ˆ˄.......", ".......˄˅.......", "...ʿˀ˂ˁ..ʿˀʿˀ...", "...ʿʿˁ˂..ʿʿʿʿ...", "...ʿˀ......ʿˀ...", "...ʿʿ......ʿʿ...", "...ʿˀ......ʿˀ...", "...ʿʿ......ʿʿ...", "...ʿˀ......˂ˁ...", "...ʿʿ......ˁ˂...", "...˂ˁʿˀʿˀʿˀʿˀ...", "...ˁ˂ʿʿʿʿʿʿʿʿ...", "..............bb", "..............By"], "rp_6_0_1": ["kkkkkkkkkkkkkkkk", "k˯˯˰˯˯˯˯˯˯˰˯˯˯˯k", "k˯˯˯˯˯˰ˆ˄˯˯˯˯˰˯k", "k˯˰˯˯˯˯˄˅˰˯˯˯˯˯k", "k˯˯ʿˀ˂ˁ˯˯ʿˀʿˀ˯˯k", "k˰˯ʿʿˁ˂˯˰ʿʿʿʿ˯˯k", "k˯˯ʿˀ˯˯˯˯˯˯ʿˀ˯˯k", "k˯˯ʿʿ˯˯˰˯˯˯ʿʿ˯˰k", "k˯˯ʿˀ˯˯˯˯˯˰ʿˀ˯˯k", "k˯˯ʿʿ˯˰˯˯˯˯ʿʿ˰˯k", "k˯˰ʿˀ˯˯˯˯˰˯˂ˁ˯˯k", "k˯˯ʿʿ˰˯˯˯˯˯ˁ˂˯˯k", "k˰˯˂ˁʿˀʿˀʿˀʿˀ˯˯k", "k˯˯ˁ˂ʿʿʿʿʿʿʿʿ˯˯k", "k˯˯˯˯˯˯˰˯˯˯˯˯˯˰k", "kkkkkkkkkkkkkkkk"], "rp_6_1_0": ["................", "................", ".......ˆ˄.......", ".......˄˅.......", "...ʿˀ˂ˁ..ʿˀʿˀ...", "...ʿʿˁ˂..ʿʿʿʿ...", "...ʿˀ......ʿˀ...", "...ʿʿ......ʿʿ...", "...ʿˀ......ʿˀ...", "...ʿʿ......ʿʿ...", "...ʿˀ......˂ˁ...", "...ʿʿ......ˁ˂...", "...˂ˁʿˀʿˀʿˀʿˀ...", "...ˁ˂ʿʿʿʿʿʿʿʿ...", "˳˴˳˳˴˳˳˴˳˳˴˳˳˴bb", "˴˳˳˴˳˳˴˳˳˴˳˳˴˳By"], "rp_6_2_0": ["................", "................", ".......ˆ˄.......", ".......˄˅.......", "...ʿˀ˂ˁ˶˵ʿˀʿˀ...", "...ʿʿˁ˂.˶ʿʿʿʿ...", "...ʿˀ˶....˶ʿˀ...", "...ʿʿ......ʿʿ...", "...ʿˀ......ʿˀ...", "...ʿʿ......ʿʿ...", "...ʿˀ......˂ˁ...", "...ʿʿ......ˁ˂...", "...˂ˁʿˀʿˀʿˀʿˀ...", "...ˁ˂ʿʿʿʿʿʿʿʿ...", "..............bb", "..............By"], "rp_6_3_0": ["................", "................", ".......ˆ˄.......", ".......˄˅.......", "...ʿˀ˂ˁ˶˵ʿˀʿˀ...", "...ʿʿˁ˂.˶ʿʿʿʿ...", "...ʿˀ˶....˶ʿˀ...", "...ʿʿ......ʿʿ...", "...ʿˀ......ʿˀ...", "...ʿʿ......ʿʿ...", "...ʿˀ......˂ˁ...", "...ʿʿ......ˁ˂...", "...˂ˁʿˀʿˀʿˀʿˀ...", "...ˁ˂ʿʿʿʿʿʿʿʿ...", "..............bb", "..............By"], "rp_6_4_0": ["................", "................", ".......ˆ˄.......", ".......˄˅.......", "...ʿˀ˂ˁ..ʿˀʿˀ...", "...ʿʿˁ˂..ʿʿʿʿ...", "...ʿˀ......ʿˀ...", "...ʿʿ......ʿʿ...", "...ʿˀ......ʿˀ...", "...ʿʿ......ʿʿ...", "...ʿˀ......˂ˁ...", "...ʿʿ......ˁ˂...", "...˂ˁʿˀʿˀʿˀʿˀ...", "...ˁ˂ʿʿʿʿʿʿʿʿ...", "˷˸˷˷˸˷˷˸˷˷˸˷˷˸bb", "˸˷˷˸˷˷˸˷˷˸˷˷˸˷By"], "rp_6_4_1": ["kkkkkkkkkkkkkkkk", "k˯˯˰˯˯˯˯˯˯˰˯˯˯˯k", "k˯˯˯˯˯˰ˆ˄˯˯˯˯˰˯k", "k˯˰˯˯˯˯˄˅˰˯˯˯˯˯k", "k˯˯ʿˀ˂ˁ˯˯ʿˀʿˀ˯˯k", "k˰˯ʿʿˁ˂˯˰ʿʿʿʿ˯˯k", "k˯˯ʿˀ˯˯˯˯˯˯ʿˀ˯˯k", "k˯˯ʿʿ˯˯˰˯˯˯ʿʿ˯˰k", "k˯˯ʿˀ˯˯˯˯˯˰ʿˀ˯˯k", "k˯˯ʿʿ˯˰˯˯˯˯ʿʿ˰˯k", "k˯˰ʿˀ˯˯˯˯˰˯˂ˁ˯˯k", "k˯˯ʿʿ˰˯˯˯˯˯ˁ˂˯˯k", "k˰˯˂ˁʿˀʿˀʿˀʿˀ˯˯k", "k˯˯ˁ˂ʿʿʿʿʿʿʿʿ˯˯k", "k˯˯˯˯˯˯˰˯˯˯˯˯˯˰k", "kkkkkkkkkkkkkkkk"], "rp_6_5_0": ["kkkkkkkkkkkkkkkk", "k˱˱˲˱˱˱˱˱˱˲˱˱˱˱k", "k˱˱˱˱˱˲ˆ˄˱˱˱˱˲˱k", "k˱˲˱˱˱˱˄˅˲˱˱˱˱˱k", "k˱˱ʿˀ˂ˁ˱˱ʿˀʿˀ˱˱k", "k˲˱ʿʿˁ˂˱˲ʿʿʿʿ˱˱k", "k˱˱ʿˀ˱˱˱˱˱˱ʿˀ˱˱k", "k˱˱ʿʿ˱˱˲˱˱˱ʿʿ˱˲k", "k˱˱ʿˀ˱˱˱˱˱˲ʿˀ˱˱k", "k˱˱ʿʿ˱˲˱˱˱˱ʿʿ˲˱k", "k˱˲ʿˀ˱˱˱˱˲˱˂ˁ˱˱k", "k˱˱ʿʿ˲˱˱˱˱˱ˁ˂˱˱k", "k˲˱˂ˁʿˀʿˀʿˀʿˀ˱˱k", "k˱˱ˁ˂ʿʿʿʿʿʿʿʿ˱˱k", "k˱˱˱˱˱˱˲˱˱˱˱˱˱˲k", "kkkkkkkkkkkkkkkk"], "rp_6_6_0": ["................", "................", ".......ˆ˄.......", ".......˄˅.......", "...ʿˀ˂ˁ..ʿˀʿˀ...", "...ʿʿˁ˂..ʿʿʿʿ...", "...ʿˀ......ʿˀ...", "...ʿʿ......ʿʿ...", "...ʿˀ......ʿˀ...", "...ʿʿ......ʿʿ...", "...ʿˀ......˂ˁ...", "...ʿʿ......ˁ˂...", "...˂ˁʿˀʿˀʿˀʿˀ...", "...ˁ˂ʿʿʿʿʿʿʿʿ...", "˹˺˹˹˺˹˹˺˹˹˺˹˹˺bb", "˺˹˹˺˹˹˺˹˹˺˹˹˺˹By"], "rp_7_0_0": ["................", "................", ".....ˆ˄.........", ".....˄˅.........", "...ʿˀ˂ˁʿˀ.......", "...ʿʿˁ˂ʿʿ.......", "...ʿˀ...........", "...ʿʿ...........", "...ʿˀ....˂ˁ.....", "...ʿʿ....ˁ˂.....", "...ʿˀˆ˄..ʿˀ˂ˁ...", "...ʿʿ˄˅..ʿʿˁ˂...", "...˂ˁʿˀʿˀ.......", "...ˁ˂ʿʿʿʿ.......", "..............bb", "..............By"], "rp_7_0_1": ["kkkkkkkkkkkkkkkk", "k˯˯˰˯˯˯˯˯˯˰˯˯˯˯k", "k˯˯˯˯ˆ˄˯˯˯˯˯˯˰˯k", "k˯˰˯˯˄˅˯˯˰˯˯˯˯˯k", "k˯˯ʿˀ˂ˁʿˀ˯˯˯˰˯˯k", "k˰˯ʿʿˁ˂ʿʿ˯˯˯˯˯˯k", "k˯˯ʿˀ˯˯˯˯˯˯˰˯˯˯k", "k˯˯ʿʿ˯˯˰˯˯˯˯˯˯˰k", "k˯˯ʿˀ˯˯˯˯˂ˁ˯˯˯˯k", "k˯˯ʿʿ˯˰˯˯ˁ˂˯˯˰˯k", "k˯˰ʿˀˆ˄˯˯ʿˀ˂ˁ˯˯k", "k˯˯ʿʿ˄˅˯˯ʿʿˁ˂˯˯k", "k˰˯˂ˁʿˀʿˀ˯˯˯˯˯˯k", "k˯˯ˁ˂ʿʿʿʿ˯˯˰˯˯˯k", "k˯˯˯˯˯˯˰˯˯˯˯˯˯˰k", "kkkkkkkkkkkkkkkk"], "rp_7_1_0": ["................", "................", ".....ˆ˄.........", ".....˄˅.........", "...ʿˀ˂ˁʿˀ.......", "...ʿʿˁ˂ʿʿ.......", "...ʿˀ...........", "...ʿʿ...........", "...ʿˀ....˂ˁ.....", "...ʿʿ....ˁ˂.....", "...ʿˀˆ˄..ʿˀ˂ˁ...", "...ʿʿ˄˅..ʿʿˁ˂...", "...˂ˁʿˀʿˀ.......", "...ˁ˂ʿʿʿʿ.......", "˳˴˳˳˴˳˳˴˳˳˴˳˳˴bb", "˴˳˳˴˳˳˴˳˳˴˳˳˴˳By"], "rp_7_2_0": ["................", "................", ".....ˆ˄.........", ".....˄˅.........", "...ʿˀ˂ˁʿˀ.......", "...ʿʿˁ˂ʿʿ.......", "...ʿˀ˶..˶.......", "...ʿʿ...........", "...ʿˀ....˂ˁ.....", "...ʿʿ....ˁ˂.....", "...ʿˀˆ˄..ʿˀ˂ˁ...", "...ʿʿ˄˅..ʿʿˁ˂...", "...˂ˁʿˀʿˀ.......", "...ˁ˂ʿʿʿʿ.......", "..............bb", "..............By"], "rp_7_3_0": ["................", "................", ".....ˆ˄.........", ".....˄˅.........", "...ʿˀ˂ˁʿˀ.......", "...ʿʿˁ˂ʿʿ.......", "...ʿˀ˶..˶.......", "...ʿʿ...........", "...ʿˀ....˂ˁ.....", "...ʿʿ....ˁ˂.....", "...ʿˀˆ˄..ʿˀ˂ˁ...", "...ʿʿ˄˅..ʿʿˁ˂...", "...˂ˁʿˀʿˀ.......", "...ˁ˂ʿʿʿʿ.......", "..............bb", "..............By"], "rp_7_4_0": ["................", "................", ".....ˆ˄.........", ".....˄˅.........", "...ʿˀ˂ˁʿˀ.......", "...ʿʿˁ˂ʿʿ.......", "...ʿˀ...........", "...ʿʿ...........", "...ʿˀ....˂ˁ.....", "...ʿʿ....ˁ˂.....", "...ʿˀˆ˄..ʿˀ˂ˁ...", "...ʿʿ˄˅..ʿʿˁ˂...", "...˂ˁʿˀʿˀ.......", "...ˁ˂ʿʿʿʿ.......", "˷˸˷˷˸˷˷˸˷˷˸˷˷˸bb", "˸˷˷˸˷˷˸˷˷˸˷˷˸˷By"], "rp_7_4_1": ["kkkkkkkkkkkkkkkk", "k˯˯˰˯˯˯˯˯˯˰˯˯˯˯k", "k˯˯˯˯ˆ˄˯˯˯˯˯˯˰˯k", "k˯˰˯˯˄˅˯˯˰˯˯˯˯˯k", "k˯˯ʿˀ˂ˁʿˀ˯˯˯˰˯˯k", "k˰˯ʿʿˁ˂ʿʿ˯˯˯˯˯˯k", "k˯˯ʿˀ˯˯˯˯˯˯˰˯˯˯k", "k˯˯ʿʿ˯˯˰˯˯˯˯˯˯˰k", "k˯˯ʿˀ˯˯˯˯˂ˁ˯˯˯˯k", "k˯˯ʿʿ˯˰˯˯ˁ˂˯˯˰˯k", "k˯˰ʿˀˆ˄˯˯ʿˀ˂ˁ˯˯k", "k˯˯ʿʿ˄˅˯˯ʿʿˁ˂˯˯k", "k˰˯˂ˁʿˀʿˀ˯˯˯˯˯˯k", "k˯˯ˁ˂ʿʿʿʿ˯˯˰˯˯˯k", "k˯˯˯˯˯˯˰˯˯˯˯˯˯˰k", "kkkkkkkkkkkkkkkk"], "rp_7_5_0": ["kkkkkkkkkkkkkkkk", "k˱˱˲˱˱˱˱˱˱˲˱˱˱˱k", "k˱˱˱˱ˆ˄˱˱˱˱˱˱˲˱k", "k˱˲˱˱˄˅˱˱˲˱˱˱˱˱k", "k˱˱ʿˀ˂ˁʿˀ˱˱˱˲˱˱k", "k˲˱ʿʿˁ˂ʿʿ˱˱˱˱˱˱k", "k˱˱ʿˀ˱˱˱˱˱˱˲˱˱˱k", "k˱˱ʿʿ˱˱˲˱˱˱˱˱˱˲k", "k˱˱ʿˀ˱˱˱˱˂ˁ˱˱˱˱k", "k˱˱ʿʿ˱˲˱˱ˁ˂˱˱˲˱k", "k˱˲ʿˀˆ˄˱˱ʿˀ˂ˁ˱˱k", "k˱˱ʿʿ˄˅˱˱ʿʿˁ˂˱˱k", "k˲˱˂ˁʿˀʿˀ˱˱˱˱˱˱k", "k˱˱ˁ˂ʿʿʿʿ˱˱˲˱˱˱k", "k˱˱˱˱˱˱˲˱˱˱˱˱˱˲k", "kkkkkkkkkkkkkkkk"], "rp_7_6_0": ["................", "................", ".....ˆ˄.........", ".....˄˅.........", "...ʿˀ˂ˁʿˀ.......", "...ʿʿˁ˂ʿʿ.......", "...ʿˀ...........", "...ʿʿ...........", "...ʿˀ....˂ˁ.....", "...ʿʿ....ˁ˂.....", "...ʿˀˆ˄..ʿˀ˂ˁ...", "...ʿʿ˄˅..ʿʿˁ˂...", "...˂ˁʿˀʿˀ.......", "...ˁ˂ʿʿʿʿ.......", "˹˺˹˹˺˹˹˺˹˹˺˹˹˺bb", "˺˹˹˺˹˹˺˹˹˺˹˹˺˹By"], "rp_8_0_0": ["...........ʿˀ...", "...........ʿʿ...", "...ʿˀ......ʿˀ...", "...ʿʿ......ʿʿ...", "...ʿˀ......ʿˀ...", "...ʿʿ......ʿʿ...", "...ʿˀ......ʿˀ...", "...ʿʿ......ʿʿ...", "...ʿˀ......˂ˁ...", "...ʿʿ......ˁ˂...", "...˂ˁʿˀʿˀʿˀʿˀ...", "...ˁ˂ʿʿʿʿʿʿʿʿ...", "................", "................", ".....ʿˀ˂ˁʿˀ...bb", ".....ʿʿˁ˂ʿʿ...By"], "rp_8_0_1": ["kkkkkkkkkkkʿˀkkk", "k˯˯˰˯˯˯˯˯˯˰ʿʿ˯˯k", "k˯˯ʿˀ˯˰˯˯˯˯ʿˀ˰˯k", "k˯˰ʿʿ˯˯˯˯˰˯ʿʿ˯˯k", "k˯˯ʿˀ˰˯˯˯˯˯ʿˀ˯˯k", "k˰˯ʿʿ˯˯˯˰˯˯ʿʿ˯˯k", "k˯˯ʿˀ˯˯˯˯˯˯ʿˀ˯˯k", "k˯˯ʿʿ˯˯˰˯˯˯ʿʿ˯˰k", "k˯˯ʿˀ˯˯˯˯˯˰˂ˁ˯˯k", "k˯˯ʿʿ˯˰˯˯˯˯ˁ˂˰˯k", "k˯˰˂ˁʿˀʿˀʿˀʿˀ˯˯k", "k˯˯ˁ˂ʿʿʿʿʿʿʿʿ˯˯k", "k˰˯˯˯˯˯˯˰˯˯˯˯˯˯k", "k˯˯˯˰˯˯˯˯˯˯˰˯˯˯k", "k˯˯˯˯ʿˀ˂ˁʿˀ˯˯˯˰k", "kkkkkʿʿˁ˂ʿʿkkkkk"], "rp_8_1_0": ["...........ʿˀ...", "...........ʿʿ...", "...ʿˀ......ʿˀ...", "...ʿʿ......ʿʿ...", "...ʿˀ......ʿˀ...", "...ʿʿ......ʿʿ...", "...ʿˀ......ʿˀ...", "...ʿʿ......ʿʿ...", "...ʿˀ......˂ˁ...", "...ʿʿ......ˁ˂...", "...˂ˁʿˀʿˀʿˀʿˀ...", "...ˁ˂ʿʿʿʿʿʿʿʿ...", "................", "................", "˳˴˳˳˴ʿˀ˂ˁʿˀ˳˳˴bb", "˴˳˳˴˳ʿʿˁ˂ʿʿ˳˴˳By"], "rp_8_2_0": ["...........ʿˀ...", "...........ʿʿ...", "...ʿˀ......ʿˀ...", "...ʿʿ......ʿʿ...", "...ʿˀ......ʿˀ...", "...ʿʿ......ʿʿ...", "...ʿˀ......ʿˀ...", "...ʿʿ......ʿʿ...", "...ʿˀ......˂ˁ...", "...ʿʿ......ˁ˂...", "...˂ˁʿˀʿˀʿˀʿˀ...", "...ˁ˂ʿʿʿʿʿʿʿʿ...", "................", "................", ".....ʿˀ˂ˁʿˀ...bb", ".....ʿʿˁ˂ʿʿ...By"], "rp_8_3_0": ["...........ʿˀ...", "...........ʿʿ...", "...ʿˀ......ʿˀ...", "...ʿʿ......ʿʿ...", "...ʿˀ......ʿˀ...", "...ʿʿ......ʿʿ...", "...ʿˀ......ʿˀ...", "...ʿʿ......ʿʿ...", "...ʿˀ......˂ˁ...", "...ʿʿ......ˁ˂...", "...˂ˁʿˀʿˀʿˀʿˀ...", "...ˁ˂ʿʿʿʿʿʿʿʿ...", "................", "................", ".....ʿˀ˂ˁʿˀ...bb", ".....ʿʿˁ˂ʿʿ...By"], "rp_8_4_0": ["...........ʿˀ...", "...........ʿʿ...", "...ʿˀ......ʿˀ...", "...ʿʿ......ʿʿ...", "...ʿˀ......ʿˀ...", "...ʿʿ......ʿʿ...", "...ʿˀ......ʿˀ...", "...ʿʿ......ʿʿ...", "...ʿˀ......˂ˁ...", "...ʿʿ......ˁ˂...", "...˂ˁʿˀʿˀʿˀʿˀ...", "...ˁ˂ʿʿʿʿʿʿʿʿ...", "................", "................", "˷˸˷˷˸ʿˀ˂ˁʿˀ˷˷˸bb", "˸˷˷˸˷ʿʿˁ˂ʿʿ˷˸˷By"], "rp_8_4_1": ["kkkkkkkkkkkʿˀkkk", "k˯˯˰˯˯˯˯˯˯˰ʿʿ˯˯k", "k˯˯ʿˀ˯˰˯˯˯˯ʿˀ˰˯k", "k˯˰ʿʿ˯˯˯˯˰˯ʿʿ˯˯k", "k˯˯ʿˀ˰˯˯˯˯˯ʿˀ˯˯k", "k˰˯ʿʿ˯˯˯˰˯˯ʿʿ˯˯k", "k˯˯ʿˀ˯˯˯˯˯˯ʿˀ˯˯k", "k˯˯ʿʿ˯˯˰˯˯˯ʿʿ˯˰k", "k˯˯ʿˀ˯˯˯˯˯˰˂ˁ˯˯k", "k˯˯ʿʿ˯˰˯˯˯˯ˁ˂˰˯k", "k˯˰˂ˁʿˀʿˀʿˀʿˀ˯˯k", "k˯˯ˁ˂ʿʿʿʿʿʿʿʿ˯˯k", "k˰˯˯˯˯˯˯˰˯˯˯˯˯˯k", "k˯˯˯˰˯˯˯˯˯˯˰˯˯˯k", "k˯˯˯˯ʿˀ˂ˁʿˀ˯˯˯˰k", "kkkkkʿʿˁ˂ʿʿkkkkk"], "rp_8_5_0": ["kkkkkkkkkkkʿˀkkk", "k˱˱˲˱˱˱˱˱˱˲ʿʿ˱˱k", "k˱˱ʿˀ˱˲˱˱˱˱ʿˀ˲˱k", "k˱˲ʿʿ˱˱˱˱˲˱ʿʿ˱˱k", "k˱˱ʿˀ˲˱˱˱˱˱ʿˀ˱˱k", "k˲˱ʿʿ˱˱˱˲˱˱ʿʿ˱˱k", "k˱˱ʿˀ˱˱˱˱˱˱ʿˀ˱˱k", "k˱˱ʿʿ˱˱˲˱˱˱ʿʿ˱˲k", "k˱˱ʿˀ˱˱˱˱˱˲˂ˁ˱˱k", "k˱˱ʿʿ˱˲˱˱˱˱ˁ˂˲˱k", "k˱˲˂ˁʿˀʿˀʿˀʿˀ˱˱k", "k˱˱ˁ˂ʿʿʿʿʿʿʿʿ˱˱k", "k˲˱˱˱˱˱˱˲˱˱˱˱˱˱k", "k˱˱˱˲˱˱˱˱˱˱˲˱˱˱k", "k˱˱˱˱ʿˀ˂ˁʿˀ˱˱˱˲k", "kkkkkʿʿˁ˂ʿʿkkkkk"], "rp_8_6_0": ["...........ʿˀ...", "...........ʿʿ...", "...ʿˀ......ʿˀ...", "...ʿʿ......ʿʿ...", "...ʿˀ......ʿˀ...", "...ʿʿ......ʿʿ...", "...ʿˀ......ʿˀ...", "...ʿʿ......ʿʿ...", "...ʿˀ......˂ˁ...", "...ʿʿ......ˁ˂...", "...˂ˁʿˀʿˀʿˀʿˀ...", "...ˁ˂ʿʿʿʿʿʿʿʿ...", "................", "................", "˹˺˹˹˺ʿˀ˂ˁʿˀ˹˹˺bb", "˺˹˹˺˹ʿʿˁ˂ʿʿ˹˺˹By"], "rp_9_0_0": ["................", "................", "........ˆ˄......", "........˄˅......", "......˂ˁʿˀʿˀ....", "......ˁ˂ʿʿʿʿ....", "..........ʿˀ....", "..........ʿʿ....", "..........˂ˁ....", "..........ˁ˂....", "....ʿˀ....ʿˀ....", "....ʿʿ....ʿʿ....", "....˂ˁʿˀʿˀʿˀ....", "....ˁ˂ʿʿʿʿʿʿ....", "..............bb", "..............By"], "rp_9_0_1": ["kkkkkkkkkkkkkkkk", "k˯˯˰˯˯˯˯˯˯˰˯˯˯˯k", "k˯˯˯˯˯˰˯ˆ˄˯˯˯˰˯k", "k˯˰˯˯˯˯˯˄˅˯˯˯˯˯k", "k˯˯˯˯˰˂ˁʿˀʿˀ˰˯˯k", "k˰˯˯˯˯ˁ˂ʿʿʿʿ˯˯˯k", "k˯˯˯˰˯˯˯˯˯ʿˀ˯˯˯k", "k˯˯˯˯˯˯˰˯˯ʿʿ˯˯˰k", "k˯˯˰˯˯˯˯˯˯˂ˁ˯˯˯k", "k˯˯˯˯˯˰˯˯˯ˁ˂˯˰˯k", "k˯˰˯ʿˀ˯˯˯˰ʿˀ˯˯˯k", "k˯˯˯ʿʿ˯˯˯˯ʿʿ˰˯˯k", "k˰˯˯˂ˁʿˀʿˀʿˀ˯˯˯k", "k˯˯˯ˁ˂ʿʿʿʿʿʿ˯˯˯k", "k˯˯˯˯˯˯˰˯˯˯˯˯˯˰k", "kkkkkkkkkkkkkkkk"], "rp_9_1_0": ["................", "................", "........ˆ˄......", "........˄˅......", "......˂ˁʿˀʿˀ....", "......ˁ˂ʿʿʿʿ....", "..........ʿˀ....", "..........ʿʿ....", "..........˂ˁ....", "..........ˁ˂....", "....ʿˀ....ʿˀ....", "....ʿʿ....ʿʿ....", "....˂ˁʿˀʿˀʿˀ....", "....ˁ˂ʿʿʿʿʿʿ....", "˳˴˳˳˴˳˳˴˳˳˴˳˳˴bb", "˴˳˳˴˳˳˴˳˳˴˳˳˴˳By"], "rp_9_2_0": ["................", "................", "........ˆ˄......", "........˄˅......", "......˂ˁʿˀʿˀ....", "......ˁ˂ʿʿʿʿ....", "........˶.ʿˀ....", "..........ʿʿ....", "..........˂ˁ....", "..........ˁ˂....", "....ʿˀ....ʿˀ....", "....ʿʿ....ʿʿ....", "....˂ˁʿˀʿˀʿˀ....", "....ˁ˂ʿʿʿʿʿʿ....", "..............bb", "..............By"], "rp_9_3_0": ["................", "................", "........ˆ˄......", "........˄˅......", "......˂ˁʿˀʿˀ....", "......ˁ˂ʿʿʿʿ....", "........˶.ʿˀ....", "..........ʿʿ....", "..........˂ˁ....", "..........ˁ˂....", "....ʿˀ....ʿˀ....", "....ʿʿ....ʿʿ....", "....˂ˁʿˀʿˀʿˀ....", "....ˁ˂ʿʿʿʿʿʿ....", "..............bb", "..............By"], "rp_9_4_0": ["................", "................", "........ˆ˄......", "........˄˅......", "......˂ˁʿˀʿˀ....", "......ˁ˂ʿʿʿʿ....", "..........ʿˀ....", "..........ʿʿ....", "..........˂ˁ....", "..........ˁ˂....", "....ʿˀ....ʿˀ....", "....ʿʿ....ʿʿ....", "....˂ˁʿˀʿˀʿˀ....", "....ˁ˂ʿʿʿʿʿʿ....", "˷˸˷˷˸˷˷˸˷˷˸˷˷˸bb", "˸˷˷˸˷˷˸˷˷˸˷˷˸˷By"], "rp_9_4_1": ["kkkkkkkkkkkkkkkk", "k˯˯˰˯˯˯˯˯˯˰˯˯˯˯k", "k˯˯˯˯˯˰˯ˆ˄˯˯˯˰˯k", "k˯˰˯˯˯˯˯˄˅˯˯˯˯˯k", "k˯˯˯˯˰˂ˁʿˀʿˀ˰˯˯k", "k˰˯˯˯˯ˁ˂ʿʿʿʿ˯˯˯k", "k˯˯˯˰˯˯˯˯˯ʿˀ˯˯˯k", "k˯˯˯˯˯˯˰˯˯ʿʿ˯˯˰k", "k˯˯˰˯˯˯˯˯˯˂ˁ˯˯˯k", "k˯˯˯˯˯˰˯˯˯ˁ˂˯˰˯k", "k˯˰˯ʿˀ˯˯˯˰ʿˀ˯˯˯k", "k˯˯˯ʿʿ˯˯˯˯ʿʿ˰˯˯k", "k˰˯˯˂ˁʿˀʿˀʿˀ˯˯˯k", "k˯˯˯ˁ˂ʿʿʿʿʿʿ˯˯˯k", "k˯˯˯˯˯˯˰˯˯˯˯˯˯˰k", "kkkkkkkkkkkkkkkk"], "rp_9_5_0": ["kkkkkkkkkkkkkkkk", "k˱˱˲˱˱˱˱˱˱˲˱˱˱˱k", "k˱˱˱˱˱˲˱ˆ˄˱˱˱˲˱k", "k˱˲˱˱˱˱˱˄˅˱˱˱˱˱k", "k˱˱˱˱˲˂ˁʿˀʿˀ˲˱˱k", "k˲˱˱˱˱ˁ˂ʿʿʿʿ˱˱˱k", "k˱˱˱˲˱˱˱˱˱ʿˀ˱˱˱k", "k˱˱˱˱˱˱˲˱˱ʿʿ˱˱˲k", "k˱˱˲˱˱˱˱˱˱˂ˁ˱˱˱k", "k˱˱˱˱˱˲˱˱˱ˁ˂˱˲˱k", "k˱˲˱ʿˀ˱˱˱˲ʿˀ˱˱˱k", "k˱˱˱ʿʿ˱˱˱˱ʿʿ˲˱˱k", "k˲˱˱˂ˁʿˀʿˀʿˀ˱˱˱k", "k˱˱˱ˁ˂ʿʿʿʿʿʿ˱˱˱k", "k˱˱˱˱˱˱˲˱˱˱˱˱˱˲k", "kkkkkkkkkkkkkkkk"], "rp_9_6_0": ["................", "................", "........ˆ˄......", "........˄˅......", "......˂ˁʿˀʿˀ....", "......ˁ˂ʿʿʿʿ....", "..........ʿˀ....", "..........ʿʿ....", "..........˂ˁ....", "..........ˁ˂....", "....ʿˀ....ʿˀ....", "....ʿʿ....ʿʿ....", "....˂ˁʿˀʿˀʿˀ....", "....ˁ˂ʿʿʿʿʿʿ....", "˹˺˹˹˺˹˹˺˹˹˺˹˹˺bb", "˺˹˹˺˹˹˺˹˹˺˹˹˺˹By"], "rp_10_0_0": ["................", "................", "................", "................", "˂ˁ....ʿˀʿˀ˂ˁ....", "ˁ˂....ʿʿʿʿˁ˂....", "ʿˀ........ʿˀˆ˄..", "ʿʿ........ʿʿ˄˅..", "ʿˀ........ʿˀ..ˆ˄", "ʿʿ........ʿʿ..˄˅", "ʿˀ..ʿˀ..ʿˀʿˀ....", "ʿʿ..ʿʿ..ʿʿʿʿ....", "................", "................", "..............bb", "..............By"], "rp_10_0_1": ["kkkkkkkkkkkkkkkk", "k˯˯˰˯˯˯˯˯˯˰˯˯˯˯k", "k˯˯˯˯˯˰˯˯˯˯˯˯˰˯k", "k˯˰˯˯˯˯˯˯˰˯˯˯˯˯k", "˂ˁ˯˯˯˰ʿˀʿˀ˂ˁ˰˯˯k", "ˁ˂˯˯˯˯ʿʿʿʿˁ˂˯˯˯k", "ʿˀ˯˯˰˯˯˯˯˯ʿˀˆ˄˯k", "ʿʿ˯˯˯˯˯˰˯˯ʿʿ˄˅˰k", "ʿˀ˯˰˯˯˯˯˯˯ʿˀ˯˯ˆ˄", "ʿʿ˯˯˯˯˰˯˯˯ʿʿ˯˰˄˅", "ʿˀ˰˯ʿˀ˯˯ʿˀʿˀ˯˯˯k", "ʿʿ˯˯ʿʿ˯˯ʿʿʿʿ˰˯˯k", "k˰˯˯˯˯˯˯˰˯˯˯˯˯˯k", "k˯˯˯˰˯˯˯˯˯˯˰˯˯˯k", "k˯˯˯˯˯˯˰˯˯˯˯˯˯˰k", "kkkkkkkkkkkkkkkk"], "rp_10_1_0": ["................", "................", "................", "................", "˂ˁ....ʿˀʿˀ˂ˁ....", "ˁ˂....ʿʿʿʿˁ˂....", "ʿˀ........ʿˀˆ˄..", "ʿʿ........ʿʿ˄˅..", "ʿˀ........ʿˀ..ˆ˄", "ʿʿ........ʿʿ..˄˅", "ʿˀ..ʿˀ..ʿˀʿˀ....", "ʿʿ..ʿʿ..ʿʿʿʿ....", "................", "................", "˳˴˳˳˴˳˳˴˳˳˴˳˳˴bb", "˴˳˳˴˳˳˴˳˳˴˳˳˴˳By"], "rp_10_2_0": ["................", "................", "................", "................", "˂ˁ....ʿˀʿˀ˂ˁ....", "ˁ˂....ʿʿʿʿˁ˂....", "ʿˀ.....˶..ʿˀˆ˄..", "ʿʿ........ʿʿ˄˅..", "ʿˀ........ʿˀ..ˆ˄", "ʿʿ........ʿʿ..˄˅", "ʿˀ..ʿˀ..ʿˀʿˀ....", "ʿʿ..ʿʿ..ʿʿʿʿ....", "................", "................", "..............bb", "..............By"], "rp_10_3_0": ["................", "................", "................", "................", "˂ˁ....ʿˀʿˀ˂ˁ....", "ˁ˂....ʿʿʿʿˁ˂....", "ʿˀ.....˶..ʿˀˆ˄..", "ʿʿ........ʿʿ˄˅..", "ʿˀ........ʿˀ..ˆ˄", "ʿʿ........ʿʿ..˄˅", "ʿˀ..ʿˀ..ʿˀʿˀ....", "ʿʿ..ʿʿ..ʿʿʿʿ....", "................", "................", "..............bb", "..............By"], "rp_10_4_0": ["................", "................", "................", "................", "˂ˁ....ʿˀʿˀ˂ˁ....", "ˁ˂....ʿʿʿʿˁ˂....", "ʿˀ........ʿˀˆ˄..", "ʿʿ........ʿʿ˄˅..", "ʿˀ........ʿˀ..ˆ˄", "ʿʿ........ʿʿ..˄˅", "ʿˀ..ʿˀ..ʿˀʿˀ....", "ʿʿ..ʿʿ..ʿʿʿʿ....", "................", "................", "˷˸˷˷˸˷˷˸˷˷˸˷˷˸bb", "˸˷˷˸˷˷˸˷˷˸˷˷˸˷By"], "rp_10_4_1": ["kkkkkkkkkkkkkkkk", "k˯˯˰˯˯˯˯˯˯˰˯˯˯˯k", "k˯˯˯˯˯˰˯˯˯˯˯˯˰˯k", "k˯˰˯˯˯˯˯˯˰˯˯˯˯˯k", "˂ˁ˯˯˯˰ʿˀʿˀ˂ˁ˰˯˯k", "ˁ˂˯˯˯˯ʿʿʿʿˁ˂˯˯˯k", "ʿˀ˯˯˰˯˯˯˯˯ʿˀˆ˄˯k", "ʿʿ˯˯˯˯˯˰˯˯ʿʿ˄˅˰k", "ʿˀ˯˰˯˯˯˯˯˯ʿˀ˯˯ˆ˄", "ʿʿ˯˯˯˯˰˯˯˯ʿʿ˯˰˄˅", "ʿˀ˰˯ʿˀ˯˯ʿˀʿˀ˯˯˯k", "ʿʿ˯˯ʿʿ˯˯ʿʿʿʿ˰˯˯k", "k˰˯˯˯˯˯˯˰˯˯˯˯˯˯k", "k˯˯˯˰˯˯˯˯˯˯˰˯˯˯k", "k˯˯˯˯˯˯˰˯˯˯˯˯˯˰k", "kkkkkkkkkkkkkkkk"], "rp_10_5_0": ["kkkkkkkkkkkkkkkk", "k˱˱˲˱˱˱˱˱˱˲˱˱˱˱k", "k˱˱˱˱˱˲˱˱˱˱˱˱˲˱k", "k˱˲˱˱˱˱˱˱˲˱˱˱˱˱k", "˂ˁ˱˱˱˲ʿˀʿˀ˂ˁ˲˱˱k", "ˁ˂˱˱˱˱ʿʿʿʿˁ˂˱˱˱k", "ʿˀ˱˱˲˱˱˱˱˱ʿˀˆ˄˱k", "ʿʿ˱˱˱˱˱˲˱˱ʿʿ˄˅˲k", "ʿˀ˱˲˱˱˱˱˱˱ʿˀ˱˱ˆ˄", "ʿʿ˱˱˱˱˲˱˱˱ʿʿ˱˲˄˅", "ʿˀ˲˱ʿˀ˱˱ʿˀʿˀ˱˱˱k", "ʿʿ˱˱ʿʿ˱˱ʿʿʿʿ˲˱˱k", "k˲˱˱˱˱˱˱˲˱˱˱˱˱˱k", "k˱˱˱˲˱˱˱˱˱˱˲˱˱˱k", "k˱˱˱˱˱˱˲˱˱˱˱˱˱˲k", "kkkkkkkkkkkkkkkk"], "rp_10_6_0": ["................", "................", "................", "................", "˂ˁ....ʿˀʿˀ˂ˁ....", "ˁ˂....ʿʿʿʿˁ˂....", "ʿˀ........ʿˀˆ˄..", "ʿʿ........ʿʿ˄˅..", "ʿˀ........ʿˀ..ˆ˄", "ʿʿ........ʿʿ..˄˅", "ʿˀ..ʿˀ..ʿˀʿˀ....", "ʿʿ..ʿʿ..ʿʿʿʿ....", "................", "................", "˹˺˹˹˺˹˹˺˹˹˺˹˹˺bb", "˺˹˹˺˹˹˺˹˹˺˹˹˺˹By"], "rp_11_0_0": ["........ˆˆ......", "................", "................", ".....ˁʿʿˀ.......", ".....ʿ..........", ".....ʿ..........", ".....ˀ......ʿ...", ".....ʿ......ʿ...", "............ˀ...", "............ʿ...", "............ˁ...", ".....ʿ......ˀ...", ".....ˀʿʿˀˁʿˀʿ...", "..ʿ.......ˁ..ˀ..", ".........ˀʿ..ʿbb", "..............By"], "rp_11_0_1": ["kkkkkkkkˆˆkkkkkk", "k˯˯˰˯˯˯˯˯˯˰˯˯˯˯k", "k˯˯˯˯˯˰˯˯˯˯˯˯˰˯k", "k˯˰˯˯ˁʿʿˀ˰˯˯˯˯˯k", "k˯˯˯˯ʿ˯˯˯˯˯˯˰˯˯k", "k˰˯˯˯ʿ˯˯˰˯˯˯˯˯˯k", "k˯˯˯˰ˀ˯˯˯˯˯˰ʿ˯˯k", "k˯˯˯˯ʿ˯˰˯˯˯˯ʿ˯˰k", "k˯˯˰˯˯˯˯˯˯˰˯ˀ˯˯k", "k˯˯˯˯˯˰˯˯˯˯˯ʿ˰˯k", "k˯˰˯˯˯˯˯˯˰˯˯ˁ˯˯k", "k˯˯˯˯ʿ˯˯˯˯˯˯ˀ˯˯k", "k˰˯˯˯ˀʿʿˀˁʿˀʿ˯˯k", "k˯ʿ˯˰˯˯˯˯˯ˁ˰˯ˀ˯k", "k˯˯˯˯˯˯˰˯ˀʿ˯˯ʿ˰k", "kkkkkkkkkkkkkkkk"], "rp_11_1_0": ["........ˆˆ......", "................", "................", ".....ˁʿʿˀ.......", ".....ʿ..........", ".....ʿ..........", ".....ˀ......ʿ...", ".....ʿ......ʿ...", "............ˀ...", "............ʿ...", "............ˁ...", ".....ʿ......ˀ...", ".....ˀʿʿˀˁʿˀʿ...", "..ʿ.......ˁ..ˀ..", "˳˴˳˳˴˳˳˴˳ˀʿ˳˳ʿbb", "˴˳˳˴˳˳˴˳˳˴˳˳˴˳By"], "rp_11_2_0": ["........ˆˆ......", "........˵.......", "........˶.......", ".....ˁʿʿˀ.......", ".....ʿ˵.........", ".....ʿ˶.........", ".....ˀ......ʿ...", ".....ʿ......ʿ...", "............ˀ...", "............ʿ...", "............ˁ...", ".....ʿ......ˀ...", ".....ˀʿʿˀˁʿˀʿ...", "..ʿ.......ˁ..ˀ..", ".........ˀʿ..ʿbb", "..............By"], "rp_11_3_0": ["........ˆˆ......", "........˵.......", "........˶.......", ".....ˁʿʿˀ.......", ".....ʿ˵.........", ".....ʿ˶.........", ".....ˀ......ʿ...", ".....ʿ......ʿ...", "............ˀ...", "............ʿ...", "............ˁ...", ".....ʿ......ˀ...", ".....ˀʿʿˀˁʿˀʿ...", "..ʿ.......ˁ..ˀ..", ".........ˀʿ..ʿbb", "..............By"], "rp_11_4_0": ["........ˆˆ......", "................", "................", ".....ˁʿʿˀ.......", ".....ʿ..........", ".....ʿ..........", ".....ˀ......ʿ...", ".....ʿ......ʿ...", "............ˀ...", "............ʿ...", "............ˁ...", ".....ʿ......ˀ...", ".....ˀʿʿˀˁʿˀʿ...", "..ʿ.......ˁ..ˀ..", "˷˸˷˷˸˷˷˸˷ˀʿ˷˷ʿbb", "˸˷˷˸˷˷˸˷˷˸˷˷˸˷By"], "rp_11_4_1": ["kkkkkkkkˆˆkkkkkk", "k˯˯˰˯˯˯˯˯˯˰˯˯˯˯k", "k˯˯˯˯˯˰˯˯˯˯˯˯˰˯k", "k˯˰˯˯ˁʿʿˀ˰˯˯˯˯˯k", "k˯˯˯˯ʿ˯˯˯˯˯˯˰˯˯k", "k˰˯˯˯ʿ˯˯˰˯˯˯˯˯˯k", "k˯˯˯˰ˀ˯˯˯˯˯˰ʿ˯˯k", "k˯˯˯˯ʿ˯˰˯˯˯˯ʿ˯˰k", "k˯˯˰˯˯˯˯˯˯˰˯ˀ˯˯k", "k˯˯˯˯˯˰˯˯˯˯˯ʿ˰˯k", "k˯˰˯˯˯˯˯˯˰˯˯ˁ˯˯k", "k˯˯˯˯ʿ˯˯˯˯˯˯ˀ˯˯k", "k˰˯˯˯ˀʿʿˀˁʿˀʿ˯˯k", "k˯ʿ˯˰˯˯˯˯˯ˁ˰˯ˀ˯k", "k˯˯˯˯˯˯˰˯ˀʿ˯˯ʿ˰k", "kkkkkkkkkkkkkkkk"], "rp_11_5_0": ["kkkkkkkkˆˆkkkkkk", "k˱˱˲˱˱˱˱˱˱˲˱˱˱˱k", "k˱˱˱˱˱˲˱˱˱˱˱˱˲˱k", "k˱˲˱˱ˁʿʿˀ˲˱˱˱˱˱k", "k˱˱˱˱ʿ˱˱˱˱˱˱˲˱˱k", "k˲˱˱˱ʿ˱˱˲˱˱˱˱˱˱k", "k˱˱˱˲ˀ˱˱˱˱˱˲ʿ˱˱k", "k˱˱˱˱ʿ˱˲˱˱˱˱ʿ˱˲k", "k˱˱˲˱˱˱˱˱˱˲˱ˀ˱˱k", "k˱˱˱˱˱˲˱˱˱˱˱ʿ˲˱k", "k˱˲˱˱˱˱˱˱˲˱˱ˁ˱˱k", "k˱˱˱˱ʿ˱˱˱˱˱˱ˀ˱˱k", "k˲˱˱˱ˀʿʿˀˁʿˀʿ˱˱k", "k˱ʿ˱˲˱˱˱˱˱ˁ˲˱ˀ˱k", "k˱˱˱˱˱˱˲˱ˀʿ˱˱ʿ˲k", "kkkkkkkkkkkkkkkk"], "rp_11_6_0": ["........ˆˆ......", "................", "................", ".....ˁʿʿˀ.......", ".....ʿ..........", ".....ʿ..........", ".....ˀ......ʿ...", ".....ʿ......ʿ...", "............ˀ...", "............ʿ...", "............ˁ...", ".....ʿ......ˀ...", ".....ˀʿʿˀˁʿˀʿ...", "..ʿ.......ˁ..ˀ..", "˹˺˹˹˺˹˹˺˹ˀʿ˹˹ʿbb", "˺˹˹˺˹˹˺˹˹˺˹˹˺˹By"], "rp_12_0_0": ["................", "........ˆˆ......", "................", "................", ".....ˁ..ˀʿ..ʿ...", ".....ʿ......ʿ...", ".....ʿ......ˁ...", "............ʿ...", "............ʿ...", "............ˀ...", "............ʿ...", "............ˁ...", ".....ʿˀ.....ˀ...", ".....ˀʿʿˀˁʿˀʿ...", "..ʿʿ..ʿ.......bb", "..............By"], "rp_12_0_1": ["kkkkkkkkkkkkkkkk", "k˯˯˰˯˯˯˯ˆˆ˰˯˯˯˯k", "k˯˯˯˯˯˰˯˯˯˯˯˯˰˯k", "k˯˰˯˯˯˯˯˯˰˯˯˯˯˯k", "k˯˯˯˯ˁ˯˯ˀʿ˯˯ʿ˯˯k", "k˰˯˯˯ʿ˯˯˰˯˯˯ʿ˯˯k", "k˯˯˯˰ʿ˯˯˯˯˯˰ˁ˯˯k", "k˯˯˯˯˯˯˰˯˯˯˯ʿ˯˰k", "k˯˯˰˯˯˯˯˯˯˰˯ʿ˯˯k", "k˯˯˯˯˯˰˯˯˯˯˯ˀ˰˯k", "k˯˰˯˯˯˯˯˯˰˯˯ʿ˯˯k", "k˯˯˯˯˰˯˯˯˯˯˯ˁ˯˯k", "k˰˯˯˯ʿˀ˯˰˯˯˯ˀ˯˯k", "k˯˯˯˰ˀʿʿˀˁʿˀʿ˯˯k", "k˯ʿʿ˯˯ʿ˰˯˯˯˯˯˯˰k", "kkkkkkkkkkkkkkkk"], "rp_12_1_0": ["................", "........ˆˆ......", "................", "................", ".....ˁ..ˀʿ..ʿ...", ".....ʿ......ʿ...", ".....ʿ......ˁ...", "............ʿ...", "............ʿ...", "............ˀ...", "............ʿ...", "............ˁ...", ".....ʿˀ.....ˀ...", ".....ˀʿʿˀˁʿˀʿ...", "˳˴ʿʿ˴˳ʿ˴˳˳˴˳˳˴bb", "˴˳˳˴˳˳˴˳˳˴˳˳˴˳By"], "rp_12_2_0": ["................", "........ˆˆ......", "........˵.......", "........˶.......", ".....ˁ..ˀʿ..ʿ...", ".....ʿ..˵...ʿ...", ".....ʿ..˶...ˁ...", ".....˶......ʿ...", "............ʿ...", "............ˀ...", "............ʿ...", "............ˁ...", ".....ʿˀ.....ˀ...", ".....ˀʿʿˀˁʿˀʿ...", "..ʿʿ..ʿ.......bb", "..............By"], "rp_12_3_0": ["................", "........ˆˆ......", "........˵.......", "........˶.......", ".....ˁ..ˀʿ..ʿ...", ".....ʿ..˵...ʿ...", ".....ʿ..˶...ˁ...", ".....˶......ʿ...", "............ʿ...", "............ˀ...", "............ʿ...", "............ˁ...", ".....ʿˀ.....ˀ...", ".....ˀʿʿˀˁʿˀʿ...", "..ʿʿ..ʿ.......bb", "..............By"], "rp_12_4_0": ["................", "........ˆˆ......", "................", "................", ".....ˁ..ˀʿ..ʿ...", ".....ʿ......ʿ...", ".....ʿ......ˁ...", "............ʿ...", "............ʿ...", "............ˀ...", "............ʿ...", "............ˁ...", ".....ʿˀ.....ˀ...", ".....ˀʿʿˀˁʿˀʿ...", "˷˸ʿʿ˸˷ʿ˸˷˷˸˷˷˸bb", "˸˷˷˸˷˷˸˷˷˸˷˷˸˷By"], "rp_12_4_1": ["kkkkkkkkkkkkkkkk", "k˯˯˰˯˯˯˯ˆˆ˰˯˯˯˯k", "k˯˯˯˯˯˰˯˯˯˯˯˯˰˯k", "k˯˰˯˯˯˯˯˯˰˯˯˯˯˯k", "k˯˯˯˯ˁ˯˯ˀʿ˯˯ʿ˯˯k", "k˰˯˯˯ʿ˯˯˰˯˯˯ʿ˯˯k", "k˯˯˯˰ʿ˯˯˯˯˯˰ˁ˯˯k", "k˯˯˯˯˯˯˰˯˯˯˯ʿ˯˰k", "k˯˯˰˯˯˯˯˯˯˰˯ʿ˯˯k", "k˯˯˯˯˯˰˯˯˯˯˯ˀ˰˯k", "k˯˰˯˯˯˯˯˯˰˯˯ʿ˯˯k", "k˯˯˯˯˰˯˯˯˯˯˯ˁ˯˯k", "k˰˯˯˯ʿˀ˯˰˯˯˯ˀ˯˯k", "k˯˯˯˰ˀʿʿˀˁʿˀʿ˯˯k", "k˯ʿʿ˯˯ʿ˰˯˯˯˯˯˯˰k", "kkkkkkkkkkkkkkkk"], "rp_12_5_0": ["kkkkkkkkkkkkkkkk", "k˱˱˲˱˱˱˱ˆˆ˲˱˱˱˱k", "k˱˱˱˱˱˲˱˱˱˱˱˱˲˱k", "k˱˲˱˱˱˱˱˱˲˱˱˱˱˱k", "k˱˱˱˱ˁ˱˱ˀʿ˱˱ʿ˱˱k", "k˲˱˱˱ʿ˱˱˲˱˱˱ʿ˱˱k", "k˱˱˱˲ʿ˱˱˱˱˱˲ˁ˱˱k", "k˱˱˱˱˱˱˲˱˱˱˱ʿ˱˲k", "k˱˱˲˱˱˱˱˱˱˲˱ʿ˱˱k", "k˱˱˱˱˱˲˱˱˱˱˱ˀ˲˱k", "k˱˲˱˱˱˱˱˱˲˱˱ʿ˱˱k", "k˱˱˱˱˲˱˱˱˱˱˱ˁ˱˱k", "k˲˱˱˱ʿˀ˱˲˱˱˱ˀ˱˱k", "k˱˱˱˲ˀʿʿˀˁʿˀʿ˱˱k", "k˱ʿʿ˱˱ʿ˲˱˱˱˱˱˱˲k", "kkkkkkkkkkkkkkkk"], "rp_12_6_0": ["................", "........ˆˆ......", "................", "................", ".....ˁ..ˀʿ..ʿ...", ".....ʿ......ʿ...", ".....ʿ......ˁ...", "............ʿ...", "............ʿ...", "............ˀ...", "............ʿ...", "............ˁ...", ".....ʿˀ.....ˀ...", ".....ˀʿʿˀˁʿˀʿ...", "˹˺ʿʿ˺˹ʿ˺˹˹˺˹˹˺bb", "˺˹˹˺˹˹˺˹˹˺˹˹˺˹By"], "rp_13_0_0": [".........ˆ......", "................", "..........ʿ.....", "................", "................", "............ˁ...", "............ʿ...", "............ʿ...", "............ˀ...", "............ʿ...", ".....ʿ....ˀ.ˁ...", "..ʿ..ʿˀʿˁˀʿʿˀ...", "..ˀ..ˀʿ...ʿ.....", "..ʿ....ˆˆ.ˁˆ....", "............ˆ.bb", "..............By"], "rp_13_0_1": ["kkkkkkkkkˆkkkkkk", "k˯˯˰˯˯˯˯˯˯˰˯˯˯˯k", "k˯˯˯˯˯˰˯˯˯ʿ˯˯˰˯k", "k˯˰˯˯˯˯˯˯˰˯˯˯˯˯k", "k˯˯˯˯˰˯˯˯˯˯˯˰˯˯k", "k˰˯˯˯˯˯˯˰˯˯˯ˁ˯˯k", "k˯˯˯˰˯˯˯˯˯˯˰ʿ˯˯k", "k˯˯˯˯˯˯˰˯˯˯˯ʿ˯˰k", "k˯˯˰˯˯˯˯˯˯˰˯ˀ˯˯k", "k˯˯˯˯˯˰˯˯˯˯˯ʿ˰˯k", "k˯˰˯˯ʿ˯˯˯˰ˀ˯ˁ˯˯k", "k˯ʿ˯˯ʿˀʿˁˀʿʿˀ˯˯k", "k˰ˀ˯˯ˀʿ˯˰˯ʿ˯˯˯˯k", "k˯ʿ˯˰˯˯ˆˆ˯ˁˆ˯˯˯k", "k˯˯˯˯˯˯˰˯˯˯˯ˆ˯˰k", "kkkkkkkkkkkkkkkk"], "rp_13_1_0": [".........ˆ......", "................", "..........ʿ.....", "................", "................", "............ˁ...", "............ʿ...", "............ʿ...", "............ˀ...", "............ʿ...", ".....ʿ....ˀ.ˁ...", "..ʿ..ʿˀʿˁˀʿʿˀ...", "..ˀ..ˀʿ...ʿ.....", "..ʿ....ˆˆ.ˁˆ....", "˳˴˳˳˴˳˳˴˳˳˴˳ˆ˴bb", "˴˳˳˴˳˳˴˳˳˴˳˳˴˳By"], "rp_13_2_0": [".........ˆ......", ".........˵......", ".........˶ʿ.....", "................", "................", "............ˁ...", "............ʿ...", "............ʿ...", "............ˀ...", "............ʿ...", ".....ʿ....ˀ.ˁ...", "..ʿ..ʿˀʿˁˀʿʿˀ...", "..ˀ..ˀʿ...ʿ.˶...", "..ʿ....ˆˆ.ˁˆ....", "............ˆ.bb", "..............By"], "rp_13_3_0": [".........ˆ......", ".........˵......", ".........˶ʿ.....", "................", "................", "............ˁ...", "............ʿ...", "............ʿ...", "............ˀ...", "............ʿ...", ".....ʿ....ˀ.ˁ...", "..ʿ..ʿˀʿˁˀʿʿˀ...", "..ˀ..ˀʿ...ʿ.˶...", "..ʿ....ˆˆ.ˁˆ....", "............ˆ.bb", "..............By"], "rp_13_4_0": [".........ˆ......", "................", "..........ʿ.....", "................", "................", "............ˁ...", "............ʿ...", "............ʿ...", "............ˀ...", "............ʿ...", ".....ʿ....ˀ.ˁ...", "..ʿ..ʿˀʿˁˀʿʿˀ...", "..ˀ..ˀʿ...ʿ.....", "..ʿ....ˆˆ.ˁˆ....", "˷˸˷˷˸˷˷˸˷˷˸˷ˆ˸bb", "˸˷˷˸˷˷˸˷˷˸˷˷˸˷By"], "rp_13_4_1": ["kkkkkkkkkˆkkkkkk", "k˯˯˰˯˯˯˯˯˯˰˯˯˯˯k", "k˯˯˯˯˯˰˯˯˯ʿ˯˯˰˯k", "k˯˰˯˯˯˯˯˯˰˯˯˯˯˯k", "k˯˯˯˯˰˯˯˯˯˯˯˰˯˯k", "k˰˯˯˯˯˯˯˰˯˯˯ˁ˯˯k", "k˯˯˯˰˯˯˯˯˯˯˰ʿ˯˯k", "k˯˯˯˯˯˯˰˯˯˯˯ʿ˯˰k", "k˯˯˰˯˯˯˯˯˯˰˯ˀ˯˯k", "k˯˯˯˯˯˰˯˯˯˯˯ʿ˰˯k", "k˯˰˯˯ʿ˯˯˯˰ˀ˯ˁ˯˯k", "k˯ʿ˯˯ʿˀʿˁˀʿʿˀ˯˯k", "k˰ˀ˯˯ˀʿ˯˰˯ʿ˯˯˯˯k", "k˯ʿ˯˰˯˯ˆˆ˯ˁˆ˯˯˯k", "k˯˯˯˯˯˯˰˯˯˯˯ˆ˯˰k", "kkkkkkkkkkkkkkkk"], "rp_13_5_0": ["kkkkkkkkkˆkkkkkk", "k˱˱˲˱˱˱˱˱˱˲˱˱˱˱k", "k˱˱˱˱˱˲˱˱˱ʿ˱˱˲˱k", "k˱˲˱˱˱˱˱˱˲˱˱˱˱˱k", "k˱˱˱˱˲˱˱˱˱˱˱˲˱˱k", "k˲˱˱˱˱˱˱˲˱˱˱ˁ˱˱k", "k˱˱˱˲˱˱˱˱˱˱˲ʿ˱˱k", "k˱˱˱˱˱˱˲˱˱˱˱ʿ˱˲k", "k˱˱˲˱˱˱˱˱˱˲˱ˀ˱˱k", "k˱˱˱˱˱˲˱˱˱˱˱ʿ˲˱k", "k˱˲˱˱ʿ˱˱˱˲ˀ˱ˁ˱˱k", "k˱ʿ˱˱ʿˀʿˁˀʿʿˀ˱˱k", "k˲ˀ˱˱ˀʿ˱˲˱ʿ˱˱˱˱k", "k˱ʿ˱˲˱˱ˆˆ˱ˁˆ˱˱˱k", "k˱˱˱˱˱˱˲˱˱˱˱ˆ˱˲k", "kkkkkkkkkkkkkkkk"], "rp_13_6_0": [".........ˆ......", "................", "..........ʿ.....", "................", "................", "............ˁ...", "............ʿ...", "............ʿ...", "............ˀ...", "............ʿ...", ".....ʿ....ˀ.ˁ...", "..ʿ..ʿˀʿˁˀʿʿˀ...", "..ˀ..ˀʿ...ʿ.....", "..ʿ....ˆˆ.ˁˆ....", "˹˺˹˹˺˹˹˺˹˹˺˹ˆ˺bb", "˺˹˹˺˹˹˺˹˹˺˹˹˺˹By"], "ec_0": ["................", "................", "................", "................", "................", "................", "....kkkkkkkk....", "...k55555555k...", "...kkkkkkkkkk...", ".....k5565k.....", ".....k5565k.....", ".....k5xx5k.....", ".....k5565k.....", ".....k5565k.....", ".....k5565k.....", ".....k5565k....."], "ec_1": ["................", "................", "..kkkkkkkk......", ".k55555555k.....", ".kkkkkkkkkk.....", "...k5565k.......", "...k5565k.......", "...k5xx5kkkkkkk.", "...k5565k555555k", "...k5565kkkkkkkk", "...k5565k.k55k..", "...k5xx5k.k55k..", "...k5565k.kxxk..", "...k5565k.k55k..", "...k5565k.k55k..", "...k5565k.k55k.."], "ec_2": ["................", ".kkkkkk.........", "k555555k........", "kkkkkkkk.kkkkkk.", "..k55k..k555555k", "..k55k..kkkkkkkk", "..kxxk....k55k..", "..k55kkkkkk55k..", "..k55k56565xxk..", "..k55kkkkkk55k..", "..kxxk....k55k..", "..k55k....k55k..", "..k55k....kxxk..", "..k55k....k55k..", "..kxxk....k55k..", "..k55k....k55k.."], "ec_3": [".....kkkkkk.....", "....k555555k....", "....kkkkkkkk....", "......k55k......", "......k55kkkkkk.", "kkkkkkkxk555555k", "555555k5kkkkkkkk", "kkkkkkk55k565k..", ".k55k.k55kk55k..", ".k55kkkxxkkxxk..", ".kxxk6555kk55k..", ".k55kkk55kk55k..", ".k55k.k55kk55k..", ".k55k.kxxkkxxk..", ".kxxk.k55kk55k..", ".k55k.k55kk55k.."], "ec_0s": ["................", "................", "................", "................", "................", "................", "....kkkkkkkk....", "...k55555555k...", "...kkkkkkkkkk...", ".....k5565kkkkk.", ".....k556kȅȅkȅȅk", ".....k5xxkȅȏkȏȅk", ".....k556kȅȏkȏȅk", ".....k556kȅȅkȅȅk", ".....k5565kȅ.ȅk.", ".....k5565kk.k.."], "ec_1s": ["................", "................", "..kkkkkkkk......", ".k55555555k.....", ".kkkkkkkkkk.....", "...k5565k.......", "...k5565k.......", "...k5xx5kkkkkkk.", "...k5565k555555k", "...k5565kkkkkkkk", "...k5565kkȅȅkȅȅk", "...k5xx5kkȅȏkȏȅk", "...k5565kkȅȏkȏȅk", "...k5565kkȅȅkȅȅk", "...k5565k.kȅ5ȅk.", "...k5565k.kk5k.."], "ec_2s": ["................", ".kkkkkk.........", "k555555k........", "kkkkkkkk.kkkkkk.", "..k55k..k555555k", "..k55k..kkkkkkkk", "..kxxk....k55k..", "..k55kkkkkk55k..", "..k55k56565xxk..", "..k55kkkkkkkkkk.", "..kxxk...kȅȅkȅȅk", "..k55k...kȅȏkȏȅk", "..k55k...kȅȏkȏȅk", "..k55k...kȅȅkȅȅk", "..kxxk....kȅ5ȅk.", "..k55k....kk5k.."], "ec_3s": [".....kkkkkk.....", "....k555555k....", "....kkkkkkkk....", "......k55k......", "......k55kkkkkk.", "kkkkkkkxk555555k", "555555k5kkkkkkkk", "kkkkkkk55k565k..", ".k55k.k55kk55k..", ".k55kkkxxkkkkkk.", ".kxxk6555kȅȅkȅȅk", ".k55kkk55kȅȏkȏȅk", ".k55k.k55kȅȏkȏȅk", ".k55k.kxxkȅȅkȅȅk", ".kxxk.k55kkȅ5ȅk.", ".k55k.k55kkk5k.."], "sp": ["................", "......k˖k.......", ".....k˖ɢ˖k......", "......k˖k.......", ".....kkkkkk.....", ".....kʿˀʿʿk.....", ".....kʿʿʿˀk.....", ".....kˀʿʿʿk.....", ".....kʿʿˀʿk.....", ".....kʿˀʿʿk.....", ".....kʿʿʿˀk.....", ".....kˀʿʿʿk.....", ".....kʿʿˀʿk.....", ".....kʿˀʿʿk.....", ".....kʿʿʿʿk.....", ".....kkkkkk....."], "spc": ["...ʜʜʜʜʜʜʜʜʜʜ...", "...ʜ..k˖k...ʜ...", "...ʜ.k˖ɢ˖k..ʜ...", "...ʜ..k˖k...ʜ...", "...ʜ.kkkkkk.ʜ...", ".....kʿˀʿʿk.....", ".....kʿʿʿˀk.....", ".....kˀʿʿʿk.....", ".....kʿʿˀʿk.....", ".....kʿˀʿʿk.....", ".....kʿʿʿˀk.....", ".....kˀʿʿʿk.....", ".....kʿʿˀʿk.....", ".....kʿˀʿʿk.....", ".....kʿʿʿʿk.....", ".....kkkkkk....."], "ep": ["................", "................", "................", ".......kk.......", ".......ɦɦ.......", ".......ɦɦ.......", "...kkkkɦɦkkkk...", "..kɦɦɦɦɦɦɦɦɦɦk..", ".kɦxxxxɦɦxxxxɦk.", ".kɦxxxxɦɦxxxxɦk.", ".kɦɦɦɦɦɦɦɦɦɦɦɦk.", "..kkkkkkkkkkkk..", "................", "................", "................", "................"], "op": ["................", "................", "................", "...kkkkkkkkkk...", "...kʿˀʿʿˀʿʿˀk...", "...kʿʿʿˀʿʿʿʿk...", "...kˀʿʿʿʿˀʿʿk...", "...kʿʿˀʿʿʿʿˀk...", "...kʿʿʿʿˀʿʿʿk...", "...kˀʿʿʿʿʿˀʿk...", "...kʿʿˀʿʿʿʿʿk...", "...kʿˀʿʿˀʿʿˀk...", "...kkkkkkkkkk...", "................", "................", "................"], "207": ["................", "......k˖k.......", ".....k˖ɢ˖k......", "......k˖k.......", ".....kkkkkk.....", ".....kʿˀʿʿk.....", ".....kʿʿʿˀk.....", ".....kˀʿʿʿk.....", ".....kʿʿˀʿk.....", ".....kʿˀʿʿk.....", ".....kʿʿʿˀk.....", ".....kˀʿʿʿk.....", ".....kʿʿˀʿk.....", ".....kʿˀʿʿk.....", ".....kʿʿʿʿk.....", ".....kkkkkk....."], "208": [".......ϐϑ.......", ".......ϐϑ.......", "......kϐϑk......", "....kkΧΨΧΩkk....", "...kΨΧΩΧΨΧΩΨk...", "...kΧΩΨΧΩΨΧΩk...", "....kkk--kkk....", "......k-+k......", "......k+-k......", "....kkk--kkk....", "...kΩΧΨΩΧΨΩΧk...", "...kΨΩΧΨΩΧΨΩk...", "....kkΧΨΩΧkk....", "......kϐϑk......", ".......ϐϑ.......", ".......ϐϑ......."]};
@@ -537,27 +582,36 @@ for (const s of [...STRUCTS, { id: "spawn" }, { id: "201_0" }, { id: "201_1" }, 
   ICONS[s.id] = mv;
 }
 for (const s of SEARCH_STRUCTS) if (s.loot) { const src = s.iconOf || 14; ICONS[s.id] = ICONS[src]; ICON_URL[s.id] = ICON_URL[src]; }
-const iconTag = (st, px) => `<img alt="" width="${px}" height="${px}" style="display:block;flex:none;image-rendering:pixelated" src="${ICON_URL[st]}">`;
+ICON_URL[209] = ICON_URL[22]; ICONS[209] = ICONS[22];   // 관문이 이어지는 곳은 엔드 관문 아이콘
+const iconTag = (st, px) => ICON_URL[st] ? `<img alt="" width="${px}" height="${px}" style="display:block;flex:none;image-rendering:pixelated" src="${ICON_URL[st]}">` : "";
 /* ---------------- wasm + workers ---------------- */
 function b64ToBytes(s) { const bin = atob(s); const u = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i); return u; }
-const anyStub = new Proxy({}, { get: () => () => 0 });
-const imports = { wasi_snapshot_preview1: anyStub, env: anyStub };
+function wasiImports() {   // 오류 출력(fd_write)을 "다 썼다"고 답해 줘야 wasm 안에서 출력이 무한 반복되지 않음
+  let mem = null; const fdw = (fd, iov, n, nw) => { if (!mem) return 0; const v = new DataView(mem.buffer); let t = 0; for (let i = 0; i < n; i++) t += v.getUint32(iov + i * 8 + 4, true); v.setUint32(nw, t, true); return 0; };
+  const st = new Proxy({ fd_write: fdw }, { get: (o, k) => o[k] || (() => 0) });
+  return { imp: { wasi_snapshot_preview1: st, env: st }, bind: ex => { mem = ex.memory; return ex; } }; }
 let wasmModule, mainEx;
 const ready = WebAssembly.compile(b64ToBytes(WASM_B64)).then(async m => {
-  wasmModule = m; mainEx = (await WebAssembly.instantiate(m, imports)).exports;
+  wasmModule = m; { const w = wasiImports(); mainEx = w.bind((await WebAssembly.instantiate(m, w.imp)).exports); }
 });
 
 const workerSrc = `
-let ex, MC, running = false, cfg, cursor = 0n;
-const anyStub = new Proxy({}, { get: () => () => 0 });
+let ex, MC, MCV = 0, running = false, cfg, cursor = 0n;
+function wasiImports() {   // 오류 출력(fd_write)을 "다 썼다"고 답해 줘야 wasm 안에서 출력이 무한 반복되지 않음
+  let mem = null; const fdw = (fd, iov, n, nw) => { if (!mem) return 0; const v = new DataView(mem.buffer); let t = 0; for (let i = 0; i < n; i++) t += v.getUint32(iov + i * 8 + 4, true); v.setUint32(nw, t, true); return 0; };
+  const st = new Proxy({ fd_write: fdw }, { get: (o, k) => o[k] || (() => 0) });
+  return { imp: { wasi_snapshot_preview1: st, env: st }, bind: ex => { mem = ex.memory; return ex; } }; }
 const I32 = () => new Int32Array(ex.memory.buffer);
 onmessage = async (ev) => {
   const d = ev.data;
   if (d.type === "init") {
-    ex = (await WebAssembly.instantiate(d.module, { wasi_snapshot_preview1: anyStub, env: anyStub })).exports;
-    MC = ex.mc_wd(); postMessage({ type: "ready" });
+    { const w = wasiImports(); ex = w.bind((await WebAssembly.instantiate(d.module, w.imp)).exports); }
+    if (MCV) ex.set_mcv(MCV); MC = ex.mc_wd(); postMessage({ type: "ready" });
+  } else if (d.type === "mcv") {   // 버전 바꾸기
+    MCV = d.v; if (ex) { ex.set_mcv(d.v); MC = d.v; }
   } else if (d.type === "run") {
     cfg = d.cfg; cursor = BigInt(cfg.start) + BigInt(d.index);
+    if (cfg.mcv) { ex.set_mcv(cfg.mcv); MC = cfg.mcv; }
     const m = I32(); const ip = ex.ids_ptr() >> 2, yp = ex.ys_ptr() >> 2, sp = ex.sids_ptr() >> 2;
     cfg.ids.forEach((v, i) => { m[ip + i] = v; m[yp + i] = cfg.ys[i]; });
     cfg.sids.forEach((v, i) => { m[sp + i] = v; });
@@ -579,6 +633,11 @@ onmessage = async (ev) => {
       else ids[k] = 5000 + ex.biome_at(d.tx * 64 * d.s + i * d.s + 2, d.tz * 64 * d.s + j * d.s + 2, y);
     }
     postMessage({ type: "tile", key: d.key, ids }, [ids.buffer]);
+  }
+  else if (d.type === "pv") {   // 시드 찾기 미리보기: 줄 j0..j1의 바이옴
+    ex.set_seed(d.lo, d.hi, d.mc); const ids = new Int32Array((d.j1 - d.j0) * d.M);
+    for (let j = d.j0; j < d.j1; j++) for (let i = 0; i < d.M; i++) ids[(j - d.j0) * d.M + i] = ex.biome_at(Math.round(d.x0 + (i + .5) * d.per), Math.round(d.z0 + (j + .5) * d.per), 256);
+    postMessage({ type: "pv", req: d.req, j0: d.j0, ids }, [ids.buffer]);
   }
   else if (d.type === "v3c") {
     // 3D 동굴: 4칸 단위 칸마다 0 돌 / 1 지표 위 / 2 물 / 3 용암 / 10+바이옴 = 빈 동굴
@@ -718,22 +777,59 @@ function lootMatch(line, pat) {
   if (pat.endsWith("*")) return id.startsWith(pat.slice(0, -1));
   return id === pat;
 }
-function lootNear(lo, hi, cx, cz, R, pat) {
+// 조립식 구조물(고대 도시·시련의 방·마을) 상자: 지도에서 쓰는 것과 같은 조립기로 조각을 맞추고, 청크 장식 난수를 조각 순서대로 나눠 줌
+const jigAsm = {};
+function rdq(q) { const u = new Uint8Array(ex.memory.buffer, q); let n = 0; while (u[n]) n++; return new TextDecoder().decode(u.slice(0, n)); }
+function jigLines(st, lo, hi, x, z) {
+  const D = cfg.jig && cfg.jig[st]; if (!D || typeof makeAssembler === "undefined") return null;
+  const asm = jigAsm[st] || (jigAsm[st] = makeAssembler(D));
+  const seed = BigInt.asIntN(64, (BigInt(hi >>> 0) << 32n) | BigInt(lo >>> 0));
+  const VT = ["plains", "desert", "savanna", "taiga", "snowy"], VSALT = { desert: 40039, plains: 40040, savanna: 40041, snowy: 40042, taiga: 40043 };
+  let pcs, salt;
+  if (st === 13) { pcs = asm(seed, x >> 4, z >> 4, { startPool: "ancient_city/city_center", startJigsaw: "minecraft:city_anchor", y: -27, maxDepth: 7, maxDist: 116 }); salt = 70000; }
+  else if (st === 25) { pcs = asm(seed, x >> 4, z >> 4, { startPool: "trial_chambers/chamber/end", yMin: -40, yMax: -20, maxDepth: 20, maxDist: 116, pad: [10, 10], aliases: D.A }); salt = 30004; }
+  else { const ty = VT[ex.subtype_flag(5, x, z) & 7] || "plains", old = MC < 22;   // 1.16: 지형·섞기 방식·상자 난수 번호가 다름
+    pcs = asm(seed, x >> 4, z >> 4, { startPool: "village/" + ty + "/town_centers", y: 0, heightFn: old ? (a, b) => ex.rp_height(a, b) : (a, b) => ex.wg_height(a, b), projectStart: true, maxDepth: 6, maxDist: 80, hack: true, fastutil: old }); salt = old ? 40011 : VSALT[ty]; }
+  if (!pcs) return [];
+  if (!jigLines.nb) jigLines.nb = ex.malloc(128);
+  const seqs = {}, used = {}, out = [];
+  for (const c of piecesChests(D, pcs)) {
+    const cx = c.x >> 4, cz = c.z >> 4, k = cx + "," + cz;
+    if (!seqs[k]) seqs[k] = rdq(ex.salt_longs(cx * 16, cz * 16, salt, st === 13 ? 16 : 64)).trim().split(" ");
+    used[k] = used[k] || 0;
+    const ls = BigInt.asUintN(64, BigInt(seqs[k][used[k]++]));
+    if (!c.table) continue;
+    const tb = c.table.replace("minecraft:", "");
+    // 같은 청크 앞쪽에 지형 장식 조각이 있으면 이 상자는 확실하지 않아서 뺌
+    if (st === 5 && pcs.slice(0, c.piece).some(q => q.el.t === "f" && (q.pos[0] >> 4) === cx && (q.pos[2] >> 4) === cz)) continue;
+    out.push("C|" + tb + "|" + c.x + "|" + c.z);
+    if (st === 13) out.push(rdq(ex.loot_seed(tb === "chests/ancient_city_ice_box" ? 1 : 0, Number(ls & 0xffffffffn), Number(ls >> 32n))).trim());
+    else { new Uint8Array(ex.memory.buffer, jigLines.nb, 128).set(new TextEncoder().encode(c.table + "\0")); out.push(rdq(ex.loot_named(jigLines.nb, Number(ls & 0xffffffffn), Number(ls >> 32n))).trim()); }
+  }
+  return out.join(String.fromCharCode(10)).split(String.fromCharCode(10));
+}
+function lootList(lo, hi, cx, cz, R) {
   ex.set_seed_dim(lo, hi, MC, 0);
-  const key = lo + ":" + hi; let list = lootCache.get(key);
+  const key = lo + ":" + hi + ":" + R; let list = lootCache.get(key);
   if (!list) {   // 한 시드에서 여러 아이템 조건을 걸어도 상자 계산은 한 번만
     list = [];
-    for (const st of LOOT_OW) {
+    for (const st of LOOT_OW.concat(cfg.jig ? Object.keys(cfg.jig).map(Number) : [])) {
+      ex.set_seed_dim(lo, hi, MC, 0);
       const n = ex.structs_rect(st, cx - R, cz - R, cx + R, cz + R, 512); if (n <= 0) continue;
       const a = I32().slice(ex.rect_ptr() >> 2, (ex.rect_ptr() >> 2) + n * 4);
       for (let i = 0; i < n; i++) {
         const x = a[i * 4], z = a[i * 4 + 2], d = Math.hypot(x - cx, z - cz); if (d > R) continue;
+        if (st === 13 || st === 25 || st === 5) { ex.set_seed_dim(lo, hi, MC, 0); const L = jigLines(st, lo, hi, x, z); if (L) list.push({ st, x, z, d, lines: L }); continue; }
         const q = ex.loot_struct(st, x, z, 12), u = new Uint8Array(ex.memory.buffer, q); let k = 0; while (u[k]) k++;
-        list.push({ x, z, d, lines: new TextDecoder().decode(u.slice(0, k)).split(String.fromCharCode(10)) });
+        list.push({ st, x, z, d, lines: new TextDecoder().decode(u.slice(0, k)).split(String.fromCharCode(10)) });
       }
     }
-    lootCache.clear(); lootCache.set(key, list);
+    if (lootCache.size > 4) lootCache.clear(); lootCache.set(key, list);
   }
+  return list;
+}
+function lootNear(lo, hi, cx, cz, R, pat) {
+  const list = lootList(lo, hi, cx, cz, R);
   let best = null;
   for (const it of list) if ((!best || it.d < best.d) && it.lines.some(l => lootMatch(l, pat))) best = { x: it.x, z: it.z, d: Math.round(it.d) };
   return best;
@@ -764,6 +860,54 @@ function extNear(st, lo, hi, cx, cz, R) {
   }
   return null;
 }
+// 스피드런 조건: 가벼운 것(네더 요새)부터, 하나라도 안 맞으면 바로 탈락
+function srCheck(lo, hi, cx, cz) {
+  const s = cfg.sr, cols = [], chests = []; let fo = null;
+  if (s.fo || s.ba) {
+    ex.set_seed_dim(lo, hi, MC, -1);
+    const nx = Math.floor(cx / 8), nz = Math.floor(cz / 8);
+    if (s.ba) {   // 보루 잔해 조건이 있으면: 반경 안 요새 중 보루가 가까이 있는 것
+      const n = ex.structs_rect(18, nx - (s.fo || 1000), nz - (s.fo || 1000), nx + (s.fo || 1000), nz + (s.fo || 1000), 256); if (n <= 0) return null;
+      const a = I32().slice(ex.rect_ptr() >> 2, (ex.rect_ptr() >> 2) + n * 4), fl = [];
+      for (let i = 0; i < n; i++) { const d = Math.hypot(a[i*4] - nx, a[i*4+2] - nz); if (d <= (s.fo || 1000)) fl.push({ x: a[i*4], z: a[i*4+2], d: Math.round(d) }); }
+      fl.sort((p, q) => p.d - q.d); let ba = null;
+      for (const f of fl) { const b = nearRect(19, f.x, f.z, s.ba); if (b) { fo = f; ba = b; break; } }
+      if (!ba) return null;
+      cols.push(fo, ba);
+    } else { fo = nearRect(18, nx, nz, s.fo); if (!fo) return null; cols.push(fo); }
+  }
+  if (s.sh) {
+    ex.set_seed_dim(lo, hi, MC, 0); const d = ex.sh_near(s.sh, cx, cz, 0); if (d < 0) return null;
+    const o = ex.out_ptr() >> 2, m = I32(); cols.unshift({ x: m[o + 90], z: m[o + 91], d });
+  }
+  if (s.rp) {   // 폐허가 된 차원문 틀: (필요한 흑요석 - 그 차원문 상자 흑요석)이 가장 적은 것
+    const list = lootList(lo, hi, cx, cz, s.itR); let best = null;
+    ex.set_seed_dim(lo, hi, MC, 0);
+    for (const L of list) { if (L.st !== 11) continue;
+      const need = ex.rp_frame(L.x, L.z); if (need < 0 || need >= 99) continue;
+      const o = I32(), q = ex.out_ptr() >> 2, y = o[q + 100], cry = o[q + 104], vp = o[q + 101], risk = o[q + 113];
+      if (s.rpW && vp === 4) continue;   // 물 밑 차원문 빼기
+      let ob = 0; for (const l of L.lines) { const f = l.split("|"); if (f[0] === "I" && f[1].replace("minecraft:", "") === "obsidian") ob += +f[2] || 1; }
+      const left = Math.max(0, need - ob);
+      if (left <= s.rpN && (!best || left < best.left || (left === best.left && L.d < best.d))) best = { x: L.x, z: L.z, d: Math.round(L.d), left, need, ob, cry, y, risk, L };
+    }
+    if (!best) return null;
+    cols.push({ x: best.x, z: best.z, d: best.d, t: (best.left ? best.left + '개 모자람' : '켤 수 있음') + ' <span class="sub">(' + best.d + '칸, 틀에 ' + best.need + '개 필요' + (best.cry ? ' · 우는 흑요석 ' + best.cry : '') + ', 상자 흑요석 ' + best.ob + (best.risk ? ', 최대 ' + best.risk + '개 더 없어질 수 있음' : '') + ')</span>' });
+    chests.push([11, best.x, best.z]);
+  }
+  if (s.items.length) {
+    const list = lootList(lo, hi, cx, cz, s.itR), used = new Set();
+    for (const it of s.items) {
+      let cnt = 0, far = 0, nst = 0;
+      for (const L of list) { let c = 0; for (const l of L.lines) { const f = l.split("|"); if (f[0] === "I" && f[1].replace("minecraft:", "") === it.k) c += +f[2] || 1; }
+        if (c) { cnt += c; nst++; far = Math.max(far, L.d); used.add(L); } }
+      if (cnt < it.n) return null;
+      cols.push({ x: 0, z: 0, d: Math.round(far), t: cnt + '개 <span class="sub">(구조물 ' + nst + '곳, 가장 먼 곳 ' + Math.round(far) + '칸)</span>' });
+    }
+    for (const L of used) chests.push([L.st, L.x, L.z]);
+  }
+  return { cols, chests };
+}
 const rnd = new Uint32Array(2);
 function loop() {
   if (!running) return;
@@ -774,6 +918,8 @@ function loop() {
     if (cfg.mode === "random") { crypto.getRandomValues(rnd); lo = rnd[0]; hi = rnd[1]; }
     else { const s = BigInt.asUintN(64, cursor); lo = Number(s & 0xffffffffn); hi = Number(s >> 32n); cursor += BigInt(cfg.stride); }
     checked++;
+    // 스피드런: 네더 요새가 원점 근처에 없으면 스폰 계산 전에 바로 탈락 (스폰은 원점에서 멀어야 수백 칸이라 네더로는 수십 칸)
+    if (cfg.sr && cfg.sr.fo && !cfg.sr.ba) { ex.set_seed_dim(lo, hi, MC, -1); if (!nearRect(18, Math.floor(cfg.cx / 8), Math.floor(cfg.cz / 8), cfg.sr.fo + (cfg.spawn ? 64 : 0))) continue; }
     if (ex.test_seed(lo, hi, MC, n, cfg.R, cfg.step, cfg.cx, cfg.cz, cfg.spawn, cfg.fast, ns)) {
       let cx = cfg.cx, cz = cfg.cz;
       if (cfg.xs.length) {
@@ -784,18 +930,27 @@ function loop() {
         ex.set_seed(lo, hi, MC);
         cfg.xres = xr;
       }
+      let srr = null;
+      if (cfg.sr) {
+        let sx = cfg.cx, sz = cfg.cz;
+        if (cfg.spawn) { ex.set_seed(lo, hi, MC); ex.spawn_xz(); const o = ex.out_ptr() >> 2; sx = I32()[o + 80]; sz = I32()[o + 81]; }
+        srr = srCheck(lo, hi, sx, sz); if (!srr) continue;
+        ex.set_seed(lo, hi, MC);
+      }
       ex.nearest(n, cfg.R, Math.max(8, cfg.step >> 1), cfg.cx, cfg.cz, cfg.spawn, ns);
       const o = ex.out_ptr() >> 2; const m = I32();
       const base = Array.from(m.slice(o, o + (n + ns) * 3)), out = base.slice(0, n * 3);
+      // 검사는 빠른 스폰 추정으로, 결과는 정확한 스폰으로 다시 재서, 반경 경계에서 어긋나면(-1) 뺌
+      { let miss = false; for (let q = 0; q < n + ns; q++) if (base[q * 3 + 2] < 0) miss = true; if (miss) continue; }
       // 열 순서는 고른 순서(cfg.order) 그대로: 기본 구조물은 nearest 결과, 확장 조건은 위에서 찾은 값
       let k = 0; for (const st of cfg.order) { if (cfg.xs.includes(st)) { const b = cfg.xres[st]; out.push(b.x, b.z, b.d); } else { out.push(base[(n + k) * 3], base[(n + k) * 3 + 1], base[(n + k) * 3 + 2]); k++; } }
-      postMessage({ type: "hit", lo, hi, out, center: [m[o + 80], m[o + 81]] });
+      postMessage({ type: "hit", lo, hi, out, center: [m[o + 80], m[o + 81]], sr: srr });
     }
   }
   postMessage({ type: "progress", checked });
   setTimeout(loop, 0);
 }`;
-const workerURL = URL.createObjectURL(new Blob([workerSrc], { type: "text/javascript" }));
+const workerURL = URL.createObjectURL(new Blob([workerSrc, "\n", typeof JIG_SRC === "string" ? JIG_SRC : ""], { type: "text/javascript" }));
 
 const $ = id => document.getElementById(id);
 const fmt = n => n.toLocaleString("ko-KR");
@@ -822,11 +977,13 @@ $("tabMap").addEventListener("click", () => showTab("map"));
 
 /* ---------------- search: chips ---------------- */
 let selected = [], selS = [];
-function renderChips() {
+var renderChips = function () {
   const el = $("chips"); el.innerHTML = ""; let lastG = "";
   const gord = [...new Set(BIOMES.map(b => b.g))];
   const blist = BIOMES.slice().sort((a, b) => gord.indexOf(a.g) - gord.indexOf(b.g) || a.name.localeCompare(b.name, "ko"));
+  const bOk = b => !(b.id >= 0 && b.id < 256) || typeof mainEx === "undefined" || !mainEx || !mainEx.biome_ok || mainEx.biome_ok(b.id);
   for (const b of blist) {
+    if (!bOk(b)) continue;   // 고른 버전에 없는 바이옴
     if (b.g !== lastG) { lastG = b.g; const h = document.createElement("div"); h.className = "grp"; h.textContent = b.g; el.appendChild(h); }
     const c = document.createElement("button"); c.type = "button"; c.className = "chip"; c.title = b.en || "";
     c.setAttribute("aria-pressed", selected.includes(b.id) ? "true" : "false");
@@ -838,6 +995,7 @@ function renderChips() {
   const snm = st => SEARCH_NAME[st.id] || st.name;
   let lastSG = "";
   for (const st of SEARCH_STRUCTS.slice().sort((a, b) => SEARCH_GROUPS.indexOf(SEARCH_GROUP(a.id)) - SEARCH_GROUPS.indexOf(SEARCH_GROUP(b.id)) || snm(a).localeCompare(snm(b), "ko"))) {
+    if (!verOK(st.id)) continue;   // 고른 버전에 없는 구조물
     const g = SEARCH_GROUP(st.id);
     if (g !== lastSG) { lastSG = g; const h = document.createElement("div"); h.className = "grp"; h.textContent = g; s.appendChild(h); }
     const c = document.createElement("button"); c.type = "button"; c.className = "chip";
@@ -849,15 +1007,64 @@ function renderChips() {
   }
   $("bCount").textContent = `${selected.length}/8`; $("sCount").textContent = `${selS.length}/8`;
 }
+// 시드 찾기에서 고른 것·설정 기억
+const SEARCH_KEYS = ["radius", "target", "center", "cx", "cz", "mode", "start", "fast"];
+function saveSearchSet() { try { const o = { selected, selS }; for (const k of SEARCH_KEYS) { const el = $(k); o[k] = el.type === "checkbox" ? el.checked : el.value; } localStorage.setItem("searchSet", JSON.stringify(o)); } catch (e) {} }
+function rangeHint() { $("rangeHint").textContent = `기준점에서 반경 ${$("radius").value || 500}블록 안을 32칸 간격으로 확인해서, 조건에 맞는 시드를 ${$("target").value || 10}개 찾을 때까지 컴퓨터 코어를 최대한 써서 계산해요.`; }
+try { const o = JSON.parse(localStorage.getItem("searchSet") || "null");
+  if (o) { if (Array.isArray(o.selected)) selected = o.selected.filter(id => BIOMES.some(b => b.id === id)); if (Array.isArray(o.selS)) selS = o.selS.filter(id => SEARCH_STRUCTS.some(st => st.id === id));
+    for (const k of SEARCH_KEYS) if (o[k] !== undefined) { const el = $(k); if (el.type === "checkbox") el.checked = !!o[k]; else el.value = o[k]; }
+    $("cx").disabled = $("cz").disabled = $("center").value !== "coord"; } } catch (e) {}
+for (const k of SEARCH_KEYS) $(k).addEventListener("change", () => { if (k === "radius") $("radius").value = Math.max(50, Math.min(5000, +$("radius").value || 500)); if (k === "target") $("target").value = Math.max(1, Math.min(200, Math.round(+$("target").value || 10))); rangeHint(); saveSearchSet(); });
+rangeHint();
+const _renderChips0 = renderChips; renderChips = function () { _renderChips0(); saveSearchSet(); };
 renderChips();
 $("bNone").addEventListener("click", () => { if (running) return; selected = []; renderChips(); });
 $("sNone").addEventListener("click", () => { if (running) return; selS = []; renderChips(); });
+
+// ---------- 스피드런 조건 ----------
+const SR_ITEMS = [ { k: "flint_and_steel", n: 1, on: 1 }, { k: "obsidian", n: 2, on: 1 }, { k: "flint", n: 1 }, { k: "fire_charge", n: 1 }, { k: "iron_ingot", n: 3 }, { k: "gold_ingot", n: 5 } ];
+function srItemName(k) { return (typeof koItem === "function" && koItem(k)) || k; }
+$("srItems").innerHTML = SR_ITEMS.map((it, i) => `<div class="srrow"><label><input type="checkbox" id="srI${i}"${it.on ? " checked" : ""}> ${srItemName(it.k)}</label><span><input type="number" id="srN${i}" min="1" max="64" value="${it.n}"> 개 이상</span></div>`).join("");
+const SR_KEYS = ["srOn", "srSh", "srShR", "srFo", "srFoR", "srBa", "srBaR", "srRp", "srRpN", "srRpW", "srItR", ...SR_ITEMS.flatMap((it, i) => ["srI" + i, "srN" + i])];
+function srSync() {
+  $("srBox").hidden = !$("srOn").checked;
+  const bOK = verOK(19); $("srBaRow").hidden = $("srBaHint").hidden = !bOK;
+  const lOK = typeof MCV === "undefined" || MCV >= 16;   // 1.13 전은 상자 아이템 표가 없음
+  document.querySelectorAll("#srItems, #srBox .srrow.items, #srItHint").forEach(e => e.hidden = !lOK);
+  if ($("srItRow")) $("srItRow").hidden = !lOK;
+  const rOK = typeof MCV === "undefined" || MCV === 19 || MCV >= 22; $("srRpRow").hidden = $("srRpHint").hidden = $("srRpWRow").hidden = !rOK;
+  document.querySelectorAll("#srBox .srrow").forEach(r => { const c = r.querySelector("input[type=checkbox]"); if (c) r.classList.toggle("off", !c.checked); });
+  try { const o = {}; for (const k of SR_KEYS) { const el = $(k); o[k] = el.type === "checkbox" ? el.checked : el.value; } localStorage.setItem("srSet", JSON.stringify(o)); } catch (e) {}
+}
+try { const o = JSON.parse(localStorage.getItem("srSet") || "null"); if (o) for (const k of SR_KEYS) if (o[k] !== undefined && $(k)) { const el = $(k); if (el.type === "checkbox") el.checked = !!o[k]; else el.value = o[k]; } } catch (e) {}
+for (const k of SR_KEYS) $(k).addEventListener("change", srSync);
+srSync();
+function srConfig() {
+  if (!$("srOn").checked) return null;
+  const num = (id, lo, hi, d) => Math.max(lo, Math.min(hi, Math.round(+$(id).value || d)));
+  const sr = { sh: $("srSh").checked ? num("srShR", 1300, 3000, 1700) : 0, fo: $("srFo").checked ? num("srFoR", 16, 1000, 150) : 0,
+    ba: verOK(19) && $("srBa").checked ? num("srBaR", 16, 1000, 150) : 0, itR: num("srItR", 50, 1000, 300),
+    rp: (MCV === 19 || MCV >= 22) && $("srRp").checked ? 1 : 0, rpN: num("srRpN", 0, 20, 0), rpW: $("srRpW").checked ? 1 : 0,
+    items: MCV < 16 ? [] : SR_ITEMS.map((it, i) => ({ k: it.k, n: num("srN" + i, 1, 999, it.n), on: $("srI" + i).checked })).filter(it => it.on) };
+  if (!sr.sh && !sr.fo && !sr.ba && !sr.rp && !sr.items.length) return null;
+  return sr;
+}
+function srCols(sr) {
+  const c = [];
+  if (sr.sh) c.push({ kind: "s", id: 27, name: "엔드 유적", sr: "sh" });
+  if (sr.fo || sr.ba) c.push({ kind: "s", id: 18, name: "네더 요새 (네더 좌표)", dim: -1, sr: "fo", nw: 1 });
+  if (sr.ba) c.push({ kind: "s", id: 19, name: "보루 잔해 (요새에서)", dim: -1, sr: "ba", nw: 1 });
+  if (sr.rp) c.push({ kind: "s", id: 11, name: "폐허가 된 차원문 틀", sr: "rp", nw: 1 });
+  for (const it of sr.items) c.push({ kind: "i", id: it.k, name: `${srItemName(it.k)} ${it.n}개+`, sr: "it", nw: 1 });
+  return c;
+}
 
 /* ---------------- search: run ---------------- */
 let running = false, workers = [], results = [], cols = [], checkedTotal = 0, t0 = 0, target = 10, selIndex = -1;
 function setState(on, text) { $("state").classList.toggle("on", on); $("stateText").textContent = text; }
 function colDefs(bids, sids) { return [...bids.map(id => ({ kind: "b", ...BIOMES.find(b => b.id === id) })), ...sids.map(id => ({ kind: "s", ...SBY[id], name: SEARCH_NAME[id] || SBY[id].name }))]; }
-function colSwatch(c) { return c.kind === "s" ? iconTag(c.id, 16) : `<span class="sw" style="background:${colorOf(c)}"></span>`; }
+function colSwatch(c) { if (c.kind === "i") return `<span class="sw" style="background:#e08a2c"></span>`; return c.kind === "s" ? iconTag(c.id, 16) : `<span class="sw" style="background:${colorOf(c)}"></span>`; }
 
 function renderTable() {
   const t = $("results");
@@ -867,12 +1074,32 @@ function renderTable() {
   let h = `<thead><tr><th>시드</th><th>기준점</th>${hc.map(c => `<th>${c.name}</th>`).join("")}<th>가장 먼 거리</th><th></th></tr></thead><tbody>`;
   for (const { r, i } of sorted) {
     h += `<tr class="row${i === selIndex ? " sel" : ""}" data-i="${i}"><td><span class="seed">${r.seed}</span>${r.example ? '<span class="tag">예시</span>' : ""}</td><td class="num">${r.spawn ? "스폰 " : ""}(${r.center[0]}, ${r.center[1]})</td>`;
-    r.pts.forEach(p => { h += `<td class="num">${p.d < 0 ? "-" : `${fmt(p.d)}칸 <span class="sub">(${p.x}, ${p.z})</span>`}</td>`; });
-    h += `<td class="num">${fmt(r.worst)}칸</td><td><button class="mini" type="button" data-copy="${r.seed}">복사</button> <button class="mini" type="button" data-map="${i}">지도</button></td></tr>`;
+    r.pts.forEach(p => { h += `<td class="num">${p.t ? p.t : p.d < 0 ? "-" : `${fmt(p.d)}칸 <span class="sub">(${p.x}, ${p.z})</span>`}</td>`; });
+    h += `<td class="num">${fmt(r.worst)}칸</td><td><button class="mini" type="button" data-copy="${r.seed}">복사</button> <button class="mini" type="button" data-map="${i}">지도</button> <button class="mini" type="button" data-save="${i}">${isSaved(r.seed) ? "저장됨" : "저장"}</button></td></tr>`;
   }
   t.innerHTML = h + "</tbody>";
 }
+// 찾은 시드 저장 (이 브라우저에 남음)
+function loadSaved() { try { return JSON.parse(localStorage.getItem("savedSeeds") || "[]"); } catch (e) { return []; } }
+function storeSaved(a) { try { localStorage.setItem("savedSeeds", JSON.stringify(a)); } catch (e) {} }
+function isSaved(seed) { return loadSaved().some(v => v.seed === String(seed)); }
+function renderSaved() {
+  const a = loadSaved(), t = $("savedSeeds"); $("savedCount").textContent = a.length ? `${a.length}개` : "";
+  if (!a.length) { t.innerHTML = `<tr><td class="empty">결과에서 "저장"을 누르면 여기에 모여요. 사이트를 다시 열어도 남아 있어요.</td></tr>`; return; }
+  t.innerHTML = `<thead><tr><th>시드</th><th>찾은 조건</th><th>저장한 날</th><th></th></tr></thead><tbody>` + a.map((v, i) => `<tr><td><span class="seed">${v.seed}</span></td><td>${(v.what || "").replace(/[<&]/g, "")}</td><td class="num">${v.when || ""}</td><td><button class="mini" type="button" data-scopy="${i}">복사</button> <button class="mini" type="button" data-smap="${i}">지도</button> <button class="mini" type="button" data-sdel="${i}">삭제</button></td></tr>`).join("") + "</tbody>";
+}
+$("savedSeeds").addEventListener("click", e => {
+  const a = loadSaved(), b = e.target.closest("button"); if (!b) return;
+  if (b.dataset.scopy !== undefined) navigator.clipboard.writeText(a[+b.dataset.scopy].seed).then(() => { b.textContent = "복사됨"; setTimeout(() => b.textContent = "복사", 1200); }).catch(() => {});
+  if (b.dataset.smap !== undefined) { const sd = a[+b.dataset.smap].seed; $("mapSeed").value = sd; showTab("map"); openMapSeed(sd); }
+  if (b.dataset.sdel !== undefined) { a.splice(+b.dataset.sdel, 1); storeSaved(a); renderSaved(); renderTable(); }
+});
+renderSaved();
 $("results").addEventListener("click", (e) => {
+  const sv = e.target.closest("[data-save]");
+  if (sv) { e.stopPropagation(); const r = results[+sv.dataset.save], a = loadSaved(), k = a.findIndex(v => v.seed === String(r.seed));
+    if (k >= 0) a.splice(k, 1); else { const d = new Date(); a.unshift({ seed: String(r.seed), what: (r.cols || []).map(c => c.name).join(", "), when: `${d.getFullYear()}.${d.getMonth() + 1}.${d.getDate()}` }); }
+    storeSaved(a); renderSaved(); renderTable(); return; }
   const c = e.target.closest("[data-copy]");
   if (c) { e.stopPropagation(); navigator.clipboard.writeText(c.dataset.copy).then(() => { c.textContent = "복사됨"; setTimeout(() => c.textContent = "복사", 1200); }).catch(() => { c.textContent = "직접 복사"; }); return; }
   const mp = e.target.closest("[data-map]");
@@ -880,49 +1107,116 @@ $("results").addEventListener("click", (e) => {
   const row = e.target.closest("tr.row");
   if (row) { selIndex = +row.dataset.i; renderTable(); drawPreview(results[selIndex]); }
 });
-$("pvOpen").addEventListener("click", () => { const r = results[selIndex]; if (!r) return; $("mapSeed").value = r.seed; showTab("map"); openMapSeed(r.seed); });
+$("pvOpen").addEventListener("click", async () => { const r = results[selIndex]; if (!r) return; $("mapSeed").value = r.seed; showTab("map"); await openMapSeed(r.seed);
+  if (PV.r === r) { mapState.cx = PV.cx; mapState.cz = PV.cz; mapState.bpp = clampB(Math.max(1, PV.span / Math.max(300, viewRect().W))); scheduleDraw(); } });   // 미리보기에서 보던 곳을 그대로 큰 지도로
 
-function addResult(lo, hi, out, cfg, example, center, cdefs) {
-  const pts = cdefs.map((c, k) => ({ x: out[k*3], z: out[k*3+1], d: out[k*3+2] }));
-  const r = { lo, hi, seed: seedStr(lo, hi), pts, worst: Math.max(0, ...pts.map(p => p.d)), cfg, cols: cdefs, example: !!example, center: center || [cfg.cx, cfg.cz], spawn: !!cfg.spawn };
+function addResult(lo, hi, out, cfg, example, center, cdefs, sr) {
+  const nb = cdefs.filter(c => !c.sr).length;
+  const pts = cdefs.map((c, k) => k < nb ? ({ x: out[k*3], z: out[k*3+1], d: out[k*3+2] }) : (sr && sr.cols[k - nb]) || { d: -1 });
+  const r = { lo, hi, seed: seedStr(lo, hi), pts, worst: Math.max(0, ...pts.filter((p, k) => !cdefs[k].nw).map(p => p.d)), chests: sr ? sr.chests : [], cfg, cols: cdefs, example: !!example, center: center || [cfg.cx, cfg.cz], spawn: !!cfg.spawn };
   results.push(r);
   $("found").textContent = fmt(results.filter(x => !x.example).length);
   if (selIndex < 0 || results[selIndex].example) { selIndex = results.length - 1; drawPreview(r); }
   renderTable();
 }
 
-function drawPreview(r) {
+// 미리보기: 작은 지도처럼 끌기·확대 가능, 바이옴 이름은 마우스를 올리거나 누르면 보임
+const PV = { r: null, cx: 0, cz: 0, span: 0 };
+let pvSize = 1; try { pvSize = +localStorage.getItem("pvSize") || 1; } catch (e) {}
+function biomeName(id) { const b = BIOMES.find(v => v.id === id); return b ? b.name : (typeof KO !== "undefined" && BIOME_EN && KO.b[BIOME_EN[id]]) || "알 수 없는 바이옴"; }
+var BIOME_EN = null;
+// 미리보기 바이옴 계산은 지도 워커들에게 줄 단위로 나눠 맡기고, 다 오면 그림 (화면이 멈추지 않게)
+let pvJob = null;
+function drawPreview(r, keepView) {
   if (!r || !mainEx) return;
+  if (!keepView || PV.r !== r) { PV.r = r; PV.cx = r.center[0]; PV.cz = r.center[1]; PV.span = r.cfg.R * 2.3; }
+  const N = $("preview").width, M = Math.min(N, 200), cx = PV.cx, cz = PV.cz, span = PV.span, per = span / M;
+  const job = { req: (pvJob ? pvJob.req : 0) + 1, r, cx, cz, span, M, ids: new Int32Array(M * M), left: 0 };
+  if (pvJob && pvJob.left > 0) { pvJob.next = job; return; }   // 계산 중이면 끝난 뒤 마지막 요청만 이어서
+  pvStart(job);
+}
+function pvStart(job) {
+  pvJob = job;
+  ensureMapWorkers().then(() => {
+    if (pvJob !== job) return;
+    const nw = mapWorkers.length, rows = Math.ceil(job.M / nw), per = job.span / job.M;
+    job.left = 0;
+    for (let k = 0; k < nw; k++) { const j0 = k * rows, j1 = Math.min(job.M, j0 + rows); if (j0 >= j1) continue; job.left++;
+      mapWorkers[k].postMessage({ type: "pv", req: job.req, lo: job.r.lo, hi: job.r.hi, mc: MCV, M: job.M, j0, j1, x0: job.cx - job.span / 2, z0: job.cz - job.span / 2, per }); }
+  });
+}
+function pvGot(d) {
+  const job = pvJob; if (!job || d.req !== job.req) return;
+  job.ids.set(d.ids, d.j0 * job.M);
+  if (--job.left > 0) return;
+  paintPreview(job);
+  if (job.next) { const n = job.next; job.next = null; n.req = job.req + 1; pvStart(n); }
+}
+function paintPreview(job) {
+  const r = job.r; if (!r) return;
   const cv = $("preview"), ctx = cv.getContext("2d"), N = cv.width;
-  const R = r.cfg.R; const [cx, cz] = r.center; const span = R * 2.3; const per = span / N;
-  mainEx.set_seed(r.lo, r.hi, mainEx.mc_wd());
-  const img = ctx.createImageData(N, N);
-  for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
-    const b = mainEx.biome_at(Math.round(cx - span / 2 + i * per), Math.round(cz - span / 2 + j * per), 256);
-    const hex = COLORS[b] || "888888"; const k = (j * N + i) * 4;
+  const R = r.cfg.R, cx = job.cx, cz = job.cz, span = job.span, M = job.M;
+  const off = drawPreview.off || (drawPreview.off = document.createElement("canvas")); off.width = off.height = M;
+  const octx = off.getContext("2d"), img = octx.createImageData(M, M), cnt = new Map();
+  for (let j = 0; j < M; j++) for (let i = 0; i < M; i++) {
+    const b = job.ids[j * M + i];
+    cnt.set(b, (cnt.get(b) || 0) + 1);
+    const hex = COLORS[b] || "888888"; const k = (j * M + i) * 4;
     img.data[k] = parseInt(hex.slice(0, 2), 16); img.data[k+1] = parseInt(hex.slice(2, 4), 16); img.data[k+2] = parseInt(hex.slice(4, 6), 16); img.data[k+3] = 255;
   }
-  ctx.putImageData(img, 0, 0);
-  const toPx = (x, z) => [(x - (cx - span / 2)) / per, (z - (cz - span / 2)) / per];
+  octx.putImageData(img, 0, 0); ctx.imageSmoothingEnabled = false; ctx.drawImage(off, 0, 0, N, N);
+  const pp = span / N, toPx = (x, z) => [(x - (cx - span / 2)) / pp, (z - (cz - span / 2)) / pp];
+  const [ox, oz] = toPx(r.center[0], r.center[1]);
   ctx.lineWidth = 1.5; ctx.strokeStyle = "rgba(255,255,255,.9)"; ctx.setLineDash([4, 3]);
-  ctx.beginPath(); ctx.arc(N / 2, N / 2, R / per, 0, Math.PI * 2); ctx.stroke(); ctx.setLineDash([]);
-  ctx.strokeStyle = "#fff"; ctx.beginPath(); ctx.moveTo(N/2 - 6, N/2); ctx.lineTo(N/2 + 6, N/2); ctx.moveTo(N/2, N/2 - 6); ctx.lineTo(N/2, N/2 + 6); ctx.stroke();
+  ctx.beginPath(); ctx.arc(ox, oz, R / pp, 0, Math.PI * 2); ctx.stroke(); ctx.setLineDash([]);
+  ctx.strokeStyle = "#fff"; ctx.beginPath(); ctx.moveTo(ox - 6, oz); ctx.lineTo(ox + 6, oz); ctx.moveTo(ox, oz - 6); ctx.lineTo(ox, oz + 6); ctx.stroke();
   r.pts.forEach((p, k) => {
-    const c = r.cols[k]; if (p.d < 0 || (c.kind === "s" && c.dim)) return; const [px, py] = toPx(p.x, p.z);
+    const c = r.cols[k]; if (p.d < 0 || c.kind === "i" || (c.kind === "s" && c.dim)) return; const [px, py] = toPx(p.x, p.z);
     ctx.lineWidth = 2; ctx.strokeStyle = "#111";
     if (c.kind === "s") { ctx.imageSmoothingEnabled = false; ctx.drawImage(ICONS[c.id], Math.round(px - 9), Math.round(py - 9), 18, 18); }
     else { ctx.fillStyle = colorOf(c); ctx.beginPath(); ctx.arc(px, py, 5, 0, Math.PI * 2); ctx.fill(); ctx.stroke(); }
   });
+  for (const [st, x, z] of r.chests || []) { const [px, py] = toPx(x, z); if (ICONS[st]) ctx.drawImage(ICONS[st], Math.round(px - 9), Math.round(py - 9), 18, 18); }
   $("pvTitle").textContent = `미리보기 · 시드 ${r.seed}`;
   $("cbLink").href = `https://www.chunkbase.com/apps/seed-map#seed=${r.seed}`;
-  $("legend").innerHTML = r.cols.map((c, k) => `<div>${colSwatch(c)}${c.name}: ${r.pts[k].d < 0 ? "-" : `${fmt(r.pts[k].d)}칸, (${r.pts[k].x}, ${r.pts[k].z})`}</div>`).join("")
-    + `<div style="color:var(--muted)">범위: 가로세로 약 ${fmt(Math.round(span))}칸</div>`;
+  $("legend").innerHTML = r.cols.map((c, k) => `<div>${colSwatch(c)}${c.name}: ${r.pts[k].t ? r.pts[k].t.replace(/<[^>]+>/g, "") : r.pts[k].d < 0 ? "-" : `${fmt(r.pts[k].d)}칸, (${r.pts[k].x}, ${r.pts[k].z})`}</div>`).join("")
+    + `<div style="color:var(--muted)">보이는 범위: 가로세로 약 ${fmt(Math.round(span))}칸 · 가운데 (${Math.round(cx)}, ${Math.round(cz)})</div>`;
+  const tot = M * M, list = [...cnt.entries()].sort((a, c) => c[1] - a[1]).filter(([, n]) => n / tot >= 0.005);
+  $("pvBiomes").innerHTML = `<div class="hint" style="width:100%">보이는 범위의 바이옴</div>` + list.map(([b, n]) => `<span><i style="background:#${COLORS[b] || "888888"}"></i>${biomeName(b)} ${Math.round(n / tot * 100) || "<1"}%</span>`).join("");
+}
+{ // 미리보기 조작: 끌기 옮기기, 휠·두 손가락 확대, 마우스 올리면(누르면) 바이옴 이름
+  const cv = $("preview"), pts = new Map(); let drag = null, pinch = null, moved = false, raf = 0;
+  const redraw = () => { if (raf) return; raf = requestAnimationFrame(() => { raf = 0; drawPreview(PV.r, true); }); };
+  const world = (e) => { const b = cv.getBoundingClientRect(); return [PV.cx - PV.span / 2 + (e.clientX - b.left) / b.width * PV.span, PV.cz - PV.span / 2 + (e.clientY - b.top) / b.height * PV.span]; };
+  const tip = (e) => { if (!PV.r) return; const [x, z] = world(e); mainEx.set_seed(PV.r.lo, PV.r.hi, mainEx.mc_wd()); const b = mainEx.biome_at(Math.round(x), Math.round(z), 256);
+    const t = $("pvTip"); t.hidden = false; t.textContent = `${biomeName(b)} · X ${Math.round(x)}, Z ${Math.round(z)}`; };
+  const zoom = (f) => { PV.span = Math.max(64, Math.min(40000, PV.span * f)); redraw(); };
+  cv.addEventListener("pointerdown", e => { cv.setPointerCapture(e.pointerId); pts.set(e.pointerId, [e.clientX, e.clientY]); moved = false;
+    if (pts.size === 2) { const [a, b] = [...pts.values()]; pinch = Math.hypot(a[0] - b[0], a[1] - b[1]); drag = null; } else drag = [e.clientX, e.clientY]; });
+  cv.addEventListener("pointermove", e => {
+    if (pts.has(e.pointerId)) pts.set(e.pointerId, [e.clientX, e.clientY]);
+    if (pts.size === 2 && pinch) { const [a, b] = [...pts.values()], d = Math.hypot(a[0] - b[0], a[1] - b[1]); if (d > 0) zoom(pinch / d); pinch = d; moved = true; return; }
+    if (drag && PV.r) { const bx = cv.getBoundingClientRect(), dx = e.clientX - drag[0], dy = e.clientY - drag[1];
+      if (Math.abs(dx) + Math.abs(dy) > 2) moved = true;
+      if (moved) { PV.cx -= dx / bx.width * PV.span; PV.cz -= dy / bx.height * PV.span; drag = [e.clientX, e.clientY]; redraw(); } return; }
+    if (e.pointerType === "mouse") tip(e);
+  });
+  const up = e => { pts.delete(e.pointerId); if (pts.size < 2) pinch = null; if (!pts.size) { if (!moved) tip(e); drag = null; } };
+  cv.addEventListener("pointerup", up); cv.addEventListener("pointercancel", up);
+  cv.addEventListener("pointerleave", e => { if (e.pointerType === "mouse") $("pvTip").hidden = true; });
+  cv.addEventListener("wheel", e => { e.preventDefault(); zoom(e.deltaY > 0 ? 1.2 : 1 / 1.2); }, { passive: false });
+  $("pvIn").onclick = () => zoom(1 / 1.4); $("pvOut").onclick = () => zoom(1.4); $("pvReset").onclick = () => { if (PV.r) drawPreview(PV.r); };
+  const setSize = f => { pvSize = f; document.documentElement.style.setProperty("--pvs", f); const n = Math.round(320 * f); cv.width = cv.height = n;
+    document.querySelectorAll("[data-pvs]").forEach(b => b.setAttribute("aria-pressed", +b.dataset.pvs === f ? "true" : "false")); try { localStorage.setItem("pvSize", f); } catch (e) {} if (PV.r) drawPreview(PV.r, true); };
+  document.querySelectorAll("[data-pvs]").forEach(b => b.onclick = () => setSize(+b.dataset.pvs));
+  setSize(pvSize);
 }
 
 async function start() {
-  if (!selected.length && !selS.length) { setState(false, "바이옴이나 구조물을 하나 이상 골라 주세요."); return; }
+  const sr = srConfig();
+  if (!selected.length && !selS.length && !sr) { setState(false, "바이옴이나 구조물, 스피드런 조건을 하나 이상 골라 주세요."); return; }
   await ready;
-  const cdefs = colDefs(selected, selS);
+  const cdefs = colDefs(selected, selS).concat(sr ? srCols(sr) : []);
   const bcols = cdefs.filter(c => c.kind === "b");
   const cfg = {
     ids: bcols.map(c => c.id), ys: bcols.map(c => c.y), sids: selS.filter(id => !EXT_SET.has(id)), order: selS.slice(),
@@ -930,8 +1224,18 @@ async function start() {
     R: Math.max(64, Math.min(5000, +$("radius").value || 500)), step: +$("step").value,
     cx: Math.round(+$("cx").value || 0), cz: Math.round(+$("cz").value || 0),
     spawn: $("center").value === "spawn" ? 1 : 0, fast: $("fast").checked ? 1500 : 0,
-    mode: $("mode").value, start: Math.max(0, Math.floor(+$("start").value || 0)),
+    mode: $("mode").value, start: Math.max(0, Math.floor(+$("start").value || 0)), mcv: MCV, sr,
   };
+  // 상자 아이템 조건이 있으면 조립식 구조물(고대 도시·시련의 방·마을) 상자도 계산 (지금은 최신 버전 데이터만 있음)
+  const needLoot = selS.some(id => id >= 300 && id < 320) || (sr && (sr.items.length || sr.rp));
+  if (needLoot && MCV === LATEST && typeof AC_DATA !== "undefined") {
+    setState(true, "구조물 조각 데이터 받는 중…");
+    const [tv, tt] = await Promise.all([jigsawData("village"), jigsawData("trial_chambers")]);
+    cfg.jig = { 13: AC_DATA, 25: tt.d, 5: tv.d };
+  } else if (needLoot && MCV === 19) {   // 1.16.1: 마을만 (그 버전 설계도)
+    setState(true, "구조물 조각 데이터 받는 중…");
+    cfg.jig = { 5: (await jigsawData("village_1_16")).d };
+  }
   target = Math.max(1, Math.min(200, +$("target").value || 10));
   const nW = Math.max(1, Math.min(32, +$("threads").value || 4)); cfg.stride = nW;
   results = []; selIndex = -1; checkedTotal = 0; t0 = performance.now();
@@ -948,7 +1252,7 @@ async function start() {
         checkedTotal += d.checked; $("checked").textContent = fmt(checkedTotal);
         $("rate").textContent = fmt(Math.round(checkedTotal / Math.max((performance.now() - t0) / 1000, .001)));
       } else if (d.type === "hit" && running) {
-        addResult(d.lo, d.hi, d.out, cfg, false, d.center, cdefs);
+        addResult(d.lo, d.hi, d.out, cfg, false, d.center, cdefs, d.sr);
         if (results.length >= target) stop("찾을 개수를 채워서 멈췄어요.");
       }
     };
@@ -990,17 +1294,18 @@ let mapWorkers = [], mapReady, hoverEx = null;
 function ensureMapWorkers() {
   if (mapReady) return mapReady;
   mapReady = ready.then(async () => {
-    hoverEx = (await WebAssembly.instantiate(wasmModule, imports)).exports;
+    { const w = wasiImports(); hoverEx = w.bind((await WebAssembly.instantiate(wasmModule, w.imp)).exports); hoverEx.set_mcv(MCV); }
     await Promise.all(Array.from({ length: Math.max(2, Math.min(6, (navigator.hardwareConcurrency || 4) - 1)) }, () => new Promise(res => {
       const w = new Worker(workerURL); w.busy = 0;
       w.onmessage = (ev) => onMapMsg(w, ev.data, res);
-      w.postMessage({ type: "init", module: wasmModule }); mapWorkers.push(w);
+      w.postMessage({ type: "init", module: wasmModule }); w.postMessage({ type: "mcv", v: MCV }); mapWorkers.push(w);
     })));
   });
   return mapReady;
 }
 function onMapMsg(w, d, res) {
   if (d.type === "ready") { res(); return; }
+  if (d.type === "pv") { pvGot(d); return; }
   if (d.type === "v3d") { if (d.req === v3.req) build3D(d); else if (d.req === -v3.creq) buildSurf(d); return; }
   if (d.type === "v3c") { if (d.req === v3.creq) gotCave(d); return; }
   if (d.type === "tile") {
@@ -1293,11 +1598,13 @@ function drawMap() {
   }
   if (mapState.hovKey) {   // 마우스가 가까이 간 아이콘: 조금 키우고 흰 테두리
     const h = (mapState.hits || []).find(h => h.st + ":" + h.x + ":" + h.z === mapState.hovKey);
-    if (h && h.img) { const S = Math.max(h.r * 2, 14) * 1.35; bctx.save();
-      bctx.shadowColor = "rgba(0,0,0,.55)"; bctx.shadowBlur = 8; bctx.fillStyle = "rgba(255,255,255,.95)";
-      bctx.beginPath(); bctx.roundRect(Math.round(h.px - S / 2) - 3, Math.round(h.py - S / 2) - 3, S + 6, S + 6, 6); bctx.fill(); bctx.shadowBlur = 0;
-      bctx.imageSmoothingEnabled = false; bctx.drawImage(h.img, Math.round(h.px - S / 2), Math.round(h.py - S / 2), S, S);
-      bctx.lineWidth = 2; bctx.strokeStyle = "#2f6f4f"; bctx.beginPath(); bctx.roundRect(Math.round(h.px - S / 2) - 3, Math.round(h.py - S / 2) - 3, S + 6, S + 6, 6); bctx.stroke(); bctx.restore(); }
+    if (h && h.img) {   // 아이콘만 키우고, 아이콘 모양을 따라 흰(#ffffff) 테두리
+      const S = Math.round(Math.max(h.r * 2, 14) * 1.35), x = Math.round(h.px - S / 2), y = Math.round(h.py - S / 2);
+      const W = h.img._wh || (h.img._wh = {}); let sil = W[S];
+      if (!sil) { sil = document.createElement("canvas"); sil.width = sil.height = S; const g = sil.getContext("2d"); g.imageSmoothingEnabled = false; g.drawImage(h.img, 0, 0, S, S); g.globalCompositeOperation = "source-in"; g.fillStyle = "#ffffff"; g.fillRect(0, 0, S, S); W[S] = sil; }
+      bctx.save(); bctx.imageSmoothingEnabled = false;
+      for (const [dx, dy] of [[-2, 0], [2, 0], [0, -2], [0, 2], [-2, -2], [2, -2], [-2, 2], [2, 2]]) bctx.drawImage(sil, x + dx, y + dy);
+      bctx.drawImage(h.img, x, y, S, S); bctx.restore(); }
   }
   if (mapState.pin && mapState.pin.d === mapState.dim) {   // 누른 지점 / 이동한 지점 표시
     const px = (mapState.pin.x + 0.5 - v.x0) / b, py = (mapState.pin.z + 0.5 - v.z0) / b;
@@ -1409,7 +1716,7 @@ function renderMapChips() {
   const ow = mapState.dim === 0; // 네더·엔드는 몇 개 안 되니 묶음 제목 없이, 월드 파일 칩도 빼고
   for (const [title, items] of CHIP_LAYOUT) {
     if (!ow && title.startsWith("월드 파일")) continue;
-    const vis = items.map(it => ({ name: it[0], ids: it.slice(1).filter(id => SBY[id] && (SBY[id].dim === mapState.dim || SBY[id].anyDim)) })).filter(it => it.ids.length);
+    const vis = items.map(it => ({ name: it[0], ids: it.slice(1).filter(id => SBY[id] && (SBY[id].dim === mapState.dim || SBY[id].anyDim) && verOK(id)) })).filter(it => it.ids.length);
     const nm = it => it.name || SBY[it.ids[0]].name;
     vis.sort((a, b) => (b.ids[0] === 206) - (a.ids[0] === 206) || nm(a).localeCompare(nm(b), "ko"));
     if (!vis.length) continue;
@@ -1610,7 +1917,7 @@ function build3D(d) {
   const gl = v3.gl;
   for (const [buf, arr] of [[v3.bp, P], [v3.bc, C], [v3.bn, Nn]]) { gl.bindBuffer(gl.ARRAY_BUFFER, buf); gl.bufferData(gl.ARRAY_BUFFER, arr, gl.STATIC_DRAW); }
   gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, v3.bi); gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, I, gl.STATIC_DRAW); v3.count = t; v3.n = N;
-  $("v3dNote").textContent = `가운데 X ${d.x0 + N * s / 2}, Z ${d.z0 + N * s / 2} · ${N * s}칸 · 끌기: 돌리기 · 오른쪽(Shift) 끌기: 옮기기 · 휠: 가까이/멀리`;
+  $("v3dNote").textContent = `가운데 X ${d.x0 + N * s / 2}, Z ${d.z0 + N * s / 2} · ${N * s}칸 · 끌기: 돌리기 · 오른쪽(Shift) 끌기·두 손가락: 옮기기 · 휠·두 손가락 벌리기: 가까이/멀리`;
   draw3D();
 }
 function mat4mul(a, b) { const o = new Float32Array(16); for (let i = 0; i < 4; i++) for (let j = 0; j < 4; j++) { let v = 0; for (let k = 0; k < 4; k++) v += a[k * 4 + j] * b[i * 4 + k]; o[i * 4 + j] = v; } return o; }
@@ -1742,22 +2049,38 @@ setViewMode(viewMode);
   // 왼쪽 끌기: 돌리기 / 오른쪽 끌기·Shift+끌기: 옮기기 (놓으면 그 자리를 중심으로 다시 계산)
   let pan = false;
   cv.addEventListener("contextmenu", (e) => e.preventDefault());
-  cv.addEventListener("pointerdown", (e) => { drag = [e.clientX, e.clientY]; pan = e.button === 2 || e.shiftKey; cv.setPointerCapture(e.pointerId); cv.style.cursor = pan ? "move" : "grabbing"; });
+  // 손가락 두 개: 벌리고 오므리면 가까이·멀리, 같이 끌면 옮기기 (휴대폰)
+  const pts = new Map(); let pinch = null;
+  const two = () => { const [a, b] = [...pts.values()]; return { d: Math.hypot(a[0] - b[0], a[1] - b[1]), m: [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2] }; };
+  cv.addEventListener("pointerdown", (e) => {
+    cv.setPointerCapture(e.pointerId); pts.set(e.pointerId, [e.clientX, e.clientY]);
+    if (pts.size === 2) { pinch = two(); drag = null; pan = true; return; }
+    drag = [e.clientX, e.clientY]; pan = e.button === 2 || e.shiftKey; cv.style.cursor = pan ? "move" : "grabbing"; });
   cv.addEventListener("pointermove", (e) => {
+    if (pts.has(e.pointerId)) pts.set(e.pointerId, [e.clientX, e.clientY]);
+    if (pts.size === 2 && pinch) {
+      const t = two(); if (t.d > 0 && pinch.d > 0) v3.dist = Math.max(0.35, Math.min(3, v3.dist * pinch.d / t.d));
+      const dx = t.m[0] - pinch.m[0], dy = t.m[1] - pinch.m[1], k = (v3.n || 200) * v3.dist / 500, cy = Math.cos(v3.yaw), sy = Math.sin(v3.yaw);
+      v3.tx -= (dx * cy + dy * sy) * k; v3.tz -= (-dx * sy + dy * cy) * k; pinch = t; draw3D(); return; }
     if (!drag) return; const dx = e.clientX - drag[0], dy = e.clientY - drag[1]; drag = [e.clientX, e.clientY];
     if (pan) { const k = (v3.n || 200) * v3.dist / 500, cy = Math.cos(v3.yaw), sy = Math.sin(v3.yaw);
       v3.tx -= (dx * cy + dy * sy) * k; v3.tz -= (-dx * sy + dy * cy) * k; }
     else { v3.yaw -= dx * 0.008; v3.pitch = Math.max(0.12, Math.min(1.5, v3.pitch + dy * 0.006)); }
     draw3D();
   });
-  cv.addEventListener("pointerup", () => {
-    drag = null; cv.style.cursor = "grab";
+  const up = (e) => {
+    pts.delete(e.pointerId);
+    if (pts.size === 1) { pinch = null; const [p] = [...pts.values()]; drag = [p[0], p[1]]; return; }   // 한 손가락 남으면 이어서 돌리기는 하지 않고 옮기기 유지
+    if (pts.size > 0) return;
+    pinch = null; drag = null; cv.style.cursor = "grab";
     if (pan && Math.hypot(v3.tx, v3.tz) > 2) {
       if (v3.caveOn) { mapState.cx += v3.tx * 4; mapState.cz += v3.tz * 4; reqCave3D(); }
       else if (v3.data) { mapState.cx += v3.tx * v3.data.s; mapState.cz += v3.tz * v3.data.s; req3D(); }
       scheduleDraw();
     }
-  });
+    pan = false;
+  };
+  cv.addEventListener("pointerup", up); cv.addEventListener("pointercancel", up);
   cv.addEventListener("wheel", (e) => { e.preventDefault(); v3.dist = Math.max(0.35, Math.min(3, v3.dist * (e.deltaY > 0 ? 1.12 : 1 / 1.12))); draw3D(); }, { passive: false });
 })();
 $("zin").addEventListener("click", () => { if (v3.on) { v3.dist = Math.max(0.35, v3.dist / 1.25); draw3D(); return; } const v = viewRect(); zoomAt(0.5, v.W / 2, v.H / 2); });
@@ -1839,6 +2162,12 @@ function structY(hit) {
   if (st === 12) return { y: null, note: "계산 안 됨" };
   if (y !== undefined && y !== NOY) return { y, note: st === 18 || st === 102 || st === 15 || st === 100 ? "근사" : "근사" };
   if (mapState.dim !== 0 || !hoverEx) return { y: null, note: "" };
+  if (!terrainOK()) {   // 1.18 전: 1.16은 그 버전 지형으로, 더 옛날은 높이 계산 안 함
+    if (MCV !== 19) return { y: null, note: "이 버전은 높이 계산 안 됨" };
+    if (st === 11) { hoverEx.set_seed(mapState.lo, mapState.hi, MCV); const r = rpInfo(hoverEx, x, z); if (r) return { y: r.y, note: "차원문 밑바닥" }; }
+    const h = hoverEx.rp_height(x, z) - 1; return { y: st === 14 ? h - 1 : h, note: "근사" };
+  }
+  if (st === 11) { hoverEx.set_seed(mapState.lo, mapState.hi, MCV); const r = rpInfo(hoverEx, x, z); if (r) return { y: r.y, note: "차원문 밑바닥" }; }
   const h = hoverEx.height_at(x, z);
   if (st === 14) return { y: h - 1, note: "근사" };
   return { y: h, note: "근사" };
@@ -1886,8 +2215,10 @@ function featTxt(hit) {
   if (hit.st === 11 || hit.st === 12) {
     const f = hit.flag, env = ["보통", "사막", "정글", "늪", "산", "바다", "네더"][f & 15];
     const kind = (f & 32) ? `거대 차원문 (${f >> 8}번 모양)` : `보통 크기 (${f >> 8}번 모양)`;
-    const where = (f & 16) ? "땅속에 묻힘" : (f & 15) === 5 ? "바다 밑바닥" : (f & 15) === 6 ? "네더" : "땅 위";
-    return `<br><span class="d">${kind} · ${env}형 · ${where}</span><br><span class="conf sure">거의 확실</span><br><span class="d">실제 월드의 폐허 차원문 98개와 크기·모양·종류·묻힘 여부까지 모두 맞았어요.</span>`;
+    const where = (f & 16) ? ((f & 15) === 4 ? "산속" : "땅속에 묻힘") : (f & 15) === 5 ? "바다 밑바닥" : (f & 15) === 6 ? "네더" : "땅 위";
+    const conf = MCV === LATEST ? `<br><span class="conf sure">거의 확실</span><br><span class="d">실제 월드의 폐허 차원문 98개와 크기·모양·종류·묻힘 여부까지 모두 맞았어요.</span>`
+      : MCV === 19 ? `<br><span class="conf sure">거의 확실</span><br><span class="d">1.16.1 실제 월드의 폐허 차원문 8개와 모양·회전·높이까지 맞았어요.</span>` : "";
+    return `<br><span class="d">${kind} · ${env}형 · ${where}</span>${conf}`;
   }
   if (hit.st === 20) return hit.flag & 1
     ? `<br><span class="d">마른 가스트: ${hit.x + ((hit.flag >> 4) & 15)}, ${hit.y}, ${hit.z + ((hit.flag >> 8) & 15)}</span><br><span class="conf sure">거의 확실</span><br><span class="d">실제 네더 월드와 비교했을 때 마른 가스트 778곳을 위치까지 모두 맞췄고, 틀린 건 5곳이었어요. 물에 담가 두면 아기 가스트가 돼요.</span>`
@@ -2012,6 +2343,20 @@ function placePop(pop, px, py) {
 }
 const LOOT_KO = {
 abandoned_camp_map:"버려진 캠프 지도",activator_rail:"활성화 레일",ancient_debris:"고대 잔해",apple:"사과",arrow:"화살",bamboo:"대나무",beetroot_seeds:"비트 씨앗",bell:"종",bone:"뼈",bone_block:"뼈 블록",book:"책",bow:"활",bowl:"그릇",bread:"빵",bucket:"양동이",bundle:"꾸러미",buried_ancient_city_map:"고대 도시 지도",buried_mineshaft_map:"폐광 지도",buried_trial_chambers_map:"시련의 방 지도",carrot:"당근",chain:"사슬",chest:"상자",clock:"시계",coal:"석탄",coast_armor_trim_smithing_template:"해안 갑옷 장식 형판",cobweb:"거미줄",compass:"나침반",cooked_cod:"익힌 대구",cooked_porkchop:"익힌 돼지고기",cooked_salmon:"익힌 연어",copper_axe:"구리 도끼",copper_boots:"구리 부츠",copper_chestplate:"구리 흉갑",copper_horse_armor:"구리 말 갑옷",copper_ingot:"구리 주괴",copper_leggings:"구리 레깅스",copper_nautilus_armor:"구리 앵무조개 갑옷",copper_spear:"구리 창",copper_sword:"구리 검",crossbow:"쇠뇌",crying_obsidian:"우는 흑요석",dark_oak_log:"짙은 참나무 원목",desert_pyramid_map:"사막 피라미드 지도",detector_rail:"감지 레일",diamond:"다이아몬드",diamond_boots:"다이아몬드 부츠",diamond_chestplate:"다이아몬드 흉갑",diamond_helmet:"다이아몬드 투구",diamond_horse_armor:"다이아몬드 말 갑옷",diamond_leggings:"다이아몬드 레깅스",diamond_nautilus_armor:"다이아몬드 앵무조개 갑옷",diamond_pickaxe:"다이아몬드 곡괭이",diamond_shovel:"다이아몬드 삽",diamond_spear:"다이아몬드 창",diamond_sword:"다이아몬드 검",dune_armor_trim_smithing_template:"모래 언덕 갑옷 장식 형판",emerald:"에메랄드",enchanted_golden_apple:"마법이 부여된 황금 사과",ender_pearl:"엔더 진주",experience_bottle:"경험치 병",eye_armor_trim_smithing_template:"눈 갑옷 장식 형판",feather:"깃털",fire_charge:"화염구",fishing_rod:"낚싯대",flint:"부싯돌",flint_and_steel:"부싯돌과 부시",gilded_blackstone:"금 박힌 흑암",glass_bottle:"유리병",glistering_melon_slice:"반짝이는 수박 조각",glow_berries:"발광 열매",goat_horn:"염소 뿔",gold_block:"금 블록",gold_ingot:"금 주괴",gold_nugget:"금 조각",golden_apple:"황금 사과",golden_axe:"황금 도끼",golden_boots:"황금 부츠",golden_carrot:"황금 당근",golden_chestplate:"황금 흉갑",golden_helmet:"황금 투구",golden_hoe:"황금 괭이",golden_horse_armor:"황금 말 갑옷",golden_leggings:"황금 레깅스",golden_nautilus_armor:"황금 앵무조개 갑옷",golden_pickaxe:"황금 곡괭이",golden_shovel:"황금 삽",golden_sword:"황금 검",gunpowder:"화약",heart_of_the_sea:"바다의 심장",iron_axe:"철 도끼",iron_block:"철 블록",iron_boots:"철 부츠",iron_chain:"철 사슬",iron_chestplate:"철 흉갑",iron_helmet:"철 투구",iron_horse_armor:"철 말 갑옷",iron_ingot:"철 주괴",iron_leggings:"철 레깅스",iron_nautilus_armor:"철 앵무조개 갑옷",iron_nugget:"철 조각",iron_pickaxe:"철 곡괭이",iron_shovel:"철 삽",iron_spear:"철 창",iron_sword:"철 검",jungle_pyramid_map:"정글 사원 지도",lapis_lazuli:"청금석",lead:"끈",leather:"가죽",leather_boots:"가죽 부츠",leather_chestplate:"가죽 튜닉",leather_helmet:"가죽 모자",leather_leggings:"가죽 바지",light_weighted_pressure_plate:"가벼운 압력판",lodestone:"자석석",magma_cream:"마그마 크림",map:"지도",melon_seeds:"수박 씨앗",moss_block:"이끼 블록",music_disc_bounce:"음반 (Bounce)",music_disc_otherside:"음반 (otherside)",music_disc_pigstep:"음반 (Pigstep)",name_tag:"이름표",nether_wart:"네더 사마귀",netherite_scrap:"네더라이트 파편",netherite_upgrade_smithing_template:"네더라이트 강화 형판",obsidian:"흑요석",paper:"종이",piglin_banner_pattern:"현수막 무늬 (주둥이)",poisonous_potato:"독이 있는 감자",potato:"감자",potion:"물약",powered_rail:"전동 레일",prismarine_crystals:"프리즈머린 수정",pumpkin:"호박",pumpkin_seeds:"호박 씨앗",rabbit_hide:"토끼 가죽",rail:"레일",redstone:"레드스톤 가루",rib_armor_trim_smithing_template:"갈비뼈 갑옷 장식 형판",rotten_flesh:"썩은 살점",saddle:"안장",sand:"모래",sentry_armor_trim_smithing_template:"파수꾼 갑옷 장식 형판",shears:"가위",snout_armor_trim_smithing_template:"주둥이 갑옷 장식 형판",spectral_arrow:"분광 화살",spider_eye:"거미 눈",spire_armor_trim_smithing_template:"첨탑 갑옷 장식 형판",spyglass:"망원경",stone_axe:"돌 도끼",straw_bed:"짚 침대",string:"실",suspicious_stew:"수상한 스튜",tnt:"TNT",torch:"횃불",tripwire_hook:"철사 덫 갈고리",warm_ocean_ruins_map:"바다 유적 지도",wheat:"밀",white_candle:"흰색 양초",white_cushion:"흰색 방석",wild_armor_trim_smithing_template:"야생 갑옷 장식 형판",wooden_axe:"나무 도끼",woodland_mansion_map:"삼림 대저택 지도",enchanted_book:"마법이 부여된 책",crimson_fungus:"진홍빛 균",crimson_nylium:"진홍빛 나일리움",crimson_roots:"진홍빛 뿌리",glowstone:"발광석",netherite_ingot:"네더라이트 주괴",quartz:"네더 석영",soul_sand:"영혼 모래",acacia_planks:"아카시아나무 판자",acacia_sapling:"아카시아나무 묘목",bamboo_hanging_sign:"대나무 매다는 표지판",bamboo_planks:"대나무 판자",barrel:"통",beef:"익히지 않은 소고기",beetroot_soup:"비트 수프",black_wool:"검은색 양털",blue_ice:"푸른 얼음",bolt_armor_trim_smithing_template:"나사 갑옷 장식 형판",bone_meal:"뼛가루",brown_wool:"갈색 양털",cactus:"선인장",cake:"케이크",clay_ball:"점토 덩이",cod:"익히지 않은 대구",dandelion:"민들레",dead_bush:"죽은 덤불",diamond_axe:"다이아몬드 도끼",diamond_block:"다이아몬드 블록",egg:"달걀",emerald_block:"에메랄드 블록",fern:"고사리",flow_armor_trim_smithing_template:"흐름 갑옷 장식 형판",flow_banner_pattern:"현수막 무늬 (흐름)",flower_pot:"화분",furnace:"화로",gray_wool:"회색 양털",green_dye:"초록색 염료",guster_banner_pattern:"현수막 무늬 (돌풍)",heavy_core:"무거운 코어",honey_bottle:"꿀이 든 병",honeycomb:"벌집 조각",large_fern:"큰 고사리",light_gray_wool:"회백색 양털",lingering_potion:"잔류형 물약",milk_bucket:"우유 양동이",music_disc_creator:"음반 (Creator)",music_disc_creator_music_box:"음반 (Creator 오르골)",music_disc_precipice:"음반 (Precipice)",mutton:"익히지 않은 양고기",oak_sapling:"참나무 묘목",ominous_bottle:"불길한 병",poppy:"양귀비",porkchop:"익히지 않은 돼지고기",pumpkin_pie:"호박 파이",salmon:"익히지 않은 연어",scaffolding:"비계",shield:"방패",short_grass:"잔디",smooth_stone:"매끄러운 돌",snow_block:"눈 블록",splash_potion:"투척용 물약",spruce_log:"가문비나무 원목",spruce_sapling:"가문비나무 묘목",spruce_sign:"가문비나무 표지판",stick:"막대기",stone:"돌",stone_bricks:"석재 벽돌",stone_pickaxe:"돌 곡괭이",sweet_berries:"달콤한 열매",tall_grass:"큰 잔디",tipped_arrow:"효과 화살",trial_key:"시련의 열쇠",trident:"삼지창",tuff:"응회암",water_bucket:"물 양동이",wheat_seeds:"밀 씨앗",white_wool:"흰색 양털",wind_charge:"돌풍구",yellow_dye:"노란색 염료",amethyst_shard:"자수정 조각",baked_potato:"구운 감자",candle:"양초",diamond_hoe:"다이아몬드 괭이",disc_fragment_5:"음반 조각 (5)",echo_shard:"메아리 조각",music_disc_13:"음반 (13)",music_disc_cat:"음반 (cat)",packed_ice:"꽁꽁 언 얼음",sculk:"스컬크",sculk_catalyst:"스컬크 촉매",sculk_sensor:"스컬크 감지체",silence_armor_trim_smithing_template:"고요 갑옷 장식 형판",snowball:"눈덩이",soul_torch:"영혼 횃불",ward_armor_trim_smithing_template:"수호 갑옷 장식 형판",golden_spear:"황금 창",netherite_spear:"네더라이트 창"};
+// 게임 한국어판 공식 이름 (KO는 빌드할 때 언어 파일에서 넣음). 없으면 예전 이름표
+function koItem(id) {
+  const K = typeof KO !== "undefined" ? KO : null;
+  if (K) {
+    const t = /^(.*)_armor_trim_smithing_template$/.exec(id);
+    if (t && K.i[id]) return `${K.i[id]} (${K.t[t[1]] || t[1]})`;
+    if (id === "netherite_upgrade_smithing_template" && K.i[id]) return `${K.i[id]} (네더라이트 강화)`;
+    if (/^(music_disc_|disc_fragment_)/.test(id) && K.i[id]) return K.d[id] ? `${K.i[id]} (${K.d[id]})` : K.i[id];
+    if (K.i[id]) return K.i[id];
+  }
+  return LOOT_KO[id] || id;
+}
+const ENCH_ALIAS = { curse_of_vanishing: "vanishing_curse", curse_of_binding: "binding_curse" };
+function koEnch(k) { const K = typeof KO !== "undefined" ? KO : null; return (K && (K.e[k] || K.e[ENCH_ALIAS[k]])) || ENCH_KO[k] || k; }
 const ENCH_KO = {protection:"보호",fire_protection:"화염으로부터 보호",blast_protection:"폭발로부터 보호",projectile_protection:"발사체로부터 보호",respiration:"호흡",aqua_affinity:"친수성",thorns:"가시",swift_sneak:"신속한 잠행",feather_falling:"가벼운 착지",depth_strider:"물갈퀴",frost_walker:"차가운 걸음",soul_speed:"영혼 가속",sharpness:"날카로움",smite:"강타",bane_of_arthropods:"살충",knockback:"밀치기",fire_aspect:"발화",looting:"약탈",sweeping_edge:"휩쓸기",efficiency:"효율",silk_touch:"섬세한 손길",fortune:"행운",luck_of_the_sea:"바다의 행운",lure:"미끼",power:"힘",punch:"밀어내기",flame:"화염",infinity:"무한",quick_charge:"빠른 장전",multishot:"다중 발사",piercing:"관통",impaling:"찌르기",riptide:"급류",loyalty:"충성",channeling:"집전",density:"밀도",breach:"돌파",wind_burst:"돌풍",mending:"수선",unbreaking:"내구성",curse_of_vanishing:"소실 저주",curse_of_binding:"귀속 저주",lunge:"돌진"};
 const TABLE_KO = {"chests/desert_pyramid":"보물 상자","chests/jungle_temple":"보물 상자","chests/jungle_temple_dispenser":"화살 발사기","chests/igloo_chest":"지하실 상자","chests/shipwreck_treasure":"보물 상자","chests/shipwreck_supply":"보급 상자","chests/shipwreck_map":"지도 상자","chests/pillager_outpost":"상자","chests/ruined_portal":"상자","chests/buried_treasure":"보물 상자","chests/abandoned_mineshaft":"광산 수레 상자","chests/nether_bridge":"상자","chests/bastion_bridge":"다리 상자","chests/bastion_other":"상자","chests/bastion_treasure":"보물 상자","chests/bastion_hoglin_stable":"마구간 상자","chests/end_city_treasure":"보물 상자","chests/stronghold_corridor":"복도 상자","chests/stronghold_crossing":"교차로 상자","chests/stronghold_library":"서재 상자","chests/abandoned_camp_common_chest":"상자","chests/ancient_city":"상자","chests/ancient_city_ice_box":"얼음 상자","chests/trial_chambers/supply":"보급 상자","chests/trial_chambers/corridor":"복도 통","chests/trial_chambers/entrance":"입구 상자","chests/trial_chambers/intersection":"교차로 상자","chests/trial_chambers/intersection_barrel":"교차로 통","chests/trial_chambers/reward":"보상 상자","pots/trial_chambers/corridor":"장식 항아리","dispensers/trial_chambers/chamber":"발사기","dispensers/trial_chambers/corridor":"복도 발사기","chests/village/village_armorer":"갑옷 제조인 상자","chests/village/village_butcher":"도살업자 상자","chests/village/village_cartographer":"지도 제작자 상자","chests/village/village_desert_house":"집 상자","chests/village/village_fisher":"어부 상자","chests/village/village_fletcher":"화살 제조인 상자","chests/village/village_mason":"석공 상자","chests/village/village_plains_house":"집 상자","chests/village/village_savanna_house":"집 상자","chests/village/village_shepherd":"양치기 상자","chests/village/village_snowy_house":"집 상자","chests/village/village_taiga_house":"집 상자","chests/village/village_tannery":"가죽 세공인 상자","chests/village/village_temple":"신전 상자","chests/village/village_toolsmith":"도구 대장장이 상자","chests/village/village_weaponsmith":"무기 대장장이 상자","chests/abandoned_camp_secret_chest":"숨겨진 상자","barrels/abandoned_camp_barrel":"통"};
 const EFFECT_KO = { speed: "신속", slowness: "구속", haste: "성급함", strength: "힘", instant_health: "즉시 회복", instant_damage: "즉시 피해", jump_boost: "점프 강화", nausea: "멀미", regeneration: "재생", resistance: "저항", fire_resistance: "화염 저항", water_breathing: "수중 호흡", invisibility: "투명화", blindness: "실명", night_vision: "야간 투시", hunger: "허기", weakness: "나약함", poison: "독", wither: "시듦", saturation: "포화", slow_falling: "느린 낙하", luck: "행운", darkness: "어둠" };
@@ -2056,12 +2401,15 @@ function jigsawLoot(st, D, x, z, rdq) {
   const seed = BigInt.asIntN(64, (BigInt(mapState.hi >>> 0) << 32n) | BigInt(mapState.lo >>> 0));
   const VT = ["plains", "desert", "savanna", "taiga", "snowy"], VSALT = { desert: 40039, plains: 40040, savanna: 40041, snowy: 40042, taiga: 40043 };
   let pcs, salt;
-  if (st === 19) { pcs = D.asm(seed, x >> 4, z >> 4, { startPool: "bastion/starts", y: 33, maxDepth: 6, maxDist: 80, minY: 0, maxY: 255 }); salt = 40018; }
+  if (st === 19) { const old = MCV < 22;   // 1.16: 섞기 방식·상자 난수 번호(40012)가 다름
+    // 1.16.1은 시작 조각을 먼저 뽑고 회전, 그 뒤 난수 한 번 더, 깊이 20 (월드 보루 5개 조각 535개 전부 일치)
+    pcs = D.asm(seed, x >> 4, z >> 4, old ? { startPool: "bastion/starts", y: 33, maxDepth: 20, maxDist: 80, minY: 0, maxY: 255, fastutil: true, elFirst: true, startSkip: 1 }
+                                        : { startPool: "bastion/starts", y: 33, maxDepth: 6, maxDist: 80, minY: 0, maxY: 255 }); salt = old ? 40012 : 40018; }
   else if (st === 25) { pcs = D.asm(seed, x >> 4, z >> 4, { startPool: "trial_chambers/chamber/end", yMin: -40, yMax: -20, maxDepth: 20, maxDist: 116, pad: [10, 10], aliases: D.d.A }); salt = 30004; }
   else {
-    const ty = VT[hoverEx.subtype_flag(5, x, z) & 7] || "plains";
-    pcs = D.asm(seed, x >> 4, z >> 4, { startPool: `village/${ty}/town_centers`, y: 0, heightFn: (a, b) => hoverEx.wg_height(a, b), projectStart: true, maxDepth: 6, maxDist: 80, hack: true });
-    salt = VSALT[ty];
+    const ty = VT[hoverEx.subtype_flag(5, x, z) & 7] || "plains", old = MCV < 22;
+    pcs = D.asm(seed, x >> 4, z >> 4, { startPool: `village/${ty}/town_centers`, y: 0, heightFn: old ? (a, b) => hoverEx.rp_height(a, b) : (a, b) => hoverEx.wg_height(a, b), projectStart: true, maxDepth: 6, maxDist: 80, hack: true, fastutil: old });
+    salt = old ? 40011 : VSALT[ty];
   }
   if (!pcs) return "";
   lastPieces = pcs;
@@ -2089,7 +2437,9 @@ async function lootChests(st, x, z) {
   const rdq = q => { const u = new Uint8Array(hoverEx.memory.buffer, q); let n = 0; while (u[n]) n++; return new TextDecoder().decode(u.slice(0, n)); };
   let txt;
   if (st === 13) txt = ancientCityLoot(x, z, rdq);
-  else if (st === 5 || st === 25 || st === 19) { const d = await jigsawData(st === 5 ? "village" : st === 19 ? "bastion" : "trial_chambers"); hoverEx.set_seed_dim(mapState.lo, mapState.hi, hoverEx.mc_wd(), mapState.dim); txt = jigsawLoot(st, d, x, z, rdq); }
+  else if (st === 19 && MCV === 19) { const d = await jigsawData("bastion_1_16"); hoverEx.set_seed_dim(mapState.lo, mapState.hi, hoverEx.mc_wd(), mapState.dim); txt = jigsawLoot(19, d, x, z, rdq); }
+  else if (st === 5 && MCV === 19) { const d = await jigsawData("village_1_16"); hoverEx.set_seed_dim(mapState.lo, mapState.hi, hoverEx.mc_wd(), mapState.dim); txt = jigsawLoot(5, d, x, z, rdq); }
+  else if ((st === 5 || st === 25 || st === 19) && MCV === LATEST) { const d = await jigsawData(st === 5 ? "village" : st === 19 ? "bastion" : "trial_chambers"); hoverEx.set_seed_dim(mapState.lo, mapState.hi, hoverEx.mc_wd(), mapState.dim); txt = jigsawLoot(st, d, x, z, rdq); }
   else txt = rdq(hoverEx.loot_struct(st === 121 ? 21 : st, x, z, 60));
   const chests = [];
   for (const l of txt.split("\n")) {
@@ -2097,11 +2447,11 @@ async function lootChests(st, x, z) {
     if (f[0] === "C") chests.push({ t: f[1], x: +f[2], z: +f[3], y: f[8], u: f[5] === "u", items: new Map() });
     else if (f[0] === "I" && chests.length) {
       const id = f[1].replace("minecraft:", ""), cnt = +f[2];
-      const ench = f[3] ? f[3].split(",").map(e => { const [k, lv] = e.split(":"); return (ENCH_KO[k] || k) + (ONE_LV.has(k) ? "" : " " + (ROMAN[+lv] || lv)); }) : [];
-      let name = LOOT_KO[id] || id; if (id === "book" && ench.length) name = "마법이 부여된 책";
+      const ench = f[3] ? f[3].split(",").map(e => { const [k, lv] = e.split(":"); return koEnch(k) + (ONE_LV.has(k) ? "" : " " + (ROMAN[+lv] || lv)); }) : [];
+      let name = koItem(id); if (id === "book" && ench.length) name = koItem("enchanted_book");
       let extra = "";
       if (f[4]) { const [en, dur] = f[4].replace("minecraft:", "").split(":"); const sec = Math.round(+dur / 20);
-        extra = ` (${EFFECT_KO[en] || en}${+dur > 1 ? ` ${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, "0")}` : ""})`; }
+        extra = ` (${(typeof KO !== "undefined" && KO.f[en]) || EFFECT_KO[en] || en}${+dur > 1 ? ` ${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, "0")}` : ""})`; }
       const cur = chests[chests.length - 1];
       let tgt = 0;
       if (MAP_TARGET[id]) tgt = MAP_TARGET[id];
@@ -2745,6 +3095,19 @@ function readHash() {
     return { s: h.get("s"), d: +h.get("d") || 0, x: +h.get("x"), z: +h.get("z"), b: +h.get("b") };
   } catch (e) { return null; }
 }
+// 폐허가 된 차원문 (1.16.x): 틀을 켜려면 흑요석이 몇 개 더 필요한지
+const RP_VP = ["지표", "땅속", "산속", "반쯤 묻힘", "물 밑"];
+function rpInfo(ex, x, z) {
+  const r = ex.rp_frame(x, z); if (r < 0) return null; const o = new Int32Array(ex.memory.buffer, ex.out_ptr(), 128);
+  return { need: r, y: o[100], vp: o[101], t: o[102], cry: o[104], ok: o[105], risk: o[113] };
+}
+function rpTxt(hit) {
+  if (hit.st !== 11 || !mainEx || !mainEx.rp_frame || mapState.dim !== 0) return "";
+  mainEx.set_seed(mapState.lo, mapState.hi, MCV); const r = rpInfo(mainEx, hit.x, hit.z); if (!r) return "";
+  const t = r.need >= 99 ? "쓰러진 틀이라 새로 쌓아야 해요" : r.need === 0 ? "바로 켤 수 있어요" : `흑요석 ${r.need}개 더 있으면 켤 수 있어요${r.cry ? ` (우는 흑요석 ${r.cry}개 자리 포함)` : ""}`;
+  const rk = r.risk && r.need < 99 ? `<br><span class="d">네더랙이 흘러내리면서 흑요석이 최대 ${r.risk}개 더 없어질 수 있어요</span>` : "";
+  return `<br><span class="d">차원문 Y ${r.y} · ${RP_VP[r.vp]}</span><br><b>틀: ${t}</b>${rk}`;
+}
 let popHit = null;
 function closePop() { $("pop").style.display = "none"; popHit = null; if (mapState.pin) { mapState.pin = null; scheduleDraw(); } }
 function openPop(hit, px, py) {
@@ -2753,8 +3116,8 @@ function openPop(hit, px, py) {
   const pop = $("pop");
   pop.innerHTML = `<button type="button" class="x" aria-label="닫기">×</button>
     <div class="hd">${iconTag(st, 16)}${SNAME[st]}</div>
-    <div class="co">X ${x}<br>Y ${yTxt}${yy.note ? ` <span class="d">(${yy.note})</span>` : ""}<br>Z ${z}${cityTxt(hit)}${shipTxt(hit)}${entrTxt(hit)}${featTxt(hit)}${linkTxt(x, z)}</div>
-    <div class="row"><button type="button" class="cp">좌표 복사</button><label><input type="checkbox" class="vis"${visitedSet().has(key) ? " checked" : ""}>다녀옴</label></div>${PLAN_ST.has(st) ? '<button type="button" class="planb">평면도 보기</button>' : ""}${LOOT_ST.has(st) ? '<button type="button" class="lootb">상자 내용물 보기</button>' : ""}${bmRowHtml(SNAME[st] || "")}`;
+    <div class="co">X ${x}<br>Y ${yTxt}${yy.note ? ` <span class="d">(${yy.note})</span>` : ""}<br>Z ${z}${cityTxt(hit)}${shipTxt(hit)}${entrTxt(hit)}${featTxt(hit)}${rpTxt(hit)}${linkTxt(x, z)}</div>
+    <div class="row"><button type="button" class="cp">좌표 복사</button><label><input type="checkbox" class="vis"${visitedSet().has(key) ? " checked" : ""}>다녀옴</label></div>${PLAN_ST.has(st) && MCV === LATEST ? '<button type="button" class="planb">평면도 보기</button>' : ""}${LOOT_ST.has(st) && MCV >= 16 && !(st === 12 && MCV < 22) && (MCV === LATEST || ![13, 5, 25].includes(st) || (st === 5 && MCV === 19)) ? '<button type="button" class="lootb">상자 내용물 보기</button>' : ""}${bmRowHtml(SNAME[st] || "")}`;
   pop.querySelector(".x").onclick = closePop;
   const cvb = pop.querySelector(".cv"); if (cvb) cvb.onclick = () => { closePop(); $("caveOn").checked = true; mapState.cave = true; setCaveY(+cvb.dataset.y); dropQueue(); scheduleDraw(); };
   const cp = pop.querySelector(".cp");
@@ -2777,7 +3140,7 @@ function showInfoAt(px, py, withTip) {
   if (!mapState.loaded || !hoverEx) return;
   const v = viewRect(); const wx = Math.floor(v.x0 + px * mapState.bpp), wz = Math.floor(v.z0 + py * mapState.bpp);
   let id = hoverEx.biome_at(wx, wz, mapState.dim === -1 ? 64 : 256); if (mapState.dim === 1 && hoverEx.height_at(wx, wz) <= 0) id = -2; const bname = NAME[id] || "";
-  $("cursorInfo").textContent = `X ${fmt(wx)}, Z ${fmt(wz)} · 청크 ${Math.floor(wx / 16)}, ${Math.floor(wz / 16)}${bname ? " · " + bname : ""}`;
+  $("cursorInfo").textContent = `X ${fmt(wx)}, Z ${fmt(wz)} · 청크 ${Math.floor(wx / 16)}, ${Math.floor(wz / 16)}${bname ? " · " + bname : ""}`; $("cursorInfo").dataset.last = "";
   const tip = $("tip"); const hit = withTip && findHit(px, py);
   { // 아이콘 가까이 가면 테두리 강조 (조금 넉넉하게)
     let nh = null, bd = 1e9; if (withTip) for (const h of mapState.hits || []) { const d = Math.hypot(h.px - px, h.py - py); if (d <= h.r + 6 && d < bd) { bd = d; nh = h; } }
@@ -2802,6 +3165,8 @@ const endPointer = (e) => {
   }
 };
 $("stage").addEventListener("contextmenu", (e) => e.preventDefault());   // 지도 위 우클릭 메뉴 막기
+function verLabel() { return $("verText") ? $("verText").textContent : "자바 에디션"; }
+big.addEventListener("pointerleave", e => { if (e.pointerType !== "mouse") return; const c = $("cursorInfo"); c.dataset.last = c.dataset.last || c.textContent; c.textContent = `${verLabel()} · ${c.dataset.last}`; });
 big.addEventListener("pointerleave", () => { if (mapState.hovKey) { mapState.hovKey = null; scheduleDraw(); } });
 big.addEventListener("pointerup", endPointer); big.addEventListener("pointercancel", endPointer);
 big.addEventListener("keydown", (e) => {
@@ -2849,14 +3214,49 @@ ready.then(() => {
   setTimeout(step, 0);
 });
 renderTable();
+// ---------- 버전 선택 ----------
+// 구조물·기능이 처음 나온 버전 (cubiomes 버전 번호: 11=1.8, 12=1.9, 14=1.11, 16=1.13, 17=1.14, 19=1.16.1, 21=1.17, 22=1.18, 23=1.19, 25=1.20, 26=1.21, 35=26.3)
+var MIN_VER = { 100: 22, 209: 12, 305: 25, 324: 17, 326: 17, 13: 23, 25: 26, 24: 25, 26: 35, 19: 19, 20: 19, 12: 19, 11: 19, 17: 21, 10: 17, 9: 14, 21: 12, 121: 12, 22: 12, 207: 12, 208: 12, 7: 16, 6: 16, 14: 16, 4: 12, 200: 22, 201: 22, 202: 22, 203: 22, 204: 22, 210: 22, 211: 22, 212: 22 };
+var MCV = 35, MCV_IDX = 0, LATEST = 35, TERRAIN_MIN = 22;
+function verOK(st) { if (st >= 300 && st < 400 && typeof MCV !== "undefined" && MCV < 16) return false; return !MIN_VER || MCV >= (MIN_VER[st] || 0); }
+function terrainOK() { return MCV >= TERRAIN_MIN; }
+async function setVersion(idx, reopen) {
+  await ready; MCV_IDX = idx; MCV = mainEx.mc_const(idx); if (MCV < 0) { MCV = LATEST; MCV_IDX = 0; }
+  try { localStorage.setItem("mcVer", MCV_IDX); } catch (e) {}
+  $("mcVer").value = MCV_IDX; $("verText").textContent = "자바 에디션 " + $("mcVer").selectedOptions[0].textContent.replace("자바 ", "").replace(/ \(.*\)/, "");
+  mainEx.set_mcv(MCV); if (hoverEx) hoverEx.set_mcv(MCV);
+  for (const w of mapWorkers) w.postMessage({ type: "mcv", v: MCV });
+  // 1.18 전에는 지형(높이·동굴·3D)을 계산하지 않음
+  const tok = terrainOK();
+  document.querySelectorAll('#viewSeg [data-v="shade"], #viewSeg [data-v="3d"]').forEach(b => b.hidden = !tok);
+  if (!tok && viewMode !== "flat") setViewMode("flat");
+  $("caveBox").hidden = !tok;   // 동굴 단면은 1.18 이후 지형 계산만 있음
+  if (!tok && mapState.cave) { $("caveOn").checked = false; mapState.cave = false; if (typeof dropQueue === "function") dropQueue(); scheduleDraw(); }
+  for (const st of [...mapState.show]) if (!verOK(st)) mapState.show.delete(st);
+  selS = selS.filter(verOK);
+  selected = selected.filter(id => !(id >= 0 && id < 256) || mainEx.biome_ok(id));
+  if (typeof renderChips === "function") renderChips();
+  if (typeof srSync === "function" && $("srBox")) srSync();
+  if (typeof renderMapChips === "function") renderMapChips();
+  if (reopen && mapState.loaded) openMapSeed($("mapSeed").value);
+}
+$("mcVer").addEventListener("change", e => setVersion(+e.target.value, true));
+// 마지막으로 보던 시드·차원·위치를 기억해서 다시 열어도 그대로 (링크로 들어오면 링크가 우선)
+function saveLastView() { try { if (!mapState.loaded) return; localStorage.setItem("lastView", JSON.stringify({ s: $("mapSeed").value, d: mapState.dim, x: Math.round(mapState.cx), z: Math.round(mapState.cz), b: mapState.bpp })); } catch (e) {} }
+addEventListener("pagehide", saveLastView);
+document.addEventListener("visibilitychange", () => { if (document.visibilityState === "hidden") saveLastView(); });
+setInterval(saveLastView, 5000);
+let lastView = null; try { lastView = JSON.parse(localStorage.getItem("lastView") || "null"); } catch (e) {}
 { const hs = readHash();
   if (hs) $("mapSeed").value = hs.s;
-  else {   // 링크로 들어온 게 아니면 들어올 때마다 무작위 시드
+  else if (lastView && lastView.s) $("mapSeed").value = lastView.s;
+  else {   // 처음 오는 사람은 무작위 시드
     const r = new Uint32Array(2); crypto.getRandomValues(r);
     $("mapSeed").value = BigInt.asIntN(64, (BigInt(r[1]) << 32n) | BigInt(r[0])).toString();
   } }
+{ let vi = 0; try { vi = +localStorage.getItem("mcVer") || 0; } catch (e) {} setVersion(vi, false); }
 showTab("map");
-{ const hs = readHash();
+{ const hs = readHash() || lastView;
   if (hs) { const t = setInterval(() => { if (!mapState.loaded) return; clearInterval(t);
     if (hs.d !== mapState.dim && [0, -1, 1].includes(hs.d)) setDim(hs.d);
     if (Number.isFinite(hs.x) && Number.isFinite(hs.z)) { mapState.cx = hs.x; mapState.cz = hs.z; }

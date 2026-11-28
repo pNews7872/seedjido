@@ -16,7 +16,7 @@ static void ensureAQ(void); static void aqReset(void); static int aquiferSubstan
 static int curMc = -1;
 static int idsBuf[16];
 static int ysBuf[16];
-static int outBuf[96];
+static int outBuf[128];
 int *ids_ptr(void) { return idsBuf; }
 int *ys_ptr(void) { return ysBuf; }
 int *out_ptr(void) { return outBuf; }
@@ -181,6 +181,7 @@ static int mineshaftBiome(int cx, int cz, int *mesa) {
 }
 static int surfaceY(int x, int z) {
     if (curDim == DIM_END) return getEndSurfaceHeight(G.mc, G.seed, x, z);
+    if (G.mc < MC_1_18) return 64;   /* 1.18 전 지형은 계산하지 않음 (바이옴 확인용 높이만) */
     float y = 0; mapApproxHeight(&y, NULL, &G, NULL, x >> 2, z >> 2, 1, 1); return (int)y;
 }
 /* y offset applied by the game after the pieces are laid out */
@@ -193,6 +194,12 @@ static int mineshaftYOffset(int n, int mesa) {
         if (p->bb0.z < minZ) minZ = p->bb0.z; if (p->bb1.z > maxZ) maxZ = p->bb1.z;
     }
     uint64_t rng = g_mineshaftRng;
+    if (G.mc < MC_1_18) {   /* 1.18 전: 바닥이 0, 메사는 해수면 기준 고정 이동 (MineshaftFeature 1.16) */
+        if (mesa) return 63 - maxY + (maxY - minY + 1) / 2 + 5;
+        int i = 63 - 10, j = (maxY - minY + 1) + 1;
+        if (j < i) j += nextInt(&rng, i - j);
+        return j - maxY;
+    }
     if (mesa) {
         int cy = (minY + maxY) / 2, h = surfaceY((minX + maxX) / 2, (minZ + maxZ) / 2);
         int l = h <= 63 ? 63 : 63 + nextInt(&rng, h - 63 + 1);
@@ -498,7 +505,15 @@ void nearest(int n, int R, int step, int cx, int cz, int useSpawn, int ns) {
     }
 }
 int biome_at(int x, int z, int y) { return getBiomeAt(&G, 4, x >> 2, y >> 2, z >> 2); }
-int mc_wd(void) { return MC_26_3; }
+static int G_MCV = MC_26_3;
+int mc_wd(void) { return G_MCV; }
+void set_mcv(int v) { G_MCV = v; }
+/* 사이트에서 고르는 버전과 기능별 최소 버전 (enum 값을 JS로 넘김) */
+int mc_const(int i) {
+    static const int T[] = { MC_26_3, MC_1_21_11, MC_1_21_1, MC_1_20_6, MC_1_18_2, MC_1_16_1, MC_1_12_2, MC_1_8_9,   /* 0~7 고를 수 있는 버전 */
+        MC_1_18, MC_1_19, MC_1_21_1, MC_1_20, MC_1_16_1, MC_1_17, MC_1_14, MC_1_11 };   /* 8 지형, 9 고대 도시, 10 시련의 방, 11 길의 잔해, 12 보루 잔해, 13 자수정 정동, 14 약탈자 전초기지, 15 삼림 대저택 */
+    return i >= 0 && i < (int)(sizeof T / sizeof T[0]) ? T[i] : -1;
+}
 int height_at(int x, int z) { return surfaceY(x, z); }
 /* 엔드 중앙 섬: 흑요석 기둥 10개 (x,z,반지름,꼭대기 높이,철창) + 출구 포털 높이 + 드래곤 처치 관문 20개(순서대로 x,z,연결된 바깥 x,z) */
 static int endBuf2[10 * 5 + 1 + 20 * 4 + 20];
@@ -538,12 +553,17 @@ float *heights_area(int x4, int z4, int w, int h, int step) {
 #include "../xcub/terrainnoise.h"
 #include "../xcub/rng.h"
 static TerrainNoise TN; static uint64_t tnSeed = 0; static int tnInit = 0;
+int rp_height(int x, int z);
+static int tnMc = -1;
+static int ccx0, ccz0;   /* 지형 모서리 캐시 위치 (아래에서 정의). 시드·버전이 바뀌면 무효로 */
 static void ensureTN(void) {
-    if (tnInit && tnSeed == G.seed) return;
+    if (tnInit && tnSeed == G.seed && tnMc == G.mc) return;
     static int tnSetup = 0;   /* 스플라인 설정은 시드와 무관하고, 두 번 부르면 내부 저장소가 넘쳐서 한 번만 */
     if (!tnSetup) { setupTerrainNoise(&TN, G.mc, 0); tnSetup = 1; }
+    else if (tnMc != G.mc) setupGenerator(&TN.g, G.mc, 0);   /* 버전을 바꾸면 바이옴 생성기만 다시 */
+    tnMc = G.mc;
     initTerrainNoise(&TN, G.seed, DIM_OVERWORLD);
-    tnSeed = G.seed; tnInit = 1;
+    tnSeed = G.seed; tnInit = 1; ccx0 = ccz0 = -2000000000;
 }
 static inline double cvPost(double d) { double c = d * 0.64; if (c < -1) c = -1; if (c > 1) c = 1; return c / 2.0 - c * c * c / 24.0; }
 static inline double cvSlide(double in, int y) {
@@ -646,7 +666,7 @@ static inline int carved2(int x, int z, int x0, int z0, int size) {
 }
 int *cave_ptr(void) { return caveBuf; }
 /* 단면: 칸마다 0 = 돌, 1 = 동굴 빈 공간, 2 = 지표 위(하늘/바다). step = 칸 간격(4블록 단위 셀 수) */
-int cave_slice(int cx0, int cz0, int w, int h, int step, int y) {
+int cave_slice(int cx0, int cz0, int w, int h, int step, int y) { if (G.mc < MC_1_18) { return 0; }  /* 1.18 전 지형은 이 계산이 없음 */
     ensureTN();
     if (y < -64) y = -64; if (y > 319) y = 319;
     int x0b = cx0 * 4, z0b = cz0 * 4, size = w * step * 4, carveOn = size <= 1024 && w == h;
@@ -691,7 +711,7 @@ static int topY(int cx, int cz, const CellP *p, int from, int to, int useTerr) {
     }
     return -9999;
 }
-int cave_entrances(int cx0, int cz0, int w, int h, int step) {
+int cave_entrances(int cx0, int cz0, int w, int h, int step) { if (G.mc < MC_1_18) { return 0; }  /* 1.18 전 지형은 이 계산이 없음 */
     ensureTN();
     int carveOn = step == 1 && w == 64 && h == 64;
     if (carveOn) ensureCarve3D(cx0 * 4, cz0 * 4);
@@ -1029,7 +1049,7 @@ static int lakeShapeOK(Xoroshiro *xr, int ox, int oy, int oz, int lava) {
 }
 static int topSolid(int x, int z, int from) { for (int y = from; y > -64; y--) if (blockAt(x, y, z) == B_SOLID) return y; return -64; }
 /* 타일(256칸) 안의 던전·용암 호수 후보. 결과 (x,y,z,flag): flag 하위 4비트 = 종류(1 던전, 2 지하 용암 호수, 3 지표 용암 호수), 던전은 (몹<<4)|(구멍 수<<8) */
-int features_tile(int tx, int tz) {
+int features_tile(int tx, int tz) { if (G.mc < MC_1_18) { return 0; }  /* 1.18 전 지형은 이 계산이 없음 */
     ensureTN();
     int x0 = tx * 256, z0 = tz * 256;
     ensureCarve3D(x0, z0);
@@ -1359,7 +1379,7 @@ static char *lootNamed(const char *tname, uint32_t lo, uint32_t hi) {
 }
 /* 고정 소금값(decoratorIndex + 10000*step)으로 청크 난수 k개 */
 char *salt_longs(int bx, int bz, int salt, int k) {
-    RandomSource rnd = {.type = XOROSHIRO_J};
+    RandomSource rnd = {.type = G.mc >= MC_1_18 ? XOROSHIRO_J : JAVA_RANDOM};   /* 1.18 전은 자바 Random */
     uint64_t ps = getPopulationSeed(G.mc, G.seed, bx & ~15, bz & ~15);
     absSetSeed(&rnd, ps + salt);
     int o = 0;
@@ -1368,7 +1388,7 @@ char *salt_longs(int bx, int bz, int salt, int k) {
 }
 
 /* 지면 높이맵 WORLD_SURFACE_WG: 노이즈 단계(카버 전)에서 공기가 아닌 가장 높은 블록 + 1 (물 포함) */
-int wg_height(int x, int z) {
+int wg_height(int x, int z) { if (G.mc < MC_1_18) { return rp_height(x, z); }  /* 1.18 전 지형은 이 계산이 없음 */
     ensureTN(); int tx = fdiv(x, 256) * 256, tz = fdiv(z, 256) * 256;
     if (ccx0 != tx / 4 - 1 || ccz0 != tz / 4 - 1) cornerReset(tx / 4, tz / 4);
     noCarve = 1;
@@ -1381,7 +1401,7 @@ int wg_height(int x, int z) {
 int dbg_fin(int x, int y, int z) { wg_height(x, z); noCarve = 1; blockAt(x, y, z); noCarve = 0; return (int)(lastFin * 1e6); }
 
 /* 평면도 주변 지형 1: 높이 y에서 가로로 자른 단면. out[칸] = 0 돌, 1 공기(동굴), 2 물, 3 용암. 256칸 타일 단위로 돌아서 동굴 계산을 아낌 */
-void slice_area(int x0, int z0, int w, int h, int y, unsigned char *out) {
+void slice_area(int x0, int z0, int w, int h, int y, unsigned char *out) { if (G.mc < MC_1_18) { return; }  /* 1.18 전 지형은 이 계산이 없음 */
     ensureTN();
     for (int tz = fdiv(z0, 256) * 256; tz < z0 + h; tz += 256)
     for (int tx = fdiv(x0, 256) * 256; tx < x0 + w; tx += 256) {
@@ -1395,7 +1415,7 @@ void slice_area(int x0, int z0, int w, int h, int y, unsigned char *out) {
     }
 }
 /* 평면도 주변 지형 2: 지표면 높이(WORLD_SURFACE_WG)와 물 여부. hy[칸] = 높이, wt[칸] = 1 물 */
-void surf_area(int x0, int z0, int w, int h, short *hy, unsigned char *wt) {
+void surf_area(int x0, int z0, int w, int h, short *hy, unsigned char *wt) { if (G.mc < MC_1_18) { return; }  /* 1.18 전 지형은 이 계산이 없음 */
     ensureTN();
     for (int tz = fdiv(z0, 256) * 256; tz < z0 + h; tz += 256)
     for (int tx = fdiv(x0, 256) * 256; tx < x0 + w; tx += 256) {
@@ -1441,7 +1461,7 @@ char *pieces_struct(int st, int x, int z) {
     if (st == Stronghold && n > 0) {   /* 1.18+: 다 만든 뒤 해수면 아래로 내림 (moveBelowSeaLevel, 같은 난수 이어 씀) */
         int mn = 1 << 30, mx = -(1 << 30);
         for (int i = 0; i < n; i++) { if (lootPieces[i].bb0.y < mn) mn = lootPieces[i].bb0.y; if (lootPieces[i].bb1.y > mx) mx = lootPieces[i].bb1.y; }
-        uint64_t r = g_strongholdRng; int k = (mx - mn + 1) + (-64) + 1, lim = 63 - 10;
+        uint64_t r = g_strongholdRng; int k = (mx - mn + 1) + (G.mc >= MC_1_18 ? -64 : 0) + 1, lim = 63 - 10;
         if (k < lim) k += nextInt(&r, lim - k);
         int dy = k - mx;
         for (int i = 0; i < n; i++) { lootPieces[i].bb0.y += dy; lootPieces[i].bb1.y += dy; lootPieces[i].pos.y += dy; }
@@ -1467,3 +1487,173 @@ char *dbg_sh(int x, int z, int bound) {
     uint64_t r = g_strongholdRng; for (int i = 0; i < 12; i++) o += snprintf(b + o, sizeof b - o, " %d", nextInt(&r, bound));
     return b;
 }
+
+/* ================= 폐허가 된 차원문 틀 (1.16.x) =================
+ * 1.16 지형(동굴 빼고 소음만)으로 높이를 정하고, 설계도·회전·대칭·높이로 틀 흑요석이 우는 흑요석으로 바뀌는지까지 계산.
+ * 게임 코드: RuinedPortalFeature.Start.generatePieces / findSuitableY, BlockAgeProcessor(흑요석 15%), Mth.getSeed */
+#include "rp_tables.h"
+static SurfaceNoise RPsn; static uint64_t RPsnSeed = 0; static int RPsnOK = 0;
+static float RP_BW[25];
+static void rpInitNoise(void) {
+    if (RPsnOK && RPsnSeed == G.seed) return;
+    initSurfaceNoise(&RPsn, DIM_OVERWORLD, G.seed); RPsnSeed = G.seed; RPsnOK = 1;
+    for (int i = -2; i <= 2; i++) for (int j = -2; j <= 2; j++) RP_BW[i + 2 + (j + 2) * 5] = 10.0f / (float)sqrt((double)((float)(i * i + j * j) + 0.2f));
+}
+static double rpLerp(double t, double a, double b) { return a + t * (b - a); }
+static double rpCLerp(double a, double b, double t) { return t < 0 ? a : t > 1 ? b : rpLerp(t, a, b); }
+/* 소음 기둥 캐시 (칸 4×4 단위) */
+#define RPC 64
+static int rpcX[RPC], rpcZ[RPC], rpcOK[RPC]; static uint64_t rpcSeed[RPC]; static double rpcV[RPC][33];
+static const double *rpColumn(int cx, int cz) {
+    unsigned h = ((unsigned)cx * 73856093u ^ (unsigned)cz * 19349663u) % RPC;
+    if (rpcOK[h] && rpcX[h] == cx && rpcZ[h] == cz && rpcSeed[h] == G.seed) return rpcV[h];
+    float sS = 0, sD = 0, sW = 0, d0, s0; double dd, ss;
+    getBiomeDepthAndScale(getBiomeAt(&G, 4, cx, 0, cz), &dd, &ss, 0); d0 = (float)dd;
+    for (int i = -2; i <= 2; i++) for (int j = -2; j <= 2; j++) {
+        getBiomeDepthAndScale(getBiomeAt(&G, 4, cx + i, 0, cz + j), &dd, &ss, 0);
+        float d = (float)dd, s = (float)ss, f = d > d0 ? 0.5f : 1.0f;
+        float w = f * RP_BW[i + 2 + (j + 2) * 5] / (d + 2.0f);
+        sS += s * w; sD += d * w; sW += w;
+    }
+    float fD = sD / sW, fS = sS / sW;
+    double dep = (double)(fD * 0.5f - 0.125f) * 0.265625, sc = 96.0 / (double)(fS * 0.9f + 0.1f);
+    double rv = sampleOctaveAmp(&RPsn.octdepth, cx * 200, 10.0, cz * 200, 1.0, 0.0, 1);
+    double r5 = rv < 0 ? -rv * 0.3 : rv, r6 = r5 * 24.575625 - 2.0;
+    double rd = r6 < 0 ? r6 * 0.009486607142857142 : (r6 < 1 ? r6 : 1.0) * 0.006640625;
+    for (int y = 0; y <= 32; y++) {
+        double n = sampleSurfaceNoise(&RPsn, cx, y, cz);
+        double a = 1.0 - y * 2.0 / 32 + rd, b = a * 1.0 + -0.46875, c = (b + dep) * sc;
+        n += c > 0 ? c * 4.0 : c;
+        n = rpCLerp(-10.0, n, (32 - y - 0.0) / 3.0);
+        rpcV[h][y] = n;
+    }
+    rpcX[h] = cx; rpcZ[h] = cz; rpcSeed[h] = G.seed; rpcOK[h] = 1;
+    return rpcV[h];
+}
+/* 블록 기둥: 0 공기, 1 물, 2 돌 (y 0..255) */
+static void rpBlockCol(int x, int z, unsigned char out[256]) {
+    int cx = x >> 2, cz = z >> 2; double fx = (x & 3) / 4.0, fz = (z & 3) / 4.0;
+    const double *c00 = rpColumn(cx, cz); double a00[33]; memcpy(a00, c00, sizeof a00);
+    const double *c01 = rpColumn(cx, cz + 1); double a01[33]; memcpy(a01, c01, sizeof a01);
+    const double *c10 = rpColumn(cx + 1, cz); double a10[33]; memcpy(a10, c10, sizeof a10);
+    const double *c11 = rpColumn(cx + 1, cz + 1); double a11[33]; memcpy(a11, c11, sizeof a11);
+    for (int cy = 31; cy >= 0; cy--) for (int k = 7; k >= 0; k--) {
+        double t = k / 8.0;
+        double v = rpLerp(fz, rpLerp(fx, rpLerp(t, a00[cy], a00[cy + 1]), rpLerp(t, a10[cy], a10[cy + 1])),
+                              rpLerp(fx, rpLerp(t, a01[cy], a01[cy + 1]), rpLerp(t, a11[cy], a11[cy + 1])));
+        int y = cy * 8 + k; out[y] = v > 0 ? 2 : y < 63 ? 1 : 0;
+    }
+}
+static int rpBaseHeight(int x, int z, int oceanFloor) {
+    unsigned char c[256]; rpBlockCol(x, z, c);
+    for (int y = 255; y >= 0; y--) if (oceanFloor ? c[y] == 2 : c[y] != 0) return y + 1;
+    return 0;
+}
+static uint64_t rpJ; static void rpJSet(int64_t s) { rpJ = ((uint64_t)s ^ 0x5DEECE66DULL) & ((1ULL << 48) - 1); }
+static int rpJNext(int bits) { rpJ = (rpJ * 0x5DEECE66DULL + 0xBULL) & ((1ULL << 48) - 1); return (int)(int64_t)(rpJ >> (48 - bits)); }
+static float rpJFloat(void) { return rpJNext(24) / (float)(1 << 24); }
+static int64_t rpGetSeed(int x, int y, int z) {
+    int64_t l = (int64_t)(int32_t)((uint32_t)x * 3129871u) ^ (int64_t)z * 116129781LL ^ (int64_t)y;
+    l = (int64_t)((uint64_t)l * (uint64_t)l * 42317861ULL + (uint64_t)l * 11ULL); return l >> 16;
+}
+static void rpTransform(int x, int z, int mir, int rot, int px, int pz, int *ox, int *oz) {
+    if (mir) x = -x;
+    switch (rot) { case 2: *ox = px + px - x; *oz = pz + pz - z; return; case 3: *ox = px - pz + z; *oz = px + pz - x; return;
+                   case 1: *ox = px + pz - z; *oz = pz - px + x; return; default: *ox = x; *oz = z; }
+}
+/* 결과 outBuf[100..]: 0 y, 1 놓인 방식(0 지표 1 땅속 2 산속 3 반쯤 묻힘 4 물 밑), 2 설계도(0..12), 3 틀 흑요석 필요(최소), 4 그 틀의 우는 흑요석 수,
+   5 틀에 있는 흑요석(멀쩡한) 수, 6 회전, 7 대칭, 8..11 고른 틀 (z0,z1,y0,y1 설계도 기준), 12 바다 여부, 13 더 없어질 수도 있는 칸 수. 반환: 필요한 흑요석 수, 틀이 없으면 99, 지원 안 하면 -1 */
+/* 1.18 이후: 동굴 카버 없이 소음 지형(대수층·소음 동굴 포함) 블록. 0 공기 1 물·용암 2 단단함 */
+static int rp18Block(int x, int y, int z) {
+    int tx = fdiv(x, 256) * 256, tz = fdiv(z, 256) * 256;
+    if (ccx0 != tx / 4 - 1 || ccz0 != tz / 4 - 1) cornerReset(tx / 4, tz / 4);
+    int ba = bActive; bActive = 0; noCarve = 1; int b = blockAt(x, y, z); noCarve = 0; bActive = ba;
+    return b == B_SOLID ? 2 : b == B_AIR ? 0 : 1;
+}
+static int rp18Base(int x, int z, int ocean) {
+    int y0 = surfaceY(x, z) + 48, y = y0; if (y > 319) y = 319;
+    if (rp18Block(x, y, z) != 0) y = 319;
+    while (y > -64) { int b = rp18Block(x, y, z); if (ocean ? b == 2 : b != 0) break; y--; }
+    return y + 1;
+}
+static int rpNew(void) { return G.mc >= MC_1_18; }
+static int rpBaseAny(int x, int z, int ocean) { return rpNew() ? rp18Base(x, z, ocean) : rpBaseHeight(x, z, ocean); }
+int rp_frame(int px, int pz) {
+    if (!((G.mc >= MC_1_16_1 && G.mc < MC_1_17) || G.mc >= MC_1_18)) return -1;
+    if (rpNew()) ensureTN(); else rpInitNoise();
+    int biome = rpNew() ? getBiomeAt(&G, 4, px >> 2, surfaceY(px, pz) >> 2, pz >> 2) : getBiomeAt(&G, 4, (px >> 2) + 2, 0, (pz >> 2) + 2);
+    StructureVariant sv; if (!getVariant(&sv, Ruined_Portal, G.mc, G.seed, px, pz, biome)) return -1;
+    uint64_t rng = chunkGenerateRnd(G.seed, px >> 4, pz >> 4);
+    int vp = 0, tp = sv.biome;   /* 0 지표 1 땅속 2 산속 3 반쯤 묻힘 4 물 밑 */
+    if (tp == desert) vp = 3;
+    else if (tp == jungle) { if (G.mc <= MC_26_2) nextFloat(&rng); vp = 0; }
+    else if (tp == swamp || tp == ocean) vp = 4;
+    else { int b = nextFloat(&rng) < 0.5f; vp = b ? (tp == mountains ? 2 : 1) : 0; if (!b && G.mc <= MC_26_2) nextFloat(&rng); }
+    int giant = nextFloat(&rng) < 0.05f; int t = giant ? 10 + nextInt(&rng, 3) : nextInt(&rng, 10);
+    int rot = nextInt(&rng, 4); int mir = !(nextFloat(&rng) < 0.5f);
+    const int *T = RP_T[t]; int sx = T[0], sy = T[1], sz = T[2];
+    int pvx = sx / 2, pvz = sz / 2;
+    int rsx = (rot & 1) ? sz : sx, rsz = (rot & 1) ? sx : sz, i9 = rsx - 1, i11 = rsz - 1;
+    int x0, z0, x1, z1;
+    switch (rot) {
+    case 0: x0 = 0; z0 = 0; x1 = i9; z1 = i11; break;
+    case 2: x0 = 2 * pvx - i9; z0 = 2 * pvz - i11; x1 = 2 * pvx; z1 = 2 * pvz; break;
+    case 3: x0 = pvx - pvz; z0 = pvx + pvz - i11; x1 = pvx - pvz + i9; z1 = pvx + pvz; break;
+    default: x0 = pvx + pvz - i9; z0 = pvz - pvx; x1 = pvx + pvz; z1 = pvz - pvx + i11; break;
+    }
+    if (mir) { int dx = 0, dz = 0; if (rot == 1) dz = -i11; else if (rot == 3) dz = i11; else if (rot == 2) dx = i9; else dx = -i9; x0 += dx; x1 += dx; z0 += dz; z1 += dz; }
+    x0 += px; x1 += px; z0 += pz; z1 += pz;
+    int ccx = x0 + (x1 - x0 + 1) / 2, ccz = z0 + (z1 - z0 + 1) / 2;
+    int surf = rpBaseAny(ccx, ccz, vp == 4) - 1, minY = rpNew() ? -49 : 15;
+    int y;
+    if (vp == 2) { int top = surf - sy; y = 70 < top ? 70 + nextInt(&rng, top - 70 + 1) : top; }
+    else if (vp == 1) { int top = surf - sy; y = minY < top ? minY + nextInt(&rng, top - minY + 1) : top; }
+    else if (vp == 3) y = surf - sy + 2 + nextInt(&rng, 7);
+    else y = surf;
+    { int cxs[4] = {x0, x1, x0, x1}, czs[4] = {z0, z0, z1, z1};
+      if (rpNew()) {
+        for (; y > minY; y--) { int n = 0; for (int k = 0; k < 4; k++) { int b = rp18Block(cxs[k], y, czs[k]); if (vp == 4 ? b == 2 : b != 0) { if (++n == 3) break; } } if (n >= 3) break; }
+      } else {
+        static unsigned char cols[4][256];
+        for (int k = 0; k < 4; k++) rpBlockCol(cxs[k], czs[k], cols[k]);
+        for (; y > 15; y--) { int n = 0; for (int k = 0; k < 4; k++) { int b = y < 256 && y >= 0 ? cols[k][y] : 0; if (vp == 4 ? b == 2 : b != 0) n++; } if (n >= 3) break; }
+      } }
+    /* 틀 */
+    for (int i = 0; i < 16; i++) outBuf[100 + i] = 0;
+    outBuf[100] = y; outBuf[101] = vp; outBuf[102] = t; outBuf[106] = rot; outBuf[107] = mir; outBuf[112] = (tp == ocean);
+    if (T[3] < 0) { outBuf[103] = 99; return 99; }
+    int fx = T[3], fz0 = T[4], fz1 = T[5], fy0 = T[6], fy1 = T[7];
+    signed char good[24][24]; memset(good, 0, sizeof good);   /* [y][z] 1 흑요석, 2 우는 흑요석 */
+    int ngood = 0;
+    for (int k = RP_N[t][0]; k < RP_N[t][1]; k++) {
+        int ty = RP_P[k][0], tz = RP_P[k][1], wx, wz; rpTransform(fx, tz, mir, rot, pvx, pvz, &wx, &wz);
+        wx += px; wz += pz; int wy = y + ty;
+        rpJSet(rpGetSeed(wx, wy, wz)); int cry = rpJFloat() < 0.15f;
+        good[ty][tz] = cry ? 2 : 1; if (!cry) ngood++;
+    }
+    /* 땅 위·물 밑 차원문: 기둥 맨 위(높이 3 이하)의 우는 흑요석은 게임이 네더랙으로 덮을 수 있고, 그러면 바로 밑부터 50%씩
+       네더랙·마그마로 바뀜. 실제로 덮이는지는 장식 난수라 "없어질 수 있는 칸"으로 따로 셈 (1.16.1·26.3 월드 대조) */
+    signed char risk[24][24]; memset(risk, 0, sizeof risk);
+    if (vp == 0 || vp == 4) for (int zz = 0; zz < 16; zz++) {
+        int ty = RP_TOPO[t][zz]; if (ty < 0 || good[ty][zz] != 2) continue;
+        for (int k = ty - 1; k >= 0 && k >= ty - 9; k--) risk[k][zz] = 1;   /* 네더랙이 그 기둥에 떨어질지는 장식 난수라 "없어질 수 있음"으로 */
+    }
+    /* 설계도 틀 안에서 가장 적게 채워도 되는 틀 (안쪽 최소 2×3) */
+    int best = 999, bc = 0, br = 0, b0 = 0, b1 = 0, b2 = 0, b3 = 0;
+    for (int a0 = fz0; a0 <= fz1; a0++) for (int a1 = a0 + 3; a1 <= fz1; a1++)
+    for (int c0 = fy0; c0 <= fy1; c0++) for (int c1 = c0 + 4; c1 <= fy1; c1++) {
+        int need = 0, cry = 0, rk = 0;
+        for (int zz = a0; zz <= a1; zz++) for (int yy = c0; yy <= c1; yy++) {
+            int edgeZ = (zz == a0 || zz == a1), edgeY = (yy == c0 || yy == c1);
+            if (!(edgeZ || edgeY) || (edgeZ && edgeY)) continue;
+            if (good[yy][zz] != 1) need++; else if (risk[yy][zz]) rk++; if (good[yy][zz] == 2) cry++;
+        }
+        if (need < best || (need == best && rk < br)) { best = need; bc = cry; br = rk; b0 = a0; b1 = a1; b2 = c0; b3 = c1; }
+    }
+    outBuf[103] = best; outBuf[104] = bc; outBuf[105] = ngood; outBuf[108] = b0; outBuf[109] = b1; outBuf[110] = b2; outBuf[111] = b3; outBuf[113] = br;
+    return best;
+}
+/* 확인용: (x,z) 블록 기둥의 1.16 지표 높이 (WORLD_SURFACE_WG) */
+int rp_height(int x, int z) { if (rpNew()) { ensureTN(); return rp18Base(x, z, 0); } if (G.mc < MC_1_16_1 || G.mc >= MC_1_17) return -1; rpInitNoise(); return rpBaseHeight(x, z, 0); }
+/* 고른 버전에 그 바이옴이 생기는지 */
+int biome_ok(int id) { return isOverworld(G_MCV, id); }

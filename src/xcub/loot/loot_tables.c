@@ -70,6 +70,8 @@
 #include "loot_tables/chests/stronghold_library_1_13.h"
 #include "loot_tables/chests/stronghold_library_1_20.h"
 #include "loot_tables/chests/bastion_treasure_26_3.h"
+#include "loot_tables/chests/bastion_treasure_1_16_1.h"
+#include "loot_tables/chests/bastion_hoglin_stable_1_16_1.h"
 #include "loot_tables/chests/bastion_hoglin_stable_26_3.h"
 #include "loot_tables/chests/ancient_city_26_3.h"
 #include "loot_tables/chests/ancient_city_ice_box_26_3.h"
@@ -81,6 +83,22 @@
 #include "loot_tables/pots/trial_chambers/pot_corridor_26_3.h"
 #include "loot_tables/dispensers/trial_chambers/disp_chamber_26_3.h"
 #include "loot_tables/dispensers/trial_chambers/disp_corridor_26_3.h"
+#include "loot_tables/chests/village/village_armorer_1_16_1.h"
+#include "loot_tables/chests/village/village_butcher_1_16_1.h"
+#include "loot_tables/chests/village/village_cartographer_1_16_1.h"
+#include "loot_tables/chests/village/village_desert_house_1_16_1.h"
+#include "loot_tables/chests/village/village_fisher_1_16_1.h"
+#include "loot_tables/chests/village/village_fletcher_1_16_1.h"
+#include "loot_tables/chests/village/village_mason_1_16_1.h"
+#include "loot_tables/chests/village/village_plains_house_1_16_1.h"
+#include "loot_tables/chests/village/village_savanna_house_1_16_1.h"
+#include "loot_tables/chests/village/village_shepherd_1_16_1.h"
+#include "loot_tables/chests/village/village_snowy_house_1_16_1.h"
+#include "loot_tables/chests/village/village_taiga_house_1_16_1.h"
+#include "loot_tables/chests/village/village_tannery_1_16_1.h"
+#include "loot_tables/chests/village/village_temple_1_16_1.h"
+#include "loot_tables/chests/village/village_toolsmith_1_16_1.h"
+#include "loot_tables/chests/village/village_weaponsmith_1_16_1.h"
 #include "loot_tables/chests/village/village_armorer_26_3.h"
 #include "loot_tables/chests/village/village_butcher_26_3.h"
 #include "loot_tables/chests/village/village_cartographer_26_3.h"
@@ -141,58 +159,58 @@ int init_loot_table_name(LootTableContext** context, const char* loot_table, int
         *context = init_disp_corridor_26_3(); return version >= MC_26_3;
     }
     if (strcmp(loot_table, "chests/village/village_armorer") == 0) {
-        *context = init_village_armorer_26_3(); return version >= MC_26_3;
+        if (version >= MC_26_3) { *context = init_village_armorer_26_3(); return 1; } *context = init_village_armorer_1_16_1(); return version >= MC_1_16_1 && version < MC_1_17;
     }
     if (strcmp(loot_table, "chests/village/village_butcher") == 0) {
-        *context = init_village_butcher_26_3(); return version >= MC_26_3;
+        if (version >= MC_26_3) { *context = init_village_butcher_26_3(); return 1; } *context = init_village_butcher_1_16_1(); return version >= MC_1_16_1 && version < MC_1_17;
     }
     if (strcmp(loot_table, "chests/village/village_cartographer") == 0) {
-        *context = init_village_cartographer_26_3(); return version >= MC_26_3;
+        if (version >= MC_26_3) { *context = init_village_cartographer_26_3(); return 1; } *context = init_village_cartographer_1_16_1(); return version >= MC_1_16_1 && version < MC_1_17;
     }
     if (strcmp(loot_table, "chests/village/village_desert_house") == 0) {
-        *context = init_village_desert_house_26_3(); return version >= MC_26_3;
+        if (version >= MC_26_3) { *context = init_village_desert_house_26_3(); return 1; } *context = init_village_desert_house_1_16_1(); return version >= MC_1_16_1 && version < MC_1_17;
     }
     if (strcmp(loot_table, "chests/village/village_fisher") == 0) {
-        *context = init_village_fisher_26_3(); return version >= MC_26_3;
+        if (version >= MC_26_3) { *context = init_village_fisher_26_3(); return 1; } *context = init_village_fisher_1_16_1(); return version >= MC_1_16_1 && version < MC_1_17;
     }
     if (strcmp(loot_table, "chests/village/village_fletcher") == 0) {
-        *context = init_village_fletcher_26_3(); return version >= MC_26_3;
+        if (version >= MC_26_3) { *context = init_village_fletcher_26_3(); return 1; } *context = init_village_fletcher_1_16_1(); return version >= MC_1_16_1 && version < MC_1_17;
     }
     if (strcmp(loot_table, "chests/village/village_mason") == 0) {
-        *context = init_village_mason_26_3(); return version >= MC_26_3;
+        if (version >= MC_26_3) { *context = init_village_mason_26_3(); return 1; } *context = init_village_mason_1_16_1(); return version >= MC_1_16_1 && version < MC_1_17;
     }
     if (strcmp(loot_table, "chests/village/village_plains_house") == 0) {
-        *context = init_village_plains_house_26_3(); return version >= MC_26_3;
+        if (version >= MC_26_3) { *context = init_village_plains_house_26_3(); return 1; } *context = init_village_plains_house_1_16_1(); return version >= MC_1_16_1 && version < MC_1_17;
     }
     if (strcmp(loot_table, "chests/village/village_savanna_house") == 0) {
-        *context = init_village_savanna_house_26_3(); return version >= MC_26_3;
+        if (version >= MC_26_3) { *context = init_village_savanna_house_26_3(); return 1; } *context = init_village_savanna_house_1_16_1(); return version >= MC_1_16_1 && version < MC_1_17;
     }
     if (strcmp(loot_table, "chests/village/village_shepherd") == 0) {
-        *context = init_village_shepherd_26_3(); return version >= MC_26_3;
+        if (version >= MC_26_3) { *context = init_village_shepherd_26_3(); return 1; } *context = init_village_shepherd_1_16_1(); return version >= MC_1_16_1 && version < MC_1_17;
     }
     if (strcmp(loot_table, "chests/village/village_snowy_house") == 0) {
-        *context = init_village_snowy_house_26_3(); return version >= MC_26_3;
+        if (version >= MC_26_3) { *context = init_village_snowy_house_26_3(); return 1; } *context = init_village_snowy_house_1_16_1(); return version >= MC_1_16_1 && version < MC_1_17;
     }
     if (strcmp(loot_table, "chests/village/village_taiga_house") == 0) {
-        *context = init_village_taiga_house_26_3(); return version >= MC_26_3;
+        if (version >= MC_26_3) { *context = init_village_taiga_house_26_3(); return 1; } *context = init_village_taiga_house_1_16_1(); return version >= MC_1_16_1 && version < MC_1_17;
     }
     if (strcmp(loot_table, "chests/village/village_tannery") == 0) {
-        *context = init_village_tannery_26_3(); return version >= MC_26_3;
+        if (version >= MC_26_3) { *context = init_village_tannery_26_3(); return 1; } *context = init_village_tannery_1_16_1(); return version >= MC_1_16_1 && version < MC_1_17;
     }
     if (strcmp(loot_table, "chests/village/village_temple") == 0) {
-        *context = init_village_temple_26_3(); return version >= MC_26_3;
+        if (version >= MC_26_3) { *context = init_village_temple_26_3(); return 1; } *context = init_village_temple_1_16_1(); return version >= MC_1_16_1 && version < MC_1_17;
     }
     if (strcmp(loot_table, "chests/village/village_toolsmith") == 0) {
-        *context = init_village_toolsmith_26_3(); return version >= MC_26_3;
+        if (version >= MC_26_3) { *context = init_village_toolsmith_26_3(); return 1; } *context = init_village_toolsmith_1_16_1(); return version >= MC_1_16_1 && version < MC_1_17;
     }
     if (strcmp(loot_table, "chests/village/village_weaponsmith") == 0) {
-        *context = init_village_weaponsmith_26_3(); return version >= MC_26_3;
+        if (version >= MC_26_3) { *context = init_village_weaponsmith_26_3(); return 1; } *context = init_village_weaponsmith_1_16_1(); return version >= MC_1_16_1 && version < MC_1_17;
     }
     if (strcmp(loot_table, "chests/bastion_treasure") == 0) {
-        *context = init_bastion_treasure_26_3(); return version >= MC_1_16_1;
+        *context = version < MC_1_17 ? init_bastion_treasure_1_16_1() : init_bastion_treasure_26_3(); return version >= MC_1_16_1;
     }
     if (strcmp(loot_table, "chests/bastion_hoglin_stable") == 0) {
-        *context = init_bastion_hoglin_stable_26_3(); return version >= MC_1_16_1;
+        *context = version < MC_1_17 ? init_bastion_hoglin_stable_1_16_1() : init_bastion_hoglin_stable_26_3(); return version >= MC_1_16_1;
     }
     if (strcmp(loot_table, "chests/ancient_city") == 0) {
         *context = init_ancient_city_26_3(); return version >= MC_26_3;

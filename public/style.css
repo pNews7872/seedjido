@@ -40,6 +40,14 @@ header p { margin: 0; color: var(--muted); max-width: 68ch; }
 @media (max-width: 880px) { .grid { grid-template-columns: 1fr; } }
 .panel { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 18px; display: grid; gap: 14px; min-width: 0; }
 .panel h2 { font-size: 14px; margin: 0; color: var(--muted); font-weight: 600; letter-spacing: 0.02em; }
+.verpick { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--muted); margin-left: auto; margin-right: 12px; }
+.verpick select { font: inherit; padding: 6px 8px; border-radius: 8px; border: 1px solid var(--line); background: var(--card, #fff); color: var(--ink); }
+.srtog { font-size: 13px; font-weight: 500; color: var(--muted); margin-left: 8px; display: inline-flex; gap: 4px; align-items: center; }
+.srbox { display: grid; gap: 6px; } .srbox[hidden] { display: none; }
+.srrow { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 10px; font-size: 13.5px; padding: 4px 0; border-bottom: 1px dashed var(--line); }
+.srrow label { display: inline-flex; gap: 6px; align-items: center; cursor: pointer; }
+.srrow input[type=number] { width: 70px; font: inherit; font-family: var(--font-mono); font-size: 13px; padding: 3px 6px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--ink); }
+.srrow.off span { opacity: .45; }
 .chips { display: flex; flex-wrap: wrap; gap: 6px; max-height: 300px; overflow-y: auto; padding-right: 4px; }
 .chips.short { max-height: none; }
 .grp { flex-basis: 100%; font-size: 12px; color: var(--muted); margin-top: 6px; }
@@ -100,9 +108,15 @@ tr.row.sel td { background: color-mix(in srgb, var(--accent) 14%, transparent); 
 .tag { font-size: 11px; color: var(--mark); border: 1px solid var(--mark); border-radius: 4px; padding: 0 4px; margin-left: 6px; font-weight: 600; }
 .mini { font: inherit; font-size: 12px; padding: 3px 8px; border-radius: 6px; border: 1px solid var(--line); background: transparent; color: var(--ink); cursor: pointer; }
 .empty { color: var(--muted); font-size: 14px; padding: 12px 2px; }
-.mapbox { display: grid; grid-template-columns: minmax(0, 400px) 1fr; gap: 16px; align-items: start; }
+.mapbox { display: grid; grid-template-columns: minmax(0, calc(400px * var(--pvs, 1))) 1fr; gap: 16px; align-items: start; }
 @media (max-width: 640px) { .mapbox { grid-template-columns: 1fr; } }
-#preview { width: 100%; height: auto; border-radius: 8px; border: 1px solid var(--line); image-rendering: pixelated; background: var(--bg); }
+#preview { width: 100%; height: auto; border-radius: 8px; border: 1px solid var(--line); image-rendering: pixelated; background: var(--bg); touch-action: none; cursor: grab; display: block; }
+.pvwrap { position: relative; }
+.pvtip { position: absolute; left: 8px; top: 8px; background: rgba(0,0,0,.72); color: #fff; font-size: 12px; padding: 4px 8px; border-radius: 6px; pointer-events: none; max-width: calc(100% - 16px); }
+.pvzoom { position: absolute; right: 8px; bottom: 8px; display: flex; gap: 4px; }
+.pvzoom .mini { min-width: 30px; background: rgba(255,255,255,.9); }
+.pvsize { margin: 10px 0 6px; } .pvsize .mini[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); }
+.pvbiomes { display: flex; flex-wrap: wrap; gap: 4px 10px; font-size: 12px; } .pvbiomes span { white-space: nowrap; } .pvbiomes i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 4px; vertical-align: -1px; border: 1px solid rgba(0,0,0,.2); }
 .legend { display: grid; gap: 6px; font-size: 13px; }
 .legend div { display: flex; align-items: center; gap: 8px; }
 .legend .sw { width: 14px; height: 14px; border-radius: 3px; border: 1px solid rgba(0,0,0,.25); flex: none; }
@@ -121,7 +135,7 @@ body.mapfull { overflow: hidden; }
 .seg.small { width: auto; }
 .seg.small button { padding: 4px 12px; font-size: 13px; white-space: nowrap; }
 #gl3d, #ov3d { position: absolute; inset: 0; width: 100%; height: 100%; }
-#gl3d { cursor: grab; } #ov3d { pointer-events: none; }
+#gl3d { cursor: grab; touch-action: none; } #ov3d { pointer-events: none; }
 #zcave[aria-pressed=true] { background: #2f6b4f; }
 .v3dnote { position: absolute; left: 10px; bottom: 10px; background: rgba(0,0,0,.6); color: #fff; font-size: 12px; padding: 5px 9px; border-radius: 6px; pointer-events: none; }
 h2.hq { display: flex; align-items: center; justify-content: space-between; gap: 8px; }

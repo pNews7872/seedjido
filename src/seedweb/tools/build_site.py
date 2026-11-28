@@ -34,6 +34,21 @@ open(f'{OUT}/style.css', 'w').write(css)
 # 고대 도시 조립기 + 조각 데이터 (지그소)
 jg = open(f'{SRC}/jigsaw/jigsaw.mjs').read().replace('export ', '')
 js += '\n' + jg + '\nconst AC_DATA = ' + open(f'{SRC}/jigsaw/ancient_city.json').read() + ';\n'
+# 게임 한국어판 공식 이름 (마인크래프트 ko_kr 언어 파일에서 필요한 것만)
+_ko = __import__('json').load(open(f'{SRC}/jigsaw/ko_kr.json'))
+_K = {'i': {}, 'e': {}, 'f': {}, 'b': {}, 't': {}, 'd': {}}
+for _k, _v in _ko.items():
+    _p = _k.split('.')
+    if len(_p) == 3 and _p[1] == 'minecraft':
+        if _p[0] in ('item', 'block'): _K['i'].setdefault(_p[2], _v) if _p[0] == 'block' else _K['i'].__setitem__(_p[2], _v)
+        elif _p[0] == 'enchantment': _K['e'][_p[2]] = _v
+        elif _p[0] == 'effect': _K['f'][_p[2]] = _v
+        elif _p[0] == 'biome': _K['b'][_p[2]] = _v
+        elif _p[0] == 'trim_pattern': _K['t'][_p[2]] = _v
+    elif len(_p) == 4 and _p[0] == 'item' and _p[3] == 'desc': _K['d'][_p[2]] = _v
+js = 'const KO = ' + __import__('json').dumps(_K, ensure_ascii=False, separators=(',', ':')) + ';\n' + js
+# 작업자(워커)도 같은 조립기를 쓰도록 소스를 문자열로 (시드 찾기 상자 아이템)
+js = 'var JIG_SRC = ' + __import__('json').dumps(jg) + ';\n' + js
 open(f'{OUT}/app.js', 'w').write(js)
 # 마을·시련의 방 조각 데이터는 필요할 때 받아옴
 import json as _j
@@ -42,6 +57,8 @@ _t = _j.load(open(f'{SRC}/jigsaw/trial_chambers.json')); _t['A'] = _j.load(open(
 _j.dump(_t['A'], open(f'{SRC}/jigsaw/trial_aliases.json', 'w'))
 open(f'{OUT}/jigsaw/trial_chambers.json', 'w').write(_j.dumps(_t, separators=(',', ':')))
 shutil.copy(f'{SRC}/jigsaw/village.json', f'{OUT}/jigsaw/village.json')
+shutil.copy(f'{SRC}/jigsaw/village_1_16.json', f'{OUT}/jigsaw/village_1_16.json')
+shutil.copy(f'{SRC}/jigsaw/bastion_1_16.json', f'{OUT}/jigsaw/bastion_1_16.json')
 for _n in ['ancient_city', 'trial_chambers', 'village', 'bastion', 'end_city']: shutil.copy(f'{SRC}/jigsaw/{_n}_tops.json', f'{OUT}/jigsaw/{_n}_tops.json')
 for _n in ['bastion', 'end_city']: shutil.copy(f'{SRC}/jigsaw/{_n}.json', f'{OUT}/jigsaw/{_n}.json')
 shutil.copy(f'{SRC}/seed3.wasm', f'{OUT}/seed.wasm')
