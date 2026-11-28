@@ -19,7 +19,7 @@ html = re.sub(r'<script>.*?</script>', '<script src="app.js"></script>', html, c
 html = re.sub(r'<title>.*?</title>', '<title>시드 지도 — 마인크래프트 자바 시드 지도·시드 찾기</title>\n<meta name="description" content="마인크래프트 자바 에디션 시드 지도와 시드 찾기. 바이옴, 구조물, 상자 내용물, 엔드 도시와 배, 네더 화석까지 한국어로 보여줘요.">', html, count=1, flags=re.S)
 foot = '''<div class="adslot" id="adslot" aria-label="광고"></div>
 <footer class="sitefoot">
-  <nav class="footnav"><a href="about.html">소개</a> · <a href="guide-map.html">지도 사용법</a> · <a href="guide-search.html">시드 찾기 사용법</a> · <a href="guide-loot.html">상자 내용물 보는 법</a> · <a href="privacy.html">개인정보처리방침</a></nav>
+  <nav class="footnav"><a href="about.html">소개</a> · <a href="guide-map.html">지도 사용법</a> · <a href="guide-search.html">시드 찾기 사용법</a> · <a href="guide-loot.html">상자 내용물 보는 법</a> · <a href="privacy.html">개인정보처리방침</a> · <a href="#" class="verlink" data-clog>버전 정보·업데이트 내역</a></nav>
   시드 지도는 Mojang Studios·Microsoft와 관계없는 비공식 팬 도구예요. Minecraft는 Mojang Synergies AB의 상표예요.<br>
   지형·구조물 계산: <a href="https://github.com/Cubitect/cubiomes">Cubiomes</a> (MIT 라이선스, © Cubitect) · <a href="https://github.com/xpple/cubiomes">xpple/cubiomes</a> (MIT 라이선스)
 </footer>
